@@ -13,9 +13,9 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
   }, [messages]);
 
   return (
-    <div className="flex-1 overflow-y-auto pt-8 px-4 md:px-0 space-y-2">
+    <div className="flex-1 overflow-y-auto w-full">
       {/* Centering the content within the scrolling area */}
-      <div className="max-w-3xl mx-auto">
+      <div className="chat-viewport-container py-4 space-y-6">
         {messages.map((msg, i) => (
           <MessageBubble key={i} message={msg} />
         ))}

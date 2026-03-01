@@ -136,3 +136,10 @@
     overflow-x: auto;
   }
 }
+
+@layer components {
+  /* This ensures the Header, Messages, and Input always share the same grid */
+  .chat-viewport-container {
+    @apply mx-auto w-full max-w-5xl px-4 md:px-8;
+  }
+}

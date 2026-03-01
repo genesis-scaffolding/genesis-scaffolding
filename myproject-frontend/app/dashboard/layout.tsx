@@ -171,7 +171,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
           {/* Added a subtle background color to main area to pop the chat bubbles */}
           <main className="flex-1 overflow-y-auto bg-slate-50/30 p-6 transition-all duration-300 dark:bg-slate-950/20">
-            <div className="mx-auto max-w-7xl h-full">
+            <div className="h-full">
               {children}
             </div>
           </main>

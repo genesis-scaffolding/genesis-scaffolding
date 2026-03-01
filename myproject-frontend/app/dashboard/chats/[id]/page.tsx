@@ -16,8 +16,8 @@ export default async function ChatDetailPage({ params }: { params: Promise<{ id:
 
     return (
       <ChatProvider session={data.session} initialMessages={initialMessages}>
-        <div className="max-w-4xl mx-auto h-[calc(100vh-120px)] flex flex-col pt-6 pb-2">
-          <header className="mb-4 px-4">
+        <div className="flex flex-col h-full">
+          <header className="pt-8 pb-4 chat-viewport-container">
             <h1 className="text-2xl font-bold tracking-tight">{data.session.title}</h1>
             <p className="text-muted-foreground text-sm">Session ID: #{data.session.id}</p>
           </header>
