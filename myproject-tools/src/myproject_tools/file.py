@@ -177,8 +177,7 @@ class WriteFileTool(BaseTool):
             # immediately sees the result of its work in the next turn.
             return ToolResult(
                 status="success",
-                tool_response=f"Successfully wrote to '{file_path}'. The updated content is now on your clipboard.",
-                files_to_add_to_clipboard=[validated_path],
+                tool_response=f"Successfully wrote the content to '{file_path}'.",
             )
 
         except ValueError as e:

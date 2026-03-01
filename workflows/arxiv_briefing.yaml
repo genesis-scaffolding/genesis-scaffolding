@@ -1,5 +1,5 @@
 name: "Daily Arxiv Briefing"
-description: "Curate the latest technical engineering blogs."
+description: "Curate the latest arxiv papers."
 version: "1.0"
 
 inputs:
