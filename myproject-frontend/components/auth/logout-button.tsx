@@ -4,6 +4,12 @@ import { useActionState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { logoutAction } from '@/app/actions/auth';
 import type { LogoutState } from '@/types/auth';
+import { LogOut, Loader2 } from 'lucide-react';
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton
+} from '@/components/ui/sidebar';
 
 export default function LogoutButton() {
   const router = useRouter();
@@ -19,17 +25,34 @@ export default function LogoutButton() {
   }, [state.success, router]);
 
   return (
-    <form action={formAction}>
-      {state.error && (
-        <p className="text-sm text-red-600 mr-2">{state.error}</p>
-      )}
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed transition-colors"
-      >
-        {isPending ? 'Logging out...' : 'Logout'}
-      </button>
-    </form>
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <form action={formAction} className="w-full">
+          <SidebarMenuButton
+            disabled={isPending}
+            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+            tooltip="Logout"
+            type="submit"
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4" />
+            )}
+
+            {/* The span will automatically hide when sidebar is collapsed thanks to the sidebar group logic */}
+            <span className="group-data-[collapsible=icon]:hidden font-medium">
+              {isPending ? 'Logging out...' : 'Logout'}
+            </span>
+          </SidebarMenuButton>
+
+          {state.error && (
+            <p className="mt-2 px-2 text-xs text-red-600 group-data-[collapsible=icon]:hidden">
+              {state.error}
+            </p>
+          )}
+        </form>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
