@@ -60,7 +60,7 @@ class ServerConfig(BaseModel):
     # Generates a secure 32-byte hex string if not provided
     jwt_secret_key: str = Field(default_factory=lambda: secrets.token_hex(32))
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 600
     # Initial Admin Account (Optional)
     admin_username: str | None = None
     admin_password: str | None = None
