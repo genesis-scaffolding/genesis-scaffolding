@@ -2,11 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from myproject_core.agent_registry import AgentRegistry
 from myproject_core.configs import settings
-from myproject_core.workflow_engine import WorkflowEngine
-from myproject_core.workflow_registry import WorkflowRegistry
-from myproject_core.workspace import WorkspaceManager
 
 from .chat_manager import ChatManager
 from .database import init_db
@@ -16,33 +12,26 @@ from .scheduler import SchedulerManager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # This runs on startup
-    # Initialise databases
+    # 1. Initialize Database (Creates tables and Admin user)
     init_db()
-    # Initialize Core Workflow Infrastructure
-    # workspace = WorkspaceManager(settings)
-    # registry = WorkflowRegistry(settings)
-    # agent_registry = AgentRegistry(settings)
-    # engine = WorkflowEngine(workspace, agent_registry)
-    #
-    # # 3. Initialize & Start Scheduler
-    # sm = SchedulerManager(engine, registry)
-    #
-    # # Load existing schedules from DB into memory
-    # await sm.sync_schedules()
-    # sm.start()
 
-    # 4. Store in app state for dependencies
-    # app.state.scheduler = sm
+    # 2. Initialize the Global Scheduler Manager
+    sm = SchedulerManager()
 
-    chat_manager = ChatManager()
-    app.state.chat_manager = chat_manager
+    # 3. Load all schedules from all users into the global scheduler
+    await sm.sync_schedules()
+    sm.start()
+
+    # 4. Store in app state so routes can call sm.upsert_schedule/remove_schedule
+    app.state.scheduler = sm
+
+    # Initialize other global state
+    app.state.chat_manager = ChatManager()
 
     yield
 
     # 5. Shutdown Logic
-    # sm.scheduler.shutdown(wait=False)
-    # Cleanup logic (if any) goes here
+    sm.stop()
 
 
 app = FastAPI(title="MyProject API", lifespan=lifespan)

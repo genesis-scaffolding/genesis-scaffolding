@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from myproject_core.agent_registry import AgentRegistry
@@ -151,15 +151,15 @@ async def get_workflow_engine(
     return WorkflowEngine(wm, agent_reg)
 
 
-async def get_scheduler_manager(
-    engine: Annotated[WorkflowEngine, Depends(get_workflow_engine)],
-    registry: Annotated[WorkflowRegistry, Depends(get_workflow_registry)],
-) -> SchedulerManager:
+# --- System-Level Injections ---
+
+
+async def get_scheduler_manager(request: Request) -> SchedulerManager:
     """
     The Scheduler usually remains a global system-level service (app.state),
     as it manages background threads/processes across all users.
     """
-    return SchedulerManager(engine, registry)
+    return request.app.state.scheduler
 
 
 # --- Updated Type Aliases for Clean Routers ---
