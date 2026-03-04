@@ -1,8 +1,9 @@
 'use server'
 
 import { apiFetch } from "@/lib/api-client";
-import { Agent } from "@/types/chat";
+import { Agent, AgentCreate } from "@/types/chat";
 import { ChatSession } from "@/types/chat";
+import { revalidatePath } from "next/cache";
 
 export async function getChatHistoryAction(sessionId: number) {
   const res = await apiFetch(`/chats/${sessionId}`);
@@ -25,6 +26,24 @@ export async function getAgentsAction(): Promise<Agent[]> {
   return res.json();
 }
 
+export async function createAgentAction(data: AgentCreate): Promise<Agent> {
+  const res = await apiFetch(`/agents/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.detail || "Failed to create agent");
+  }
+
+  const newAgent = await res.json();
+  revalidatePath('/dashboard/agents');
+  return newAgent;
+}
 
 export async function listChatSessionsAction(): Promise<ChatSession[]> {
   const res = await apiFetch(`/chats/`);

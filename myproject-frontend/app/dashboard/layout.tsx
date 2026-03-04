@@ -37,7 +37,7 @@ const navGroups = [
     items: [
       {
         title: "Agents",
-        url: "/dashboard/chats",
+        url: "/dashboard/agents",
         icon: MessagesSquare,
         tooltip: "Chat with AI Agents"
       },

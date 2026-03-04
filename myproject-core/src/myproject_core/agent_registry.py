@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import frontmatter
@@ -29,6 +30,7 @@ class AgentRegistry:
                     raw_data = agent_manifest.metadata
                     raw_data["system_prompt"] = agent_manifest.content.strip()
 
+                    # Automatically add default LLM config to the agent if the agent does not have LLM config
                     if not raw_data.get("llm_config"):
                         raw_data["llm_config"] = self._get_llm_model_config()
 
@@ -38,6 +40,43 @@ class AgentRegistry:
                 except Exception as e:
                     print(f"Error loading {md_file.name}: {e}")
                     continue  # Continue so that it does not break init step if user accidentally write a bad agent
+
+    def save_agent(self, agent_data: dict) -> str:
+        """
+        Persists a new agent to the user's local agent directory.
+        Returns the agent_id (filename stem).
+        """
+        # 1. Determine the writeable path (the user-specific internal state dir)
+        # We assume that the last path is the user-specific directory
+        write_dir = self.settings.path.agent_search_paths[-1]
+        write_dir.mkdir(parents=True, exist_ok=True)
+
+        # 2. Generate a valid filename (slugify the name)
+        agent_id = re.sub(r"[^a-z0-9]+", "_", agent_data["name"].lower()).strip("_")
+        file_path = write_dir / f"{agent_id}.md"
+
+        if file_path.exists():
+            # Basic collision handling: append a suffix if exists
+            # In a production app, you might want to return an error instead
+            import uuid
+
+            agent_id = f"{agent_id}_{uuid.uuid4().hex[:4]}"
+            file_path = write_dir / f"{agent_id}.md"
+
+        # 3. Separate content from metadata
+        content = agent_data.pop("system_prompt", "")
+
+        # 4. Create the frontmatter post
+        post = frontmatter.Post(content, **agent_data)
+
+        # 5. Write to disk
+        with open(file_path, "wb") as f:
+            frontmatter.dump(post, f)
+
+        # 6. Reload registry to include the new agent
+        self.load_all()
+
+        return agent_id
 
     def create_agent(
         self,

@@ -31,3 +31,13 @@ export interface Agent {
   allowed_agents: string[];
   model_name?: string | null;
 }
+
+export interface AgentCreate {
+  name: string;
+  description: string;
+  system_prompt: string;
+  interactive: boolean;
+  allowed_tools: string[];
+  allowed_agents: string[];
+  model_name?: string | null;
+}
