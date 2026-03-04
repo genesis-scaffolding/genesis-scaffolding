@@ -1,11 +1,14 @@
+import asyncio
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from myproject_core.configs import Config
 from sqlmodel import Session, select
 
 from ..auth.security import get_password_hash, verify_password
 from ..database import get_session
-from ..dependencies import get_current_active_user
+from ..dependencies import get_current_active_user, get_server_settings
 from ..models.user import User
 from ..schemas.user import UserCreate, UserRead, UserUpdate
 
@@ -13,7 +16,11 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def create_user(user_in: UserCreate, session: Annotated[Session, Depends(get_session)]):
+async def create_user(
+    user_in: UserCreate,
+    session: Annotated[Session, Depends(get_session)],
+    server_settings: Annotated[Config, Depends(get_server_settings)],
+):
     """
     Create a new user.
     Checks if username already exists, hashes password, and saves to DB.
@@ -33,9 +40,26 @@ async def create_user(user_in: UserCreate, session: Annotated[Session, Depends(g
         hashed_password=get_password_hash(user_in.password),  # Hash it!
     )
 
+    # Commit first so the database assigns an ID to db_user.id
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
+
+    # 3. Create the sandbox directory asynchronously
+    server_users_directory = server_settings.path.server_users_directory
+
+    # Construct the path: <server_users_directory>/<user_id>
+    user_dir = Path(server_users_directory) / str(db_user.id)
+
+    # Use asyncio.to_thread to run the blocking os/pathlib mkdir call in a background thread.
+    await asyncio.to_thread(user_dir.mkdir, parents=True, exist_ok=True)
+
+    # 4. Save the directory path back to the user record
+    db_user.working_directory = str(user_dir)
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
+
     return db_user
 
 

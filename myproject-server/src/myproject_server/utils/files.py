@@ -2,7 +2,7 @@ import mimetypes
 import time
 from pathlib import Path
 
-from myproject_core.configs import settings
+from myproject_core.configs import Config
 from sqlmodel import Session, select
 
 from ..models.file_record import FileRecord
@@ -40,6 +40,8 @@ def sync_folder_shallow(session: Session, user_id: int, user_sandbox_path: Path,
             rel_path = str(entry.relative_to(user_sandbox_path))
             files_on_disk[rel_path] = entry
 
+    print(files_on_disk)
+
     # 4. Get current DB state for this folder only
     statement = select(FileRecord).where(FileRecord.user_id == user_id, FileRecord.folder == folder_path)
     db_records = {r.relative_path: r for r in session.exec(statement).all()}
@@ -51,7 +53,8 @@ def sync_folder_shallow(session: Session, user_id: int, user_sandbox_path: Path,
         if rel_path not in db_records:
             new_record = FileRecord(
                 filename=path.name,
-                file_path=str(path.relative_to(settings.path.inbox_directory)),
+                # file_path=str(path.relative_to(settings.path.inbox_directory)),
+                file_path=str(path.relative_to(user_sandbox_path)),
                 relative_path=rel_path,
                 folder=folder_path,
                 mime_type=mimetypes.guess_type(path)[0] or "application/octet-stream",

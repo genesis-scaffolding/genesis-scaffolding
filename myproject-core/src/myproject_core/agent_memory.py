@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from .configs import settings
+from .configs import get_config
 from .schemas import AgentClipboard
 
 
@@ -46,12 +46,11 @@ class AgentMemory:
         self.agent_clipboard.remove_expired_items()
         self.agent_clipboard.commit()
 
-    def get_clipboard_message(self, shorten: bool = False) -> dict[str, str]:
+    def get_clipboard_message(self, shorten: bool = False, timezone: str = "UTC") -> dict[str, str]:
         """
         Formats the clipboard as a system message.
         This is ephemeral and should not be stored in self.messages.
         """
-        timezone = settings.server.timezone
         now = datetime.now(ZoneInfo(timezone))
         content = (
             "## CURRENT CLIPBOARD\n"

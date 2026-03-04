@@ -10,7 +10,7 @@ from myproject_tools.registry import tool_registry
 from myproject_tools.schema import ToolResult
 
 from .agent_memory import AgentMemory
-from .configs import settings
+from .configs import get_config
 from .llm import get_llm_response
 from .schemas import AgentConfig, LLMModel, LLMProvider, StreamCallback, ToolCallback
 from .utils import streamcallback_simple_print
@@ -45,12 +45,6 @@ After every tool call, you will receive the tool response message and the **late
 
 Use the content of the tool response and clipboard to understand the progress and figure out the next step.
 
-## How to read files
-
-Use the read file tool to read a file and add its content to the clipboard.
-
-The file would be automatically removed from the clipboard after a certain number of conversation turns to save space. If you want to access the content of the file, read it again.
-
 ## How to write files
 
 Use write file tool when you need to create a new file in the working directory
@@ -62,8 +56,6 @@ Use write file tool when you need to create a new file in the working directory
 5. If the tool response shows that the write operation failed, figure out the reason and retry
 6. If the tool response shows that the write operation successed, verify the content of the file in the clipboard and conclude the file write task
 
-Remember, if the file exist in the clipboard, it has already been written successfully to the working directory. DO NOT WRITE AGAIN.
-
 ## How to edit files
 
 Use edit file tool when you need to replace or add content to an existing file.
@@ -74,9 +66,7 @@ Use edit file tool when you need to replace or add content to an existing file.
 4. Figure out the block of text in the existing file that you want to replace. If you need to add text to an existing empty session, use the session header as the text block to replace. If you need to add text to the end of a paragraph, use the last sentence of the paragraph as the text block.
 5. Call the file edit tool.
 6. If the tool response shows that the edit operation failed, figure out the reason and retry
-7. If the tool response shows that the edit operation was successful, conclude the editing task. Do not call edit tool again.
-
-Remember, if the file exist in the clipboard, it has already been written successfully to the working directory. DO NOT EDIT AGAIN.
+7. If the tool response shows that the edit operation was successful, conclude the editing task.
 
 -----
 
@@ -107,6 +97,7 @@ class Agent:
         self,
         agent_config: AgentConfig,
         memory: AgentMemory | None = None,
+        timezone: str = "UTC",
         working_directory: Path | None = None,
         content_chunk_callbacks: list[StreamCallback] | None = None,
         reasoning_chunk_callbacks: list[StreamCallback] | None = None,
@@ -139,6 +130,8 @@ class Agent:
 
         self.tools: list[Any] = []  # This will hold the tool instances
         self._resolve_tools()
+
+        self.timezone = timezone  # Timezone for providing agent with accurate local time
 
     def _resolve_tools(self):
         """
@@ -247,7 +240,7 @@ class Agent:
                 break
 
         # Get the clipboard message (assuming this returns a dict like {"role": "...", "content": "..."})
-        clipboard_msg = self.memory.get_clipboard_message()
+        clipboard_msg = self.memory.get_clipboard_message(timezone=self.timezone)
         clipboard_text = clipboard_msg.get("content", "")
 
         # 1. Attach clipboard context directly into last tool response if it exists
@@ -469,7 +462,6 @@ class Agent:
 
         # 4. Add to Memory
         self.memory.add_file_to_clipboard(safe_file_path, content)
-        print(f"ADDED FILE TO CLIPBOARD: {self.memory.get_clipboard_message()}")
 
     async def remove_files(self, path: Path, working_directory: Path | None = None) -> list[Path]:
         """
@@ -500,8 +492,12 @@ class Agent:
 
         return []
 
+    def get_clipboard(self):
+        return self.memory.get_clipboard_message(timezone=self.timezone)
+
 
 async def main():
+    settings = get_config()
     llm_provider = LLMProvider(base_url=settings.llm.base_url, api_key=settings.llm.api_key)
     llm_model = LLMModel(provider=llm_provider, model=settings.llm.model)
     agent_config = AgentConfig(name="my-test-agent", llm_config=llm_model)

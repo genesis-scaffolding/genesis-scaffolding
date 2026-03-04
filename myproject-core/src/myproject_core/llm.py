@@ -1,12 +1,14 @@
 import asyncio
 from typing import Any, cast
 
+from httpx import get
 import litellm
 from litellm import CustomStreamWrapper, ModelResponse, acompletion
 from litellm.types.utils import Choices, StreamingChoices
 
-from .configs import settings
+from .configs import get_config
 from .schemas import LLMModel, LLMProvider, LLMResponse, StreamCallback, ToolCall
+from .utils import streamcallback_simple_print
 
 litellm.suppress_debug_info = True  # Silences provider suggestion logs
 
@@ -121,11 +123,7 @@ async def get_llm_response(
 
 
 async def main():
-    # 1. Define a UI-level callback.
-    # This function is passed into the LLM logic to handle real-time streamjing output.
-    from .utils import streamcallback_simple_print
-
-    # 2. Setup Configuration
+    settings = get_config()
     # We pull credentials from settings to build our Provider and Model schemas.
     llm_provider = LLMProvider(base_url=settings.llm.base_url, api_key=settings.llm.api_key)
     llm_model = LLMModel(provider=llm_provider, model=settings.llm.model)

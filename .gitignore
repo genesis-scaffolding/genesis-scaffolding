@@ -24,5 +24,11 @@ inbox/
 # Ignore the database directory
 database/
 
+# Ignore the temp state used by myproject
+.myproject/
+
+# Ignore user directories
+user_directories/
+
 # Ignore the debug file
 debug_messages.json

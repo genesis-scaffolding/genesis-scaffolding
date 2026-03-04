@@ -20,27 +20,28 @@ async def lifespan(app: FastAPI):
     # Initialise databases
     init_db()
     # Initialize Core Workflow Infrastructure
-    workspace = WorkspaceManager(settings)
-    registry = WorkflowRegistry(settings)
-    agent_registry = AgentRegistry(settings)
-    engine = WorkflowEngine(workspace, agent_registry)
-    chat_manager = ChatManager()
-
-    # 3. Initialize & Start Scheduler
-    sm = SchedulerManager(engine, registry)
-
-    # Load existing schedules from DB into memory
-    await sm.sync_schedules()
-    sm.start()
+    # workspace = WorkspaceManager(settings)
+    # registry = WorkflowRegistry(settings)
+    # agent_registry = AgentRegistry(settings)
+    # engine = WorkflowEngine(workspace, agent_registry)
+    #
+    # # 3. Initialize & Start Scheduler
+    # sm = SchedulerManager(engine, registry)
+    #
+    # # Load existing schedules from DB into memory
+    # await sm.sync_schedules()
+    # sm.start()
 
     # 4. Store in app state for dependencies
-    app.state.scheduler = sm
+    # app.state.scheduler = sm
+
+    chat_manager = ChatManager()
     app.state.chat_manager = chat_manager
 
     yield
 
     # 5. Shutdown Logic
-    sm.scheduler.shutdown(wait=False)
+    # sm.scheduler.shutdown(wait=False)
     # Cleanup logic (if any) goes here
 
 

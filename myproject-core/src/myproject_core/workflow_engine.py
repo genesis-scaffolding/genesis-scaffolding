@@ -3,7 +3,7 @@ import inspect
 from typing import Any
 
 from .agent_registry import AgentRegistry
-from .configs import settings
+from .configs import get_config
 from .schemas import (
     JobContext,
     WorkflowCallback,
@@ -119,6 +119,7 @@ class WorkflowEngine:
 
 
 async def main():
+    settings = get_config()
     # 1. Setup managers
     wm = WorkspaceManager(settings)
     reg = WorkflowRegistry(settings)

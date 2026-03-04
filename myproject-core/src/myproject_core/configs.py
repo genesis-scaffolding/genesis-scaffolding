@@ -1,97 +1,109 @@
-import os
 import secrets
+from functools import lru_cache
 from pathlib import Path
+from typing import List, Optional
 
-from pydantic import BaseModel, Field, computed_field, model_validator
+import yaml
+from pydantic import BaseModel, Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# This resolves to .../myproject-core/src/myproject_core
+# Agents and workflows are now subdirectories of this path
+PACKAGE_ROOT = Path(__file__).parent.resolve()
 
 
 class LLMConfig(BaseModel):
-    # URL of the model provider backend. Default to openrouter
     base_url: str = "https://openrouter.ai/api/v1"
-    # API key for accessing the model provider backend. Required
     api_key: str = Field(default=...)
-    # Identifier of the model at the provider backend.
     model: str = "openrouter/nvidia/nemotron-3-nano-30b-a3b:free"
 
 
 class PathConfigs(BaseModel):
-    # Path to working directory. Default to current working directory.
-    working_directory: Path = Path(".")
-    # Path to workspace directory that stores job directories of workflows
-    workspace_directory: Path = Path("./workspaces/")
-    # Path to workflow directory that stores YAML manifest files of workflows
-    workflow_directory: Path = Path("./workflows/")
-    # Path to agent directory that stores YAML manifest files of agents
-    agent_directory: Path = Path("./agents/")
-    # Path to a directory where user can drop input files for workflows
-    inbox_directory: Path = Path("./inbox/")
-    # Path to a directory where database would be stored
-    db_directory: Path = Path("./database/")
+    # The 'root' for the current execution context.
+    # In CLI: This is where the user runs the command.
+    # In Server: This is the user's isolated home directory.
+    working_directory: Path = Field(default_factory=lambda: Path.cwd().resolve())
 
-    @model_validator(mode="after")
-    def resolve_paths(self) -> "PathConfigs":
-        # 1. Resolve Working Directory
-        if self.working_directory is None:
-            self.working_directory = Path.cwd().resolve()
-        else:
-            self.working_directory = self.working_directory.resolve()
+    # The location where server would store user's working directory when the system runs in server mode
+    @property
+    def server_users_directory(self) -> Path:
+        return self.working_directory / "user_directories"
 
-        # 2. Create workspace and workflow directories underneath working directory
-        self.workspace_directory = self.working_directory / "workspaces"
-        self.workflow_directory = self.working_directory / "workflows"
-        self.agent_directory = self.working_directory / "agents"
-        self.inbox_directory = self.working_directory / "inbox"
-        self.db_directory = self.working_directory / "database"
+    @property
+    def internal_state_dir(self) -> Path:
+        return self.working_directory / ".myproject"
 
-        # 3. Side-effect: Ensure they exist
+    # --- Discovery Paths (Read-Only) ---
+    # We look for YAMLs in the user's local folder first, then fallback to package defaults.
+
+    @computed_field
+    @property
+    def agent_search_paths(self) -> List[Path]:
+        return [
+            PACKAGE_ROOT / "agents",
+            self.internal_state_dir / "agents",
+        ]
+
+    @computed_field
+    @property
+    def workflow_search_paths(self) -> List[Path]:
+        return [
+            PACKAGE_ROOT / "workflows",
+            self.internal_state_dir / "workflows",
+        ]
+
+    # --- Runtime Paths (Read-Write) ---
+    # We use a hidden folder to avoid polluting the user's working directory.
+    @computed_field
+    @property
+    def workspace_directory(self) -> Path:
+        return self.internal_state_dir / "workspaces"
+
+    @computed_field
+    @property
+    def inbox_directory(self) -> Path:
+        return self.internal_state_dir / "inbox"
+
+    def ensure_dirs(self):
+        """Creates the necessary runtime directories."""
         self.workspace_directory.mkdir(parents=True, exist_ok=True)
-        self.workflow_directory.mkdir(parents=True, exist_ok=True)
-        self.agent_directory.mkdir(parents=True, exist_ok=True)
         self.inbox_directory.mkdir(parents=True, exist_ok=True)
-        self.db_directory.mkdir(parents=True, exist_ok=True)
-        return self
+        self.server_users_directory.mkdir(parents=True, exist_ok=True)
 
 
 class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
-    cors_origins: list[str] = ["http://localhost:3000"]
-    # Generates a secure 32-byte hex string if not provided
+    cors_origins: List[str] = ["http://localhost:3000"]
     jwt_secret_key: str = Field(default_factory=lambda: secrets.token_hex(32))
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 600
-    # Initial Admin Account (Optional)
-    admin_username: str | None = None
-    admin_password: str | None = None
-    admin_email: str | None = None
-    timezone: str = "Australia/Adelaide"  # Default timezone for the server
+    admin_username: Optional[str] = None
+    admin_password: Optional[str] = None
+    admin_email: Optional[str] = None
+    timezone: str = "Australia/Adelaide"
 
 
 class DatabaseConfig(BaseModel):
-    # If this is provided (e.g. postgres://...), we use it directly
-    dsn: str | None = None
+    dsn: Optional[str] = None
     db_name: str = "myproject.db"
     echo_sql: bool = False
-
-    # We will pass the working directory here during initialization
-    _work_dir: Path = Path(".")
+    # Where the SQLite file lives (Server-wide)
+    db_directory: Path = Field(default_factory=lambda: Path.cwd() / "database")
 
     @computed_field
     def connection_string(self) -> str:
         if self.dsn:
             return self.dsn
-        # Default to SQLite using the resolved working directory
-        db_path = settings.path.db_directory / self.db_name
-        return f"sqlite:///{db_path.absolute()}"
+        return f"sqlite:///{self.db_directory.absolute() / self.db_name}"
 
 
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="myproject_",
-        env_file=[".env", ".env.prod"],
-        env_nested_delimiter="_",
-        env_nested_max_split=1,
+        env_prefix="myproject__",
+        env_file=".env",
+        env_nested_delimiter="__",
+        extra="ignore",
     )
 
     llm: LLMConfig
@@ -99,21 +111,36 @@ class Config(BaseSettings):
     server: ServerConfig = Field(default_factory=ServerConfig)
     db: DatabaseConfig = Field(default_factory=DatabaseConfig)
 
-    @model_validator(mode="after")
-    def sync_db_path(self) -> "Config":
-        # Inject the resolved working directory into the DB config
-        self.db._work_dir = self.path.working_directory
-        return self
+
+@lru_cache()
+def get_config(user_workdir: Optional[Path] = None, override_yaml: Optional[Path] = None) -> Config:
+    """
+    Factory to retrieve the configuration.
+
+    1. Loads global defaults from Environment Variables / .env
+    2. If user_workdir is provided, anchors all paths to that location.
+    3. If override_yaml is provided, merges that YAML file into the config.
+    """
+    # Initialize with Env Vars
+    conf = Config()  # type: ignore
+
+    # Apply User Workspace Isolation
+    if user_workdir:
+        conf.path.working_directory = user_workdir.resolve()
+
+    # Apply YAML Overrides (e.g. for custom LLM keys or specific user preferences)
+    if override_yaml and override_yaml.exists():
+        with open(override_yaml, "r") as f:
+            yaml_data = yaml.safe_load(f)
+            if yaml_data:
+                # model_copy with update performs a deep merge of the dict
+                conf = conf.model_copy(update=yaml_data, deep=True)
+
+    # Ensure runtime directories exist
+    conf.path.ensure_dirs()
+
+    return conf
 
 
-# Create the singleton instance
-settings = Config()  # pyright: ignore[reportCallIssue]
-
-
-def main():
-    print(os.getcwd())
-    print(settings.model_dump_json())
-
-
-if __name__ == "__main__":
-    main()
+# Default singleton for simple scripts/CLI use
+settings = get_config()

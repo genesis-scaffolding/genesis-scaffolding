@@ -6,6 +6,7 @@ class UserBase(SQLModel):
     full_name: str | None = None
     email: str | None = Field(index=True, unique=True)
     disabled: bool = Field(default=False)
+    working_directory: str | None = None
 
 
 class User(UserBase, table=True):

@@ -20,7 +20,7 @@ async def handle_exit(session, args):
 
 
 async def handle_clipboard(session, args):
-    content = session.agent.memory.get_clipboard_message(shorten=True).get("content", "Empty")
+    content = session.agent.get_clipboard().get("content", "Empty")
     session.console.print(Panel(content, title="Clipboard Content", border_style="blue"))
 
 

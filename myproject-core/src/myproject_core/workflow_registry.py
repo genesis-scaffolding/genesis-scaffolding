@@ -1,6 +1,6 @@
 import jinja2
 
-from .configs import Config
+from .configs import Config, get_config
 from .schemas import WorkflowManifest
 from .utils import resolve_placeholders
 from .workflow_tasks.registry import TASK_LIBRARY
@@ -8,28 +8,30 @@ from .workflow_tasks.registry import TASK_LIBRARY
 
 class WorkflowRegistry:
     def __init__(self, settings: Config):
-        self.workflow_dir = settings.path.workflow_directory
+        self.workflow_search_paths = settings.path.workflow_search_paths
         self.workflows: dict[str, WorkflowManifest] = {}
         self.load_all()
 
     def load_all(self):
         """Scans the directory and populates the registry."""
-        if not self.workflow_dir.exists():
-            return
+        for workflow_dir in self.workflow_search_paths:
+            if not workflow_dir.exists():
+                continue  # Ignore non-existent search path to avoid breaking workflow loading
 
-        for yaml_file in self.workflow_dir.glob("*.yaml"):
-            try:
-                # 1. Basic Pydantic validation
-                manifest = WorkflowManifest.from_yaml(yaml_file)
+            for yaml_file in workflow_dir.glob("*.yaml"):
+                try:
+                    # 1. Basic Pydantic validation
+                    manifest = WorkflowManifest.from_yaml(yaml_file)
 
-                # 2. Step Type validation
-                self._verify_logic(manifest)
+                    # 2. Step Type validation
+                    self._verify_logic(manifest)
 
-                # 3. Register using the filename (stem) as the ID
-                self.workflows[yaml_file.stem] = manifest
+                    # 3. Register using the filename (stem) as the ID
+                    self.workflows[yaml_file.stem] = manifest
 
-            except Exception as e:
-                print(f"Error loading workflow '{yaml_file.name}': {e}")
+                except Exception as e:
+                    print(f"Error loading workflow '{yaml_file.name}': {e}")
+                    continue  # Ignore non-compliant workflows to avoid breaking the system
 
     def _verify_logic(self, manifest: WorkflowManifest):
         """Dry-run Jinja2 templates using dummy data from Task models."""
@@ -64,3 +66,13 @@ class WorkflowRegistry:
 
     def get_all_workflows(self) -> dict[str, WorkflowManifest]:
         return self.workflows
+
+
+def main():
+    settings = get_config()
+    workflow_registry = WorkflowRegistry(settings)
+    print(workflow_registry.workflows.keys())
+
+
+if __name__ == "__main__":
+    main()

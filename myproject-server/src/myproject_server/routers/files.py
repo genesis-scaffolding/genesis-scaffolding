@@ -5,7 +5,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
-from myproject_core.configs import settings
 from sqlmodel import Session, select
 
 from ..database import get_session
@@ -56,7 +55,7 @@ async def upload_file(
     # 3. Calculate paths for DB
     # Turn everything relative to avoid leaking absolute path of server
     # Relative to the global inbox for physical access
-    physical_rel_path = dest_path.relative_to(settings.path.inbox_directory)
+    physical_rel_path = dest_path.relative_to(user_path)
     # Relative to user's root for their UI/filtering
     user_rel_path = dest_path.relative_to(user_path)
 
@@ -121,6 +120,7 @@ async def download_file(
     file_id: int,
     user: Annotated[User, Depends(get_current_active_user)],
     session: Annotated[Session, Depends(get_session)],
+    user_path: Annotated[Path, Depends(get_user_inbox_path)],
 ):
     statement = select(FileRecord).where(FileRecord.id == file_id, FileRecord.user_id == user.id)
     file_record = session.exec(statement).first()
@@ -128,7 +128,7 @@ async def download_file(
     if not file_record:
         raise HTTPException(status_code=404, detail="File not found")
 
-    full_path = settings.path.inbox_directory / file_record.file_path
+    full_path = user_path / file_record.file_path
 
     if not full_path.exists():
         raise HTTPException(status_code=404, detail="File missing on disk")
@@ -141,6 +141,7 @@ async def delete_file(
     file_id: int,
     user: Annotated[User, Depends(get_current_active_user)],
     session: Annotated[Session, Depends(get_session)],
+    user_path: Annotated[Path, Depends(get_user_inbox_path)],
 ):
     # 1. Database lookup with ownership check
     statement = select(FileRecord).where(FileRecord.id == file_id, FileRecord.user_id == user.id)
@@ -150,7 +151,7 @@ async def delete_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
     # 2. Physical Cleanup
-    full_path = settings.path.inbox_directory / file_record.file_path
+    full_path = user_path / file_record.file_path
     if full_path.exists():
         try:
             full_path.unlink()
@@ -158,7 +159,7 @@ async def delete_file(
             # Optional: Clean up empty parent directories in the sandbox
             # only if they are not the user's root directory.
             parent_dir = full_path.parent
-            user_root = (settings.path.inbox_directory / str(user.id)).resolve()
+            user_root = user_path.resolve()
 
             if parent_dir != user_root and not any(parent_dir.iterdir()):
                 parent_dir.rmdir()
