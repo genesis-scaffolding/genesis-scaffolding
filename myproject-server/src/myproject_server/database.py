@@ -1,9 +1,12 @@
 from contextlib import contextmanager
 
-from myproject_core.configs import settings
+from myproject_core.configs import get_config
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from .models.user import User
+
+# We can use this settings object because it is the server-wide config
+settings = get_config()
 
 # SQLite specific: check_same_thread=False is needed for FastAPI's concurrency
 connect_args = {"check_same_thread": False} if "sqlite" in str(settings.db.connection_string) else {}
@@ -53,6 +56,9 @@ def init_db():
     2. Creates tables if they don't exist (SQLite).
     """
     try:
+        # Double-check directory existence here just in case settings were changed
+        settings.db.db_directory.mkdir(parents=True, exist_ok=True)
+
         # This creates the .db file and tables if missing
         SQLModel.metadata.create_all(engine)
 

@@ -2,11 +2,11 @@ from pathlib import Path
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from myproject_core.agent_registry import AgentRegistry
-from myproject_core.configs import settings
+from myproject_core.configs import Config, get_config
 from myproject_core.workflow_engine import WorkflowEngine
 from myproject_core.workflow_registry import WorkflowRegistry
 from myproject_core.workspace import WorkspaceManager
@@ -20,9 +20,16 @@ from .schemas.auth import TokenData
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
+# -- Get server settings ---
+async def get_server_settings() -> Config:
+    return get_config()
+
+
 # --- Get current authenticated user ---
 async def get_current_user(
-    session: Annotated[Session, Depends(get_session)], token: Annotated[str, Depends(oauth2_scheme)]
+    session: Annotated[Session, Depends(get_session)],
+    token: Annotated[str, Depends(oauth2_scheme)],
+    settings: Annotated[Config, Depends(get_server_settings)],
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -55,59 +62,111 @@ async def get_current_active_user(
     return current_user
 
 
-# --- Get the path to user's sandbox directory
-async def get_user_inbox_path(
+# --- User Isolation Logic ---
+
+
+async def get_user_workdir(
     current_user: Annotated[User, Depends(get_current_active_user)],
+    settings: Annotated[Config, Depends(get_server_settings)],
 ) -> Path:
     """
-    Returns the resolved Path for the user's private inbox.
-    Ensures the directory exists on disk.
+    Determines the base directory for a specific user.
+    Uses the global 'server_users_directory' defined in the server's settings.
     """
-    user_path = settings.path.inbox_directory / str(current_user.id)
+    # Use the global settings to find where user folders are stored
+    base_user_dir = settings.path.server_users_directory
+
+    # We use user.id (or username) to create a unique sub-folder
+    user_path = base_user_dir / str(current_user.id)
     user_path.mkdir(parents=True, exist_ok=True)
     return user_path
 
 
-# --- Core Component Getters ---
+async def get_user_config(
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
+) -> Config:
+    """
+    Creates a specialized Config object for the current user.
+    It looks for a 'config.yaml' inside the user's working directory.
+    """
+    # Path to the user's optional override config
+    user_override_yaml = user_workdir / "config.yaml"
+
+    # Generate a config instance tailored to this user's path
+    # get_config will handle merging global defaults with user overrides
+    user_specific_settings = get_config(user_workdir=user_workdir, override_yaml=user_override_yaml)
+
+    return user_specific_settings
 
 
-def get_workflow_registry(request: Request) -> WorkflowRegistry:
-    """Returns the registry, falling back to a new instance if not in state."""
-    if hasattr(request.app.state, "workflow_registry"):
-        return request.app.state.workflow_registry
-    return WorkflowRegistry(settings)
+async def get_user_inbox_path(
+    user_config: Annotated[Config, Depends(get_user_config)],
+) -> Path:
+    """
+    Returns the resolved Path for the user's private inbox.
+    Now dynamically derived from the user's config.
+    """
+    # Use user working directory as the inbox
+    # The reason I did not rename get_user_inbox_path is because I don't want to deal with random breaking across the server code
+    inbox_path = user_config.path.working_directory
+    inbox_path.mkdir(parents=True, exist_ok=True)
+    return inbox_path
 
 
-def get_agent_registry(request: Request) -> AgentRegistry:
-    if hasattr(request.app.state, "agent_registry"):
-        return request.app.state.agent_registry
-    return AgentRegistry(settings)
+# --- User-Specific Manager Injections ---
 
 
-def get_workspace_manager(request: Request) -> WorkspaceManager:
-    if hasattr(request.app.state, "wm"):
-        return request.app.state.wm
-    return WorkspaceManager(settings)
+async def get_agent_registry(user_config: Annotated[Config, Depends(get_user_config)]) -> AgentRegistry:
+    """
+    Returns an AgentRegistry scoped to the current user's paths and settings.
+    """
+    return AgentRegistry(user_config)
 
 
-def get_workflow_engine(
-    request: Request,
+async def get_workflow_registry(
+    user_config: Annotated[Config, Depends(get_user_config)],
+) -> WorkflowRegistry:
+    """
+    Returns a WorkflowRegistry scoped to the current user's paths and settings.
+    """
+    return WorkflowRegistry(user_config)
+
+
+async def get_workspace_manager(
+    user_config: Annotated[Config, Depends(get_user_config)],
+) -> WorkspaceManager:
+    """
+    Returns a WorkspaceManager pointing to the user's private workspace directory.
+    """
+    return WorkspaceManager(user_config)
+
+
+async def get_workflow_engine(
     wm: Annotated[WorkspaceManager, Depends(get_workspace_manager)],
     agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
 ) -> WorkflowEngine:
-    if hasattr(request.app.state, "engine"):
-        return request.app.state.engine
+    """
+    Returns a WorkflowEngine initialized with the user's specific workspace and agents.
+    """
     return WorkflowEngine(wm, agent_reg)
 
 
-def get_scheduler_manager(request: Request) -> SchedulerManager:
+async def get_scheduler_manager(
+    engine: Annotated[WorkflowEngine, Depends(get_workflow_engine)],
+    registry: Annotated[WorkflowRegistry, Depends(get_workflow_registry)],
+) -> SchedulerManager:
     """
-    Dependency to retrieve the global scheduler manager from the app state.
+    The Scheduler usually remains a global system-level service (app.state),
+    as it manages background threads/processes across all users.
     """
-    return request.app.state.scheduler
+    return SchedulerManager(engine, registry)
 
 
-# --- Type Aliases for Clean Routers ---
+# --- Updated Type Aliases for Clean Routers ---
 
+# Use these in your path operations for cleaner signatures
+UserConfigDep = Annotated[Config, Depends(get_user_config)]
+AgentRegDep = Annotated[AgentRegistry, Depends(get_agent_registry)]
 WorkflowRegDep = Annotated[WorkflowRegistry, Depends(get_workflow_registry)]
+WorkspaceDep = Annotated[WorkspaceManager, Depends(get_workspace_manager)]
 EngineDep = Annotated[WorkflowEngine, Depends(get_workflow_engine)]

@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from .configs import Config, settings
+from .configs import Config, get_config
 from .schemas import JobContext
 from .utils import slugify
 
@@ -50,6 +50,7 @@ class WorkspaceManager:
 
 
 def main():
+    settings = get_config()
     print(settings.path)
     workspace_manager = WorkspaceManager(settings)
     job_context = workspace_manager.create_job("my testing workspace dir")
