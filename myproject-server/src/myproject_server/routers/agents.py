@@ -1,10 +1,10 @@
-from typing import List, Annotated
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from myproject_core.agent_registry import AgentRegistry
 
 from ..dependencies import get_agent_registry
-from ..schemas.agent import AgentCreate, AgentRead, AgentEdit
+from ..schemas.agent import AgentCreate, AgentEdit, AgentRead
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -22,8 +22,10 @@ async def list_agents(agent_reg: AgentRegistry = Depends(get_agent_registry)):
                 name=blueprint.name,
                 description=blueprint.description,
                 interactive=blueprint.interactive,
+                read_only=blueprint.read_only,
                 allowed_tools=blueprint.allowed_tools,
                 allowed_agents=blueprint.allowed_agents,
+                system_prompt=blueprint.system_prompt,
                 model_name=blueprint.llm_config.model if blueprint.llm_config else None,
             )
         )
@@ -65,8 +67,10 @@ async def create_agent(payload: AgentCreate, agent_reg: AgentRegistry = Depends(
             name=blueprint.name,
             description=blueprint.description,
             interactive=blueprint.interactive,
+            read_only=blueprint.read_only,
             allowed_tools=blueprint.allowed_tools,
             allowed_agents=blueprint.allowed_agents,
+            system_prompt=blueprint.system_prompt,
             model_name=blueprint.llm_config.model if blueprint.llm_config else None,
         )
     except Exception as e:
@@ -87,8 +91,10 @@ async def get_agent_details(agent_id: str, agent_reg: AgentRegistry = Depends(ge
         name=blueprint.name,
         description=blueprint.description,
         interactive=blueprint.interactive,
+        read_only=blueprint.read_only,
         allowed_tools=blueprint.allowed_tools,
         allowed_agents=blueprint.allowed_agents,
+        system_prompt=blueprint.system_prompt,
         model_name=blueprint.llm_config.model if blueprint.llm_config else None,
     )
 
@@ -200,7 +206,9 @@ async def update_agent(
         name=blueprint.name,
         description=blueprint.description,
         interactive=blueprint.interactive,
+        read_only=blueprint.read_only,
         allowed_tools=blueprint.allowed_tools,
         allowed_agents=blueprint.allowed_agents,
+        system_prompt=blueprint.system_prompt,
         model_name=blueprint.llm_config.model if blueprint.llm_config else None,
     )

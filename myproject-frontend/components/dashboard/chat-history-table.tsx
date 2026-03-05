@@ -23,7 +23,7 @@ export function ChatHistoryTable({ sessions }: ChatHistoryTableProps) {
   return (
     <div className="rounded-md border bg-card">
       <Table>
-        <TableHeader>
+        <TableHeader className="w-full">
           <TableRow>
             <TableHead>Agent</TableHead>
             <TableHead>Chat Title</TableHead>
@@ -33,12 +33,29 @@ export function ChatHistoryTable({ sessions }: ChatHistoryTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sessions.length === 0 && (
+          {sessions.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                No chat history found. Start a new conversation with an agent!
+              {/* Improved empty state: Centered and occupies all columns */}
+              <TableCell colSpan={5} className="h-48 text-center">
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <div className="p-3 bg-slate-50 rounded-full">
+                    <MessageSquare className="h-6 w-6 text-slate-400" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-medium text-slate-900">No chat history found</p>
+                    <p className="text-sm text-muted-foreground">
+                      Start a new conversation to see it here.
+                    </p>
+                  </div>
+                </div>
               </TableCell>
             </TableRow>
+          ) : (
+            sessions.map((session) => (
+              <TableRow key={session.id} className="group">
+                {/* ... existing row content ... */}
+              </TableRow>
+            ))
           )}
           {sessions.map((session) => (
             <TableRow key={session.id}>

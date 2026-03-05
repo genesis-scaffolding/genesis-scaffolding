@@ -22,7 +22,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { createAgentAction } from '@/app/actions/chat';
+import { createAgentAction, updateAgentAction } from '@/app/actions/chat'; // Import update action
+import { Agent } from '@/types/chat';
 
 const agentSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -36,28 +37,32 @@ const agentSchema = z.object({
 
 type AgentFormValues = z.infer<typeof agentSchema>;
 
-export function AgentForm() {
+interface AgentFormProps {
+  initialData?: Agent; // Optional agent for edit mode
+}
+
+export function AgentForm({ initialData }: AgentFormProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
+  const isEditMode = !!initialData;
 
   const form = useForm<AgentFormValues>({
     resolver: zodResolver(agentSchema),
     defaultValues: {
-      name: '',
-      description: '',
-      system_prompt: '',
-      interactive: true,
-      model_name: '',
-      allowed_tools_raw: '',
-      allowed_agents_raw: '',
+      name: initialData?.name || '',
+      description: initialData?.description || '',
+      system_prompt: initialData?.system_prompt || '',
+      interactive: initialData?.interactive ?? true,
+      model_name: initialData?.model_name || '',
+      allowed_tools_raw: initialData?.allowed_tools?.join(', ') || '',
+      allowed_agents_raw: initialData?.allowed_agents?.join(', ') || '',
     },
   });
 
   async function onSubmit(values: AgentFormValues) {
     setIsPending(true);
     try {
-      // Here we convert the empty strings back to null/arrays as expected by the API
-      await createAgentAction({
+      const payload = {
         name: values.name,
         description: values.description,
         system_prompt: values.system_prompt,
@@ -69,10 +74,18 @@ export function AgentForm() {
         allowed_agents: values.allowed_agents_raw
           ? values.allowed_agents_raw.split(',').map(s => s.trim()).filter(Boolean)
           : [],
-      });
+      };
 
-      toast.success("Agent created successfully!");
+      if (isEditMode && initialData) {
+        await updateAgentAction(initialData.id, payload);
+        toast.success("Agent updated successfully!");
+      } else {
+        await createAgentAction(payload);
+        toast.success("Agent created successfully!");
+      }
+
       router.push('/dashboard/agents');
+      router.refresh(); // Ensure the registry list updates
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -89,7 +102,7 @@ export function AgentForm() {
         <section className="space-y-6">
           <div className="flex items-center gap-2 text-slate-900">
             <Bot className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold">Agent Identity</h2>
+            <h2 className="text-lg font-semibold">{isEditMode ? 'Edit Agent Identity' : 'Agent Identity'}</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
@@ -99,7 +112,14 @@ export function AgentForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Agent Name</FormLabel>
-                  <FormControl><Input placeholder="e.g. Research Assistant" {...field} /></FormControl>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g. Research Assistant"
+                      {...field}
+                      disabled={isEditMode} // Backend AgentEdit schema doesn't support name changes
+                    />
+                  </FormControl>
+                  {isEditMode && <FormDescription className="text-[10px]">Name cannot be changed after creation.</FormDescription>}
                   <FormMessage />
                 </FormItem>
               )}
@@ -223,7 +243,7 @@ export function AgentForm() {
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            Create Agent
+            {isEditMode ? 'Save Changes' : 'Create Agent'}
           </Button>
         </div>
       </form>

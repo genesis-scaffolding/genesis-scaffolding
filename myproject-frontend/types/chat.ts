@@ -26,7 +26,9 @@ export interface Agent {
   id: string;
   name: string;
   description: string;
+  system_prompt?: string; // Added to support fetching full details for editing
   interactive: boolean;
+  read_only: boolean;
   allowed_tools: string[];
   allowed_agents: string[];
   model_name?: string | null;
@@ -34,6 +36,15 @@ export interface Agent {
 
 export interface AgentCreate {
   name: string;
+  description: string;
+  system_prompt: string;
+  interactive: boolean;
+  allowed_tools: string[];
+  allowed_agents: string[];
+  model_name?: string | null;
+}
+
+export interface AgentUpdate {
   description: string;
   system_prompt: string;
   interactive: boolean;

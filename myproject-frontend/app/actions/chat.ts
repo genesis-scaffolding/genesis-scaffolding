@@ -1,7 +1,7 @@
 'use server'
 
 import { apiFetch } from "@/lib/api-client";
-import { Agent, AgentCreate } from "@/types/chat";
+import { Agent, AgentCreate, AgentUpdate } from "@/types/chat";
 import { ChatSession } from "@/types/chat";
 import { revalidatePath } from "next/cache";
 
@@ -44,6 +44,46 @@ export async function createAgentAction(data: AgentCreate): Promise<Agent> {
   revalidatePath('/dashboard/agents');
   return newAgent;
 }
+
+export async function getAgentAction(agentId: string): Promise<Agent> {
+  const res = await apiFetch(`/agents/${agentId}`);
+  if (!res.ok) throw new Error("Failed to fetch agent details");
+  return res.json();
+}
+
+export async function updateAgentAction(agentId: string, data: AgentUpdate): Promise<Agent> {
+  const res = await apiFetch(`/agents/${agentId}`, {
+    method: 'PATCH', // or 'PUT' depending on your FastAPI implementation
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.detail || "Failed to update agent");
+  }
+
+  const updatedAgent = await res.json();
+  revalidatePath('/dashboard/agents');
+  return updatedAgent;
+}
+
+export async function deleteAgentAction(agentId: string) {
+  const res = await apiFetch(`/agents/${agentId}`, {
+    method: 'DELETE',
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.detail || "Failed to delete agent");
+  }
+
+  revalidatePath('/dashboard/agents');
+  return true;
+}
+
 
 export async function listChatSessionsAction(): Promise<ChatSession[]> {
   const res = await apiFetch(`/chats/`);

@@ -58,7 +58,7 @@ The project follows the Next.js App Router conventions with a domain-driven orga
 * **`session.ts`**: Low-level cookie management for tokens using `next/headers`.
 * **`workflow-utils.ts`**: Dynamic **Zod schema generation** logic. Converts FastAPI-provided tool manifests into runtime validation schemas for React Hook Form.
 * **`job-utils.ts`**: Helpers for parsing status states and formatting execution results.
-* **`date-utils.ts`**: Normalization of backend UTC timestamps for consistent local browser rendering.
+* **date-utils.ts**: Normalization of backend UTC timestamps for consistent local browser rendering.
 
 ### `/components` (UI Layer)
 

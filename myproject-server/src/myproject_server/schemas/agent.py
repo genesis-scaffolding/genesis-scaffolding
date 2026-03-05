@@ -8,8 +8,10 @@ class AgentRead(BaseModel):
     name: str
     description: str
     interactive: bool
+    read_only: bool
     allowed_tools: List[str]
     allowed_agents: List[str]
+    system_prompt: str
     # We include the model name but NOT the provider's API key
     model_name: str | None = None
 
