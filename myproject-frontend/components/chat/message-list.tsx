@@ -13,14 +13,16 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
   }, [messages]);
 
   return (
-    <div className="flex-1 overflow-y-auto w-full">
-      {/* Centering the content within the scrolling area */}
+    <div className="flex-1 min-h-0 overflow-y-auto w-full">
+      {/* Content wrapper */}
       <div className="chat-viewport-container py-4 space-y-6">
         {messages.map((msg, i) => (
           <MessageBubble key={i} message={msg} />
         ))}
-        <div ref={scrollRef} className="h-12 w-full" />
+        {/* Invisible div for scroll anchoring */}
+        <div ref={scrollRef} className="h-4 w-full shrink-0" />
       </div>
+
     </div>
   );
 });

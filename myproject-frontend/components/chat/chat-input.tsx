@@ -26,7 +26,7 @@ export function ChatInput() {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full shrink-0">
       <div className="chat-viewport-container py-3 lg:py-6">
         <div className={cn(
           "relative flex items-end gap-2 p-3 bg-card border border-muted-foreground/20 rounded-2xl shadow-sm transition-all duration-200",

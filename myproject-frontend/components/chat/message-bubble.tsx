@@ -21,7 +21,9 @@ export const MessageBubble = memo(({ message }: { message: ChatMessage }) => {
     return (
       <div className="flex justify-end mb-8">
         <div className="bg-[#2f2f2f] text-white px-5 py-3 rounded-[24px] max-w-[85%] shadow-sm text-[15px] leading-relaxed">
-          {safeString(message.content)}
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {safeString(message.content)}
+          </ReactMarkdown>
         </div>
       </div>
     );

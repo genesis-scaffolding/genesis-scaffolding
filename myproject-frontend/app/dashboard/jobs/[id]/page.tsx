@@ -8,6 +8,7 @@ import { JobStatusBanner } from "@/components/dashboard/job-status-banner";
 import { JobProvider } from "@/components/dashboard/job-context";
 import { JobStepChecklist } from "@/components/dashboard/job-step-checklist";
 import { JobResultsSection } from "@/components/dashboard/job-results-section";
+import { PageBody, PageContainer } from "@/components/dashboard/page-container";
 
 
 
@@ -29,26 +30,30 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     const pageKey = `${job.id}-${job.status}-${files.length}`;
 
     return (
-      <JobProvider initialJob={job} manifest={manifest}>
-        <div className="max-w-6xl mx-auto space-y-8 pb-10">
-          <header>
-            <h1 className="text-3xl font-bold tracking-tight">Execution Detail</h1>
-            <p className="text-muted-foreground font-mono text-sm">Job ID: #{job.id}</p>
-          </header>
+      <PageContainer variant="dashboard">
+        <PageBody>
+          <JobProvider initialJob={job} manifest={manifest}>
+            <div className="max-w-6xl mx-auto space-y-8 pb-10">
+              <header>
+                <h1 className="text-3xl font-bold tracking-tight">Execution Detail</h1>
+                <p className="text-muted-foreground font-mono text-sm">Job ID: #{job.id}</p>
+              </header>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <aside className="space-y-6">
-              {/* These components now internally use useJob() */}
-              <JobStatusBanner />
-              <JobStepChecklist />
-            </aside>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <aside className="space-y-6">
+                  {/* These components now internally use useJob() */}
+                  <JobStatusBanner />
+                  <JobStepChecklist />
+                </aside>
 
-            <main className="lg:col-span-2">
-              <JobResultsSection files={files} />
-            </main>
-          </div>
-        </div>
-      </JobProvider>
+                <main className="lg:col-span-2">
+                  <JobResultsSection files={files} />
+                </main>
+              </div>
+            </div>
+          </JobProvider>
+        </PageBody>
+      </PageContainer>
     );
   } catch (error) {
     notFound();
