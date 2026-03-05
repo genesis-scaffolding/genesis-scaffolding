@@ -1,5 +1,6 @@
 ---
 name: "Technical Writer Outline"
+read_only: true
 ---
 
 # System Prompt

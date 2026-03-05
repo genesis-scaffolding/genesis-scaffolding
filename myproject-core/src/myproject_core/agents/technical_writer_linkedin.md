@@ -1,5 +1,6 @@
 ---
 name: Technical-Writer-Linkedin
+read_only: true
 ---
 
 # System Prompt

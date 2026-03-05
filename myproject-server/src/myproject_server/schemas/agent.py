@@ -22,3 +22,12 @@ class AgentCreate(BaseModel):
     allowed_tools: List[str] = []
     allowed_agents: List[str] = []
     model_name: str | None = None
+
+
+class AgentEdit(BaseModel):
+    description: str = Field(..., description="A short description of what the agent does")
+    system_prompt: str = Field(..., description="The system instructions (body of the markdown file)")
+    interactive: bool = True
+    allowed_tools: List[str] = []
+    allowed_agents: List[str] = []
+    model_name: str | None = None

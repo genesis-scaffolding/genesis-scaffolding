@@ -1,5 +1,6 @@
 ---
 name: Technical-Writer-Visual
+read_only: true
 ---
 
 # System Prompt

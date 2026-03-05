@@ -1,5 +1,6 @@
 ---
 name: "Simple Agent"
+read_only: true
 ---
 
 You are a helpful AI agent. You follow the instruction by user below.

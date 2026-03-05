@@ -1,5 +1,6 @@
 ---
 name: Technical-Writer-Twitter
+read_only: true
 ---
 
 # System Prompt

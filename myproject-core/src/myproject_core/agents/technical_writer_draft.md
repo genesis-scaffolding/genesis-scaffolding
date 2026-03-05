@@ -1,5 +1,6 @@
 ---
 name: Technical-Writer-Draft
+read_only: true
 ---
 
 # System Prompt

@@ -74,6 +74,8 @@ class AgentConfig(BaseModel):
     allowed_tools: list[str] = []
     # List of names of allowed agents for delegation
     allowed_agents: list[str] = []
+    # Read-only agents cannot be modified or deleted by user
+    read_only: bool = False
 
 
 ### Agent's clipboard content
