@@ -2,8 +2,9 @@ from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from myproject_core.agent_registry import AgentRegistry
+from myproject_core.configs import Config
 
-from ..dependencies import get_agent_registry
+from ..dependencies import get_agent_registry, get_user_config
 from ..schemas.agent import AgentCreate, AgentEdit, AgentRead
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -26,32 +27,45 @@ async def list_agents(agent_reg: AgentRegistry = Depends(get_agent_registry)):
                 allowed_tools=blueprint.allowed_tools,
                 allowed_agents=blueprint.allowed_agents,
                 system_prompt=blueprint.system_prompt,
-                model_name=blueprint.llm_config.model if blueprint.llm_config else None,
+                model_name=blueprint.model_name,
             )
         )
     return results
 
 
 @router.post("/", response_model=AgentRead, status_code=status.HTTP_201_CREATED)
-async def create_agent(payload: AgentCreate, agent_reg: AgentRegistry = Depends(get_agent_registry)):
+async def create_agent(
+    payload: AgentCreate,
+    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
+    user_settings: Annotated[Config, Depends(get_user_config)],
+):
     """
     Creates a new custom agent by saving a markdown file to the user's directory.
     """
     # Prepare data for the registry
     agent_dict = payload.model_dump()
+    llm_model_name = payload.model_name
 
-    # Handle LLM configuration mapping
-    # If the user provided a model_name, we structure it for AgentConfig
-    if payload.model_name:
-        agent_dict["llm_config"] = {
-            "model": payload.model_name,
-            # Provider info will be filled by registry defaults if missing
-        }
+    # If user does not provide model name, use the default model of that user
+    if not llm_model_name:
+        default_llm_model_name = user_settings.default_model
+        agent_dict["model_name"] = default_llm_model_name
+        llm_model_name = default_llm_model_name
 
-    # TEMPORARILY REMOVE THE LLM CONFIG FROM AGENT CONFIG
-    # WILL ADD BACK WHEN WE SUPPORT USER-DEFINED LLM PROVIDER
-    if "llm_config" in agent_dict.keys():
-        del agent_dict["llm_config"]
+    # If user does provide a model name, verify that it exists and its the provider exist
+    llm_config = user_settings.models.get(llm_model_name, None)
+    if not llm_config:
+        raise HTTPException(
+            status_code=400, detail=f"Cannot find the requested llm model: {llm_model_name}"
+        )
+
+    provider_name = llm_config.provider
+    provider_config = user_settings.providers.get(provider_name, None)
+    if not provider_config:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot find the requested provider {provider_name} of the llm model {llm_model_name}",
+        )
 
     try:
         # Save to disk
@@ -71,7 +85,7 @@ async def create_agent(payload: AgentCreate, agent_reg: AgentRegistry = Depends(
             allowed_tools=blueprint.allowed_tools,
             allowed_agents=blueprint.allowed_agents,
             system_prompt=blueprint.system_prompt,
-            model_name=blueprint.llm_config.model if blueprint.llm_config else None,
+            model_name=blueprint.model_name,
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not create agent: {str(e)}")
@@ -95,7 +109,7 @@ async def get_agent_details(agent_id: str, agent_reg: AgentRegistry = Depends(ge
         allowed_tools=blueprint.allowed_tools,
         allowed_agents=blueprint.allowed_agents,
         system_prompt=blueprint.system_prompt,
-        model_name=blueprint.llm_config.model if blueprint.llm_config else None,
+        model_name=blueprint.model_name,
     )
 
 
@@ -210,5 +224,5 @@ async def update_agent(
         allowed_tools=blueprint.allowed_tools,
         allowed_agents=blueprint.allowed_agents,
         system_prompt=blueprint.system_prompt,
-        model_name=blueprint.llm_config.model if blueprint.llm_config else None,
+        model_name=blueprint.model_name,
     )

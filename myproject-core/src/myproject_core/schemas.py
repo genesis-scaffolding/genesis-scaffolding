@@ -69,6 +69,9 @@ ToolCallback = Callable[[str, dict[str, Any]], Awaitable[None]]
 class AgentConfig(BaseModel):
     # Name of the agent for referring to it in the system
     name: str
+    # Nickname of LLM model used by the agent
+    # This is mostly to make it easier for human user
+    model_name: str | None = None
     # LLM Configuration to be used by this model
     llm_config: LLMModelConfig | None = None
     # LLM Configuration to be used by this model

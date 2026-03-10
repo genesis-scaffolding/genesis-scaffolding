@@ -32,9 +32,27 @@ class AgentRegistry:
                     raw_data = agent_manifest.metadata
                     raw_data["system_prompt"] = agent_manifest.content.strip()
 
-                    # Automatically add default LLM config to the agent if the agent does not have LLM config
-                    if not raw_data.get("llm_config"):
+                    llm_model_name = str(raw_data.get("model_name", ""))
+                    if llm_model_name == "":
+                        # If there is no llm_model_name in the config, default to default model.
+                        # We ignore the existing llm_config and provider_config object in the YAML frontmatter
                         [raw_data["llm_config"], raw_data["provider_config"]] = self._get_llm_model_config()
+                        raw_data["model_name"] = self.settings.default_model
+                    else:
+                        # Else, try to load LLM config and provider config of the corresponding model
+                        llm_config = self.settings.models.get(llm_model_name, None)
+                        if not llm_config:
+                            raise ValueError(f"Cannot find the requested llm model: {llm_model_name}")
+
+                        provider_name = llm_config.provider
+                        provider_config = self.settings.providers.get(provider_name, None)
+                        if not provider_config:
+                            raise ValueError(
+                                f"Cannot find the requested provider {provider_name} of the llm model {llm_model_name}"
+                            )
+
+                        raw_data["llm_config"] = llm_config
+                        raw_data["provider_config"] = provider_config
 
                     config = AgentConfig.model_validate(raw_data)
                     # Store the name from the file stem or manifest
