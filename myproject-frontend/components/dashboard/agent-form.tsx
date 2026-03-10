@@ -1,13 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, Save, Bot, Wrench, Settings2, Sparkles } from 'lucide-react';
-
 import {
   Form,
   FormControl,
@@ -22,7 +21,15 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createAgentAction, updateAgentAction } from '@/app/actions/chat'; // Import update action
+import { getLLMConfigAction } from '@/app/actions/llm-config';
 import { Agent } from '@/types/chat';
 
 const agentSchema = z.object({
@@ -45,6 +52,9 @@ export function AgentForm({ initialData }: AgentFormProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const isEditMode = !!initialData;
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+
 
   const form = useForm<AgentFormValues>({
     resolver: zodResolver(agentSchema),
@@ -58,6 +68,23 @@ export function AgentForm({ initialData }: AgentFormProps) {
       allowed_agents_raw: initialData?.allowed_agents?.join(', ') || '',
     },
   });
+
+  useEffect(() => {
+    async function fetchModels() {
+      try {
+        const config = await getLLMConfigAction();
+        // Extract keys (nicknames) from the models dictionary
+        const modelNicknames = Object.keys(config.models);
+        setAvailableModels(modelNicknames);
+      } catch (error) {
+        console.error("Failed to load models:", error);
+        toast.error("Could not load model list");
+      } finally {
+        setIsLoadingModels(false);
+      }
+    }
+    fetchModels();
+  }, []);
 
   async function onSubmit(values: AgentFormValues) {
     setIsPending(true);
@@ -130,10 +157,28 @@ export function AgentForm({ initialData }: AgentFormProps) {
               name="model_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Model ID</FormLabel>
-                  <FormControl><Input placeholder="provider/model" {...field} /></FormControl>
+                  <FormLabel>Model Selection</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger disabled={isLoadingModels} className='w-full'>
+                        <SelectValue placeholder={isLoadingModels ? "Loading models..." : "Select a model"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value=" ">System Default</SelectItem>
+                      {availableModels.map((nickname) => (
+                        <SelectItem key={nickname} value={nickname}>
+                          {nickname}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormDescription className="text-[11px] leading-tight mt-1">
-                    Defaults to system LLM if left empty.
+                    Select a configured model or use the system default.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
