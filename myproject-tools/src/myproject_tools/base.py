@@ -41,7 +41,7 @@ class BaseTool(ABC):
         """
         user_path = Path(path_str)
         # 1. Security: Don't allow absolute paths or escaping the working directory
-        full_path = (working_directory / user_path).resolve()
+        full_path = (working_directory / user_path).absolute()
 
         if not full_path.is_relative_to(working_directory.resolve()):
             raise ValueError(f"Access denied: '{path_str}' is outside the allowed working directory.")
