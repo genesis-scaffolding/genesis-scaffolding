@@ -73,6 +73,11 @@ class Task(SQLModel, table=True):
     # Relationships
     projects: List[Project] = Relationship(back_populates="tasks", link_model=ProjectTaskLink)
 
+    # Helper to easily get project ids related to a task from database
+    @property
+    def project_ids(self) -> List[int]:
+        return [p.id for p in self.projects if p.id is not None]
+
 
 class JournalEntry(SQLModel, table=True):
     metadata = productivity_metadata
