@@ -1,5 +1,5 @@
 from datetime import date, datetime, time
-from typing import List, Optional
+from typing import Optional
 
 from myproject_core.productivity.models import JournalType, Status
 from pydantic import BaseModel, ConfigDict
@@ -19,7 +19,7 @@ class TaskCreate(BaseModel):
     duration_minutes: Optional[int] = None
     status: Status = Status.TODO
     # Efficiency fix: Allow linking projects during creation
-    project_ids: Optional[List[int]] = None
+    project_ids: Optional[list[int]] = None
 
 
 class TaskUpdate(BaseModel):
@@ -44,16 +44,18 @@ class TaskRead(ProductivityBase):
     status: Status
     created_at: datetime
     completed_at: Optional[datetime]
-    project_ids: List[int] = []
+    project_ids: list[int] = []
 
 
 class TaskBulkUpdate(BaseModel):
-    ids: List[int]
+    ids: list[int]
     updates: TaskUpdate
     # Optional: If provided, these projects will be ADDED to all selected tasks
-    add_project_ids: Optional[List[int]] = None
+    add_project_ids: Optional[list[int]] = None
     # Optional: If provided, these projects will be REMOVED from all selected tasks
-    remove_project_ids: Optional[List[int]] = None
+    remove_project_ids: Optional[list[int]] = None
+    # Optional: If provided, replaces all existing project links with these ones
+    set_project_ids: Optional[list[int]] = None
 
 
 # --- Project Schemas ---

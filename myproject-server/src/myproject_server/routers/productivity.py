@@ -14,10 +14,10 @@ from ..schemas.productivity import (
     ProjectCreate,
     ProjectRead,
     ProjectUpdate,
+    TaskBulkUpdate,
     TaskCreate,
     TaskRead,
     TaskUpdate,
-    TaskBulkUpdate,
 )
 
 router = APIRouter(prefix="/productivity", tags=["productivity"])
@@ -140,7 +140,7 @@ def bulk_update_tasks(data: TaskBulkUpdate, session: ProdSessionDep):
     if not data.ids:
         return {"message": "No task IDs provided"}
 
-    # 1. Fetch the tasks that need relationship updates or complex logic
+    # Fetch the tasks that need relationship updates or complex logic
     # We use selectinload to ensure we can modify projects immediately
     statement = (
         select(Task).where(col(Task.id).in_(data.ids)).options(selectinload(getattr(Task, "projects")))
@@ -150,11 +150,10 @@ def bulk_update_tasks(data: TaskBulkUpdate, session: ProdSessionDep):
     if not tasks:
         raise HTTPException(status_code=404, detail="No tasks found for provided IDs")
 
-    # 2. Extract field updates (excluding relationships)
+    # Extract field updates (excluding relationships)
     field_updates = data.updates.model_dump(exclude_unset=True)
 
-    # 3. Apply updates to each task
-    # (Note: For SQLite, looping and updating is safe for several hundred records)
+    # Apply updates to each task
     for task in tasks:
         # Apply field updates
         for key, value in field_updates.items():
@@ -162,17 +161,27 @@ def bulk_update_tasks(data: TaskBulkUpdate, session: ProdSessionDep):
                 task.completed_at = datetime.now(timezone.utc)
             setattr(task, key, value)
 
-        # Handle Project Additions
-        if data.add_project_ids:
-            for p_id in data.add_project_ids:
-                if p_id not in [p.id for p in task.projects]:
-                    proj = session.get(Project, p_id)
-                    if proj:
-                        task.projects.append(proj)
+        # Handle Project Sets (Replaces everything)
+        if data.set_project_ids is not None:
+            new_projects = []
+            for p_id in data.set_project_ids:
+                proj = session.get(Project, p_id)
+                if proj:
+                    new_projects.append(proj)
+            task.projects = new_projects
 
-        # Handle Project Removals
-        if data.remove_project_ids:
-            task.projects = [p for p in task.projects if p.id not in data.remove_project_ids]
+        # Handle Additions/Removals (Only if set_project_ids isn't used)
+        # Ugly code. To be updated one day when I have time
+        else:
+            if data.add_project_ids:
+                for p_id in data.add_project_ids:
+                    if p_id not in [p.id for p in task.projects]:
+                        proj = session.get(Project, p_id)
+                        if proj:
+                            task.projects.append(proj)
+
+            if data.remove_project_ids:
+                task.projects = [p for p in task.projects if p.id not in data.remove_project_ids]
 
         session.add(task)
 

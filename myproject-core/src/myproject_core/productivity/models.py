@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timezone
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import MetaData
 from sqlmodel import Field, Relationship, SQLModel
@@ -48,8 +48,8 @@ class Project(SQLModel, table=True):
     status: Status = Field(default=Status.TODO)
 
     # Relationships
-    tasks: List["Task"] = Relationship(back_populates="projects", link_model=ProjectTaskLink)
-    journals: List["JournalEntry"] = Relationship(back_populates="project")
+    tasks: list["Task"] = Relationship(back_populates="projects", link_model=ProjectTaskLink)
+    journals: list["JournalEntry"] = Relationship(back_populates="project")
 
 
 class Task(SQLModel, table=True):
@@ -71,11 +71,11 @@ class Task(SQLModel, table=True):
     completed_at: Optional[datetime] = None
 
     # Relationships
-    projects: List[Project] = Relationship(back_populates="tasks", link_model=ProjectTaskLink)
+    projects: list[Project] = Relationship(back_populates="tasks", link_model=ProjectTaskLink)
 
     # Helper to easily get project ids related to a task from database
     @property
-    def project_ids(self) -> List[int]:
+    def project_ids(self) -> list[int]:
         return [p.id for p in self.projects if p.id is not None]
 
 

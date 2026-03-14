@@ -25,7 +25,10 @@ import {
   History,
   Zap,
   User,
-  Settings
+  Settings,
+  Briefcase,
+  ListTodo,
+  BookOpen,
 } from 'lucide-react';
 import LogoutButton from '@/components/auth/logout-button';
 import Link from 'next/link';
@@ -33,6 +36,29 @@ import DynamicHeader from '@/components/dashboard/dynamic-header';
 
 // Structured navigation groups for better UX
 const navGroups = [
+  {
+    label: "Productivity", // --- NEW GROUP ---
+    items: [
+      {
+        title: "Projects",
+        url: "/dashboard/projects",
+        icon: Briefcase,
+        tooltip: "Manage long-term goals"
+      },
+      {
+        title: "Tasks",
+        url: "/dashboard/tasks",
+        icon: ListTodo,
+        tooltip: "View global backlog"
+      },
+      {
+        title: "Journal",
+        url: "/dashboard/journals",
+        icon: BookOpen,
+        tooltip: "Daily and weekly reflections"
+      }
+    ]
+  },
   {
     label: "Interaction",
     items: [
