@@ -85,6 +85,17 @@ def update_project(project_id: int, data: ProjectUpdate, session: ProdSessionDep
     return db_project
 
 
+@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(project_id: int, session: ProdSessionDep):
+    db_project = session.get(Project, project_id)
+    if not db_project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    session.delete(db_project)
+    session.commit()
+    return None
+
+
 # --- TASKS ---
 
 
@@ -189,6 +200,22 @@ def bulk_update_tasks(data: TaskBulkUpdate, session: ProdSessionDep):
     return {"message": f"Successfully updated {len(tasks)} tasks"}
 
 
+@router.delete("/tasks/bulk", status_code=status.HTTP_200_OK)
+def bulk_delete_tasks(task_ids: list[int], session: ProdSessionDep):
+    """Delete multiple tasks at once."""
+    statement = select(Task).where(col(Task.id).in_(task_ids))
+    tasks = session.exec(statement).all()
+
+    if not tasks:
+        raise HTTPException(status_code=404, detail="No tasks found for provided IDs")
+
+    for task in tasks:
+        session.delete(task)
+
+    session.commit()
+    return {"message": f"Successfully deleted {len(tasks)} tasks"}
+
+
 @router.get("/tasks/{task_id}", response_model=TaskRead)
 def get_task(task_id: int, session: ProdSessionDep):
     # Use selectinload to ensure project_ids are populated
@@ -218,6 +245,17 @@ def update_task(task_id: int, data: TaskUpdate, session: ProdSessionDep):
     session.commit()
     session.refresh(db_task)
     return db_task
+
+
+@router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(task_id: int, session: ProdSessionDep):
+    db_task = session.get(Task, task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    session.delete(db_task)
+    session.commit()
+    return None
 
 
 # --- JOURNALS ---
@@ -273,6 +311,17 @@ def update_journal(journal_id: int, data: JournalEntryUpdate, session: ProdSessi
     session.commit()
     session.refresh(db_entry)
     return db_entry
+
+
+@router.delete("/journals/{journal_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_journal(journal_id: int, session: ProdSessionDep):
+    db_entry = session.get(JournalEntry, journal_id)
+    if not db_entry:
+        raise HTTPException(status_code=404, detail="Journal entry not found")
+
+    session.delete(db_entry)
+    session.commit()
+    return None
 
 
 # --- RELATIONSHIP MANAGEMENT ---

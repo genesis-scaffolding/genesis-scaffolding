@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-
+import Link from "next/link";
 
 export default async function EditProjectPage({
   params
@@ -13,16 +13,15 @@ export default async function EditProjectPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params;
-
   const project = await getProjectAction(id);
 
   async function handleUpdate(formData: FormData) {
     "use server";
     await updateProjectAction(id, {
-      name: formData.get("name"),
-      description: formData.get("description"),
-      deadline: formData.get("deadline") || null,
-      status: formData.get("status"),
+      name: formData.get("name") as string,
+      description: formData.get("description") as string,
+      deadline: (formData.get("deadline") as string) || null,
+      status: formData.get("status") as string,
     });
     redirect(`/dashboard/projects/${id}`);
   }
@@ -37,6 +36,8 @@ export default async function EditProjectPage({
     <PageContainer variant="prose">
       <PageBody>
         <h1 className="text-2xl font-bold mb-6">Edit Project</h1>
+
+        {/* Single Main Form */}
         <form action={handleUpdate} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Project Name</Label>
@@ -71,11 +72,22 @@ export default async function EditProjectPage({
           </div>
 
           <div className="flex gap-4 justify-between pt-4">
-            <form action={handleDelete}>
-              <Button variant="destructive" type="submit">Delete Project</Button>
-            </form>
+            {/* 
+               Use formAction here. This button will trigger handleDelete 
+               instead of the main form's handleUpdate action.
+            */}
+            <Button
+              variant="destructive"
+              type="submit"
+              formAction={handleDelete}
+            >
+              Delete Project
+            </Button>
+
             <div className="flex gap-2">
-              <Button variant="ghost" type="button">Cancel</Button>
+              <Button variant="ghost" asChild>
+                <Link href={`/dashboard/projects/${id}`}>Cancel</Link>
+              </Button>
               <Button type="submit">Save Changes</Button>
             </div>
           </div>
