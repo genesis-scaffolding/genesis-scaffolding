@@ -29,14 +29,16 @@ export async function bulkUpdateTasksAction(data: {
   remove_project_ids?: number[]
   set_project_ids?: number[]
 }) {
-  // Ensure we don't send undefined fields that might trigger validation errors
-  const payload = {
+  // Construct the payload dynamically
+  const payload: any = {
     ids: data.ids,
     updates: data.updates,
-    add_project_ids: data.add_project_ids || [],
-    remove_project_ids: data.remove_project_ids || [],
-    set_project_ids: data.set_project_ids || []
   };
+
+  // Only add these fields to the JSON body if they were actually passed in
+  if (data.add_project_ids) payload.add_project_ids = data.add_project_ids;
+  if (data.remove_project_ids) payload.remove_project_ids = data.remove_project_ids;
+  if (data.set_project_ids) payload.set_project_ids = data.set_project_ids;
 
   const res = await apiFetch(`/productivity/tasks/bulk`, {
     method: 'PATCH',

@@ -40,14 +40,20 @@ export function BulkActionBar({ selectedIds, onClear, projects }: BulkActionBarP
 
   async function handleBulkUpdate(updates: Partial<Task>) {
     setIsPending(true);
+    console.log(updates)
     try {
-      await bulkUpdateTasksAction({
+      // 1. Create the base payload
+      const payload: any = {
         ids: selectedIds,
         updates: updates,
-        set_project_ids: updates.project_ids
-      });
-      // We don't onClear() here because we want the bar to stay open 
-      // for further edits as discussed, unless it's a delete action.
+      };
+
+      // 2. Only add the key if it exists in this specific update cycle
+      if (updates.project_ids !== undefined) {
+        payload.set_project_ids = updates.project_ids;
+      }
+
+      await bulkUpdateTasksAction(payload);
       router.refresh();
     } catch (error) {
       console.error(error);

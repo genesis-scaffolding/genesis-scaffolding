@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionBar } from "./bulk-action-bar";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Edit2 } from "lucide-react";
+import { Edit2, Calendar } from "lucide-react";
 
 export function TaskTable({ tasks, projects }: { tasks: Task[], projects: Project[] }) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -19,6 +19,15 @@ export function TaskTable({ tasks, projects }: { tasks: Task[], projects: Projec
 
   const getProjectName = (id: number) => projects.find(p => p.id === id)?.name || "Inbox";
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return null;
+    return new Date(dateString).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
   return (
     <div className="relative pb-20">
       <div className="rounded-md border bg-card">
@@ -28,6 +37,7 @@ export function TaskTable({ tasks, projects }: { tasks: Task[], projects: Projec
               <th className="p-4 w-10"></th>
               <th className="p-4 text-left font-medium">Task</th>
               <th className="p-4 text-left font-medium">Project</th>
+              <th className="p-4 text-left font-medium">Deadline</th>
               <th className="p-4 text-left font-medium">Status</th>
               <th className="p-4 w-10"></th>
             </tr>
@@ -56,6 +66,16 @@ export function TaskTable({ tasks, projects }: { tasks: Task[], projects: Projec
                     </Badge>
                   ) : (
                     <span className="text-muted-foreground text-xs italic">Unassigned</span>
+                  )}
+                </td>
+                <td className="p-4">
+                  {task.hard_deadline ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span>{formatDate(task.hard_deadline)}</span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground/50 text-xs">—</span>
                   )}
                 </td>
                 <td className="p-4 capitalize">
