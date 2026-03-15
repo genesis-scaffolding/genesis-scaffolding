@@ -27,13 +27,15 @@ export async function bulkUpdateTasksAction(data: {
   updates: any,
   add_project_ids?: number[],
   remove_project_ids?: number[]
+  set_project_ids?: number[]
 }) {
   // Ensure we don't send undefined fields that might trigger validation errors
   const payload = {
     ids: data.ids,
     updates: data.updates,
     add_project_ids: data.add_project_ids || [],
-    remove_project_ids: data.remove_project_ids || []
+    remove_project_ids: data.remove_project_ids || [],
+    set_project_ids: data.set_project_ids || []
   };
 
   const res = await apiFetch(`/productivity/tasks/bulk`, {

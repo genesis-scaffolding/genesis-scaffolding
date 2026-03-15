@@ -78,6 +78,7 @@ export function TaskTable({ tasks, projects }: { tasks: Task[], projects: Projec
       <BulkActionBar
         selectedIds={selectedIds}
         onClear={() => setSelectedIds([])}
+        projects={projects}
       />
     </div>
   );
