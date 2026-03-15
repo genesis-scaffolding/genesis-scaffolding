@@ -7,6 +7,7 @@ import { Edit3, ArrowLeft, Calendar } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { TaskList } from "@/components/dashboard/tasks/task-list"
+import { QuickAddTask } from "@/components/dashboard/tasks/quick-add-task";
 
 export default async function ProjectDetailPage({
   params
@@ -16,14 +17,14 @@ export default async function ProjectDetailPage({
   const { id } = await params;
 
   const project = await getProjectAction(id);
-  const tasks = await getTasksAction({ project_id: id });
+  const tasks = await getTasksAction({ project_id: id, include_completed: true });
 
-  const completedTasks = tasks.filter(t => t.status === 'completed').length;
+  const completedTasks = tasks.filter(t => t.status?.toLowerCase().trim() === 'completed').length;
   const progress = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
 
   return (
     <PageContainer variant="dashboard">
-      <PageBody>
+      <PageBody className="pb-24">
         <div className="mb-6">
           <Button variant="ghost" size="sm" asChild className="-ml-2 mb-4">
             <Link href="/dashboard/projects">
@@ -84,6 +85,13 @@ export default async function ProjectDetailPage({
 
           {/* We pass project_id to the list so new tasks created here are automatically linked */}
           <TaskList tasks={tasks} defaultProjectId={project.id} />
+        </div>
+        <div className="fixed bottom-6 left-0 right-0 px-4 md:left-[240px] z-50 pointer-events-none">
+          <div className="max-w-4xl mx-auto pointer-events-auto">
+            <div className="bg-background/80 backdrop-blur-md border rounded-xl shadow-2xl p-2 border-primary/20">
+              <QuickAddTask defaultProjectId={Number(project.id)} />
+            </div>
+          </div>
         </div>
       </PageBody>
     </PageContainer>
