@@ -545,7 +545,7 @@ async def main():
     agent_config = AgentConfig(name="my-test-agent", llm_config=llm_model, provider_config=llm_provider)
     agent = Agent(
         agent_config=agent_config,
-        timezone=settings.server.timezone,
+        timezone=settings.timezone,
         content_chunk_callbacks=[streamcallback_simple_print],
         reasoning_chunk_callbacks=[streamcallback_simple_print],
         working_directory=settings.path.working_directory,

@@ -13,7 +13,10 @@ PACKAGE_ROOT = Path(__file__).parent.resolve()
 
 
 class PathConfigs(BaseModel):
+    # Current working directory context (can be server or individual user's workspace)
     working_directory: Path = Field(default_factory=lambda: Path.cwd().resolve())
+    # Server root (i.e., where the cli is called)
+    server_root_directory: Path = Field(default_factory=lambda: Path.cwd().resolve())
 
     @property
     def server_users_directory(self) -> Path:
@@ -59,16 +62,16 @@ class ServerConfig(BaseModel):
     admin_username: Optional[str] = None
     admin_password: Optional[str] = None
     admin_email: Optional[str] = None
-    timezone: str = "Australia/Adelaide"
 
 
 class DatabaseConfig(BaseModel):
     dsn: Optional[str] = None
     db_name: str = "myproject.db"
     echo_sql: bool = False
-    db_directory: Path = Field(default_factory=lambda: Path.cwd() / "database")
+    db_directory: Path = Field(default_factory=lambda: Path.cwd() / ".myproject" / "database")
 
     @computed_field
+    @property
     def connection_string(self) -> str:
         if self.dsn:
             return self.dsn
@@ -83,6 +86,9 @@ class Config(BaseSettings):
         extra="ignore",
     )
 
+    # Timezone for this specific working context (single user CLI use, or per-user on server)
+    timezone: str = "Australia/Adelaide"
+
     # Dictionaries of providers and models
     # Key is the nickname used in the app
     providers: Dict[str, LLMProvider] = Field(default_factory=dict)
@@ -93,7 +99,11 @@ class Config(BaseSettings):
 
     path: PathConfigs = Field(default_factory=PathConfigs)
     server: ServerConfig = Field(default_factory=ServerConfig)
+
+    # system-wide database
     db: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    # user-specific database
+    user_db: DatabaseConfig = Field(default_factory=lambda: DatabaseConfig(db_name="user_private.db"))
 
     @model_validator(mode="after")
     def validate_llm_references(self) -> "Config":
@@ -159,8 +169,24 @@ def get_config(user_workdir: Optional[Path] = None, override_yaml: Optional[Path
     if user_workdir:
         conf.path.working_directory = user_workdir.resolve()
 
+    # --- DATABASE PATH LOGIC ---
+
+    # System DB: Should always stay in the 'database' folder relative to
+    # the server's starting directory, NOT the user's sandbox.
+    # We anchor this to Path.cwd() at the time of app start.
+    if not conf.db.dsn:
+        # If not provided by user, ensure it stays in the global database dir
+        conf.db.db_directory = conf.path.server_root_directory / ".myproject" / "database"
+
+    # User DB: Should always be inside the internal_state_dir (.myproject)
+    # whether in CLI mode (current dir) or Server mode (user sandbox).
+    if not conf.user_db.dsn:
+        conf.user_db.db_directory = conf.path.internal_state_dir
+
     # Ensure runtime directories exist
     conf.path.ensure_dirs()
+    conf.db.db_directory.mkdir(parents=True, exist_ok=True)
+    conf.user_db.db_directory.mkdir(parents=True, exist_ok=True)
 
     return conf
 

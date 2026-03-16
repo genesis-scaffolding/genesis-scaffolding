@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from myproject_core.agent_registry import AgentRegistry
 from myproject_core.configs import Config, get_config, settings
+from myproject_core.productivity.db import get_user_session
 from myproject_core.workflow_engine import WorkflowEngine
 from myproject_core.workflow_registry import WorkflowRegistry
 from myproject_core.workspace import WorkspaceManager
@@ -116,6 +117,16 @@ async def get_user_inbox_path(
     return inbox_path
 
 
+def get_productivity_session(
+    user_config: Annotated[Config, Depends(get_user_config)],
+):
+    """
+    Returns a session for the user's private productivity database.
+    Because get_user_session is a generator, we 'yield from' it.
+    """
+    yield from get_user_session(user_config)
+
+
 # --- User-Specific Manager Injections ---
 
 
@@ -173,3 +184,4 @@ AgentRegDep = Annotated[AgentRegistry, Depends(get_agent_registry)]
 WorkflowRegDep = Annotated[WorkflowRegistry, Depends(get_workflow_registry)]
 WorkspaceDep = Annotated[WorkspaceManager, Depends(get_workspace_manager)]
 EngineDep = Annotated[WorkflowEngine, Depends(get_workflow_engine)]
+ProdSessionDep = Annotated[Session, Depends(get_productivity_session)]

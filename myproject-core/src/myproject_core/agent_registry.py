@@ -196,7 +196,7 @@ class AgentRegistry:
             agent_config=instance_config,
             working_directory=working_directory,
             memory=memory,
-            timezone=self.settings.server.timezone,
+            timezone=self.settings.timezone,
         )
 
     def get_all_agent_types(self):
