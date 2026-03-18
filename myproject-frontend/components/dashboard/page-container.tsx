@@ -1,4 +1,3 @@
-// components/dashboard/page-container.tsx
 import React from "react";
 import { cn } from "@/lib/utils";
 
@@ -14,15 +13,15 @@ const PageContainer = React.forwardRef<HTMLDivElement, PageContainerProps>(
 
     // 1. SCROLLER: This div is ALWAYS full width to keep the scrollbar at the screen edge
     const scrollerStyles: Record<PageVariant, string> = {
-      prose: "overflow-y-auto w-full",
-      dashboard: "overflow-y-auto w-full",
-      app: "overflow-hidden flex flex-col w-full", // App variant doesn't scroll at this level
+      prose: "overflow-y-auto w-full flex-1",
+      dashboard: "overflow-y-auto w-full flex-1",
+      app: "overflow-hidden flex flex-col w-full flex-1", // App variant doesn't scroll at this level
     };
 
     // 2. CENTERING BOX: This div constrains the content width
     const innerStyles: Record<PageVariant, string> = {
-      prose: "max-w-5xl mx-auto w-full h-full",
-      dashboard: "max-w-[1600px] mx-auto w-full h-full",
+      prose: "max-w-5xl mx-auto w-full min-h-full",
+      dashboard: "max-w-[1600px] mx-auto w-full min-h-full",
       app: "max-w-none w-full h-full flex flex-col",
     };
 
@@ -51,7 +50,7 @@ const PageBody = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
         ref={ref}
         className={cn(
           // Standard padding and vertical spacing
-          "flex flex-col gap-6 p-4 md:p-6 lg:p-10",
+          "flex flex-col p-4 md:p-6 lg:p-10",
           className
         )}
         {...props}

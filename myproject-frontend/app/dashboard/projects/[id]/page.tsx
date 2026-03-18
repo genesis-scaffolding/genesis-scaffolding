@@ -76,7 +76,7 @@ export default async function ProjectDetailPage({
 
         <Separator className="my-8" />
 
-        <div className="space-y-4">
+        <div className="space-y-4 pb-24">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Project Tasks</h2>
           </div>
