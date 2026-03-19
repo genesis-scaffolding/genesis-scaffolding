@@ -89,6 +89,7 @@ export default async function ProjectDetailPage({
             tasks={tasks}
             projects={projects}
             variant="list"
+            floatingOffset={true}
           />
         </div>
         <div className="fixed bottom-6 left-0 right-0 px-4 md:left-[240px] z-50 pointer-events-none">

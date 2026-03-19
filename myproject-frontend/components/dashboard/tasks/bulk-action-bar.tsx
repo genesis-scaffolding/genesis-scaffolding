@@ -25,14 +25,16 @@ import {
 } from "@/components/ui/command";
 import { bulkUpdateTasksAction } from "@/app/actions/productivity";
 import { Project, Task } from "@/types/productivity";
+import { cn } from "@/lib/utils"
 
 interface BulkActionBarProps {
   selectedIds: number[];
   onClear: () => void;
   projects: Project[];
+  className?: string;
 }
 
-export function BulkActionBar({ selectedIds, onClear, projects }: BulkActionBarProps) {
+export function BulkActionBar({ selectedIds, onClear, projects, className }: BulkActionBarProps) {
   const router = useRouter();
   const [isPending, setIsPending] = React.useState(false);
 
@@ -66,7 +68,10 @@ export function BulkActionBar({ selectedIds, onClear, projects }: BulkActionBarP
   }
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
+    <div className={cn(
+      "fixed left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4",
+      className ? className : "bottom-6" // Default to bottom-6 if no class provided
+    )}>
       <div className="bg-primary text-primary-foreground px-3 py-2 rounded-full shadow-2xl flex items-center gap-2 border border-primary-foreground/20">
 
         {/* Selection Count */}

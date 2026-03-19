@@ -11,9 +11,10 @@ interface TaskTableProps {
   tasks: Task[];
   projects: Project[];
   variant?: "table" | "list"; // Use 'list' for the project detail view
+  floatingOffset?: boolean
 }
 
-export function TaskTable({ tasks, projects, variant = "table" }: TaskTableProps) {
+export function TaskTable({ tasks, projects, variant = "table", floatingOffset = false }: TaskTableProps) {
   const columns = React.useMemo(() => getTaskColumns(projects, variant), [projects, variant]);
 
   const initialVisibility = React.useMemo(() => ({
@@ -40,6 +41,8 @@ export function TaskTable({ tasks, projects, variant = "table" }: TaskTableProps
             selectedIds={selectedIds}
             onClear={() => table.resetRowSelection()}
             projects={projects}
+            // This is important to avoid the bulk action bar being covered up by the task quick add component
+            className={floatingOffset ? "bottom-24" : "bottom-6"}
           />
         );
       }}
