@@ -1,105 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import * as React from "react";
 import { Task, Project } from "@/types/productivity";
-import { Checkbox } from "@/components/ui/checkbox";
+import { DataTable } from "@/components/dashboard/shared/data-table/data-table";
+import { getTaskColumns } from "./table/columns";
+import { TaskTableToolbar } from "./table/toolbar";
 import { BulkActionBar } from "./bulk-action-bar";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { Edit2, Calendar } from "lucide-react";
 
-export function TaskTable({ tasks, projects }: { tasks: Task[], projects: Project[] }) {
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+interface TaskTableProps {
+  tasks: Task[];
+  projects: Project[];
+  variant?: "table" | "list"; // Use 'list' for the project detail view
+}
 
-  const toggleSelect = (id: number) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
-  };
+export function TaskTable({ tasks, projects, variant = "table" }: TaskTableProps) {
+  const columns = React.useMemo(() => getTaskColumns(projects, variant), [projects, variant]);
 
-  const getProjectName = (id: number) => projects.find(p => p.id === id)?.name || "Inbox";
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return null;
-    return new Date(dateString).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
+  const initialVisibility = React.useMemo(() => ({
+    // If we are looking at a single project list, hide the project column by default
+    project: variant !== "list",
+  }), [variant]);
 
   return (
-    <div className="relative pb-20">
-      <div className="rounded-md border bg-card">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/50 text-muted-foreground">
-              <th className="p-4 w-10"></th>
-              <th className="p-4 text-left font-medium">Task</th>
-              <th className="p-4 text-left font-medium">Project</th>
-              <th className="p-4 text-left font-medium">Deadline</th>
-              <th className="p-4 text-left font-medium">Status</th>
-              <th className="p-4 w-10"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {tasks.map((task) => (
-              <tr key={task.id} className="group hover:bg-accent/40 transition-colors">
-                <td className="p-4">
-                  <Checkbox
-                    checked={selectedIds.includes(task.id)}
-                    onCheckedChange={() => toggleSelect(task.id)}
-                  />
-                </td>
-                <td className="p-4">
-                  <Link href={`/dashboard/tasks/${task.id}`} className="hover:underline">
-                    <div className="font-medium text-primary">{task.title}</div>
-                  </Link>
-                  {task.assigned_date && (
-                    <div className="text-xs text-muted-foreground">Scheduled: {task.assigned_date}</div>
-                  )}
-                </td>
-                <td className="p-4">
-                  {task.project_ids.length > 0 ? (
-                    <Badge variant="secondary" className="font-normal">
-                      {getProjectName(task.project_ids[0])}
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground text-xs italic">Unassigned</span>
-                  )}
-                </td>
-                <td className="p-4">
-                  {task.hard_deadline ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-3.5 w-3.5" />
-                      <span>{formatDate(task.hard_deadline)}</span>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground/50 text-xs">—</span>
-                  )}
-                </td>
-                <td className="p-4 capitalize">
-                  <span className={`text-xs px-2 py-1 rounded-full border ${task.status === 'completed' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-                    }`}>
-                    {task.status.replace('_', ' ')}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <Link href={`/dashboard/tasks/${task.id}/edit`} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <DataTable
+      data={tasks}
+      columns={columns}
+      initialColumnVisibility={initialVisibility}
+      getRowId={(row: Task) => row.id.toString()}
+      // 2. The Render Prop: We get the 'table' from DataTable and pass it to our specific Toolbar
+      renderToolbar={(table) => <TaskTableToolbar table={table} />}
 
-      <BulkActionBar
-        selectedIds={selectedIds}
-        onClear={() => setSelectedIds([])}
-        projects={projects}
-      />
-    </div>
+      // 3. Handle the Bulk Actions bar the same way
+      renderFloatingBar={(table) => {
+        const selectedRows = table.getFilteredSelectedRowModel().rows;
+        const selectedIds = selectedRows.map((row) => (row.original as Task).id);
+
+        return (
+          <BulkActionBar
+            selectedIds={selectedIds}
+            onClear={() => table.resetRowSelection()}
+            projects={projects}
+          />
+        );
+      }}
+    />
   );
 }

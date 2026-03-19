@@ -54,6 +54,9 @@ export function BulkActionBar({ selectedIds, onClear, projects }: BulkActionBarP
       }
 
       await bulkUpdateTasksAction(payload);
+
+      onClear();
+
       router.refresh();
     } catch (error) {
       console.error(error);

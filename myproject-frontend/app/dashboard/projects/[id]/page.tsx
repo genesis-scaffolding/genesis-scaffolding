@@ -1,4 +1,4 @@
-import { getProjectAction, getTasksAction } from "@/app/actions/productivity";
+import { getProjectAction, getProjectsAction, getTasksAction } from "@/app/actions/productivity";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,9 @@ import { Separator } from "@/components/ui/separator";
 import { Edit3, ArrowLeft, Calendar } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { TaskList } from "@/components/dashboard/tasks/task-list"
 import { QuickAddTask } from "@/components/dashboard/tasks/quick-add-task";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { TaskTable } from "@/components/dashboard/tasks/task-table";
 
 export default async function ProjectDetailPage({
   params
@@ -17,8 +17,11 @@ export default async function ProjectDetailPage({
 }) {
   const { id } = await params;
 
-  const project = await getProjectAction(id);
-  const tasks = await getTasksAction({ project_id: id, include_completed: true });
+  const [project, tasks, projects] = await Promise.all([
+    getProjectAction(id),
+    getTasksAction({ project_id: id, include_completed: true }),
+    getProjectsAction()
+  ]);
 
   const completedTasks = tasks.filter(t => t.status?.toLowerCase().trim() === 'completed').length;
   const progress = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
@@ -82,7 +85,11 @@ export default async function ProjectDetailPage({
           </div>
 
           {/* We pass project_id to the list so new tasks created here are automatically linked */}
-          <TaskList tasks={tasks} defaultProjectId={project.id} />
+          <TaskTable
+            tasks={tasks}
+            projects={projects}
+            variant="list"
+          />
         </div>
         <div className="fixed bottom-6 left-0 right-0 px-4 md:left-[240px] z-50 pointer-events-none">
           <div className="max-w-4xl mx-auto pointer-events-auto">
