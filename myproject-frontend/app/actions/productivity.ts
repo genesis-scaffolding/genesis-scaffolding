@@ -56,6 +56,24 @@ export async function bulkUpdateTasksAction(data: {
   return res.json();
 }
 
+export async function bulkDeleteTasksAction(ids: number[]) {
+  const res = await apiFetch(`/productivity/tasks/bulk`, {
+    method: 'DELETE',
+    body: JSON.stringify(ids),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    console.error("Bulk Delete Failed:", errorData);
+    throw new Error(errorData.detail || "Failed to delete tasks");
+  }
+
+  // Revalidate all paths where task lists or project associations might be displayed
+  revalidatePath('/dashboard/tasks');
+  revalidatePath('/dashboard/projects');
+
+  return res.json();
+}
 export async function getTaskAction(id: string | number): Promise<Task> {
   const res = await apiFetch(`/productivity/tasks/${id}`);
   if (!res.ok) throw new Error("Failed to fetch task");

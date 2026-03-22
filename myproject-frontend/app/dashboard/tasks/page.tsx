@@ -10,7 +10,7 @@ interface PageProps {
 export default async function TasksPage({ searchParams }: PageProps) {
   // Pass server-side sorting/filtering to the action
   const resolvedParams = await searchParams;
-  const tasks = await getTasksAction(resolvedParams);
+  const tasks = await getTasksAction({ ...resolvedParams, include_completed: false });
   const projects = await getProjectsAction();
 
   return (

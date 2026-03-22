@@ -23,7 +23,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { bulkUpdateTasksAction } from "@/app/actions/productivity";
+import { bulkUpdateTasksAction, bulkDeleteTasksAction } from "@/app/actions/productivity";
 import { Project, Task } from "@/types/productivity";
 import { cn } from "@/lib/utils"
 
@@ -178,8 +178,7 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
           className="h-9 w-9 rounded-full hover:bg-destructive hover:text-destructive-foreground text-red-400"
           onClick={() => {
             if (confirm("Delete these tasks?")) {
-              // Assuming you'd have a delete action
-              // await deleteTasksAction(selectedIds);
+              bulkDeleteTasksAction(selectedIds)
               onClear();
             }
           }}
