@@ -24,6 +24,12 @@ export function TaskTable({ tasks, projects, variant = "table", floatingOffset =
     created_at: false
   }), [variant]);
 
+
+  // Default sorting:
+  // - Show todo items higher
+  // - Sort by deadline (earlier at higher position)
+  // - Sort by assigned date (earlier at higher position)
+  // - Sorted by created at (oldest tasks first)
   const defaultSorting: SortingState = React.useMemo(() => [
     {
       id: "status",
@@ -31,15 +37,15 @@ export function TaskTable({ tasks, projects, variant = "table", floatingOffset =
     },
     {
       id: "hard_deadline",
-      desc: true, // Soonest tasks first
+      desc: false, // Soonest tasks first
     },
     {
       id: "assigned_date",
-      desc: true, // Soonest tasks first
+      desc: false, // Soonest tasks first
     },
     {
       id: "created_at",
-      desc: true, // Soonest tasks first
+      desc: false, // Oldest tasks first
     }
   ], []);
 

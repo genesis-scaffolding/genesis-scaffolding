@@ -1,13 +1,47 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
-import { Task, Project } from "@/types/productivity";
+import { ColumnDef, Row } from "@tanstack/react-table";
+import { Task, Project, Status, STATUS_WEIGHTS } from "@/types/productivity";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { DataTableColumnHeader } from "@/components/dashboard/shared/data-table/column-header";
 import Link from "next/link";
 import { Calendar, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/**
+ *
+ * Custom sorting function that forces null/undefined values to the bottom
+ * regardless of sort direction.
+ */
+const dateSortingWithNullsLast = (rowA: Row<Task>, rowB: Row<Task>, columnId: string) => {
+  const a = rowA.getValue(columnId) as string | null;
+  const b = rowB.getValue(columnId) as string | null;
+
+  // 1. Handle cases where one or both are null
+  if (!a && !b) return 0;
+  if (!a) return 1;  // Row A is null, move it to the end
+  if (!b) return -1; // Row B is null, move it to the end
+
+  // 2. Both have values, compare them as dates
+  const dateA = new Date(a).getTime();
+  const dateB = new Date(b).getTime();
+
+  return dateA - dateB;
+};
+
+/**
+ * Custom sorting for status based on workflow priority
+ */
+const statusSortingFn = (rowA: Row<Task>, rowB: Row<Task>, columnId: string) => {
+  const statusA = rowA.getValue(columnId) as Status;
+  const statusB = rowB.getValue(columnId) as Status;
+
+  const weightA = STATUS_WEIGHTS[statusA] ?? 0;
+  const weightB = STATUS_WEIGHTS[statusB] ?? 0;
+
+  return weightA - weightB;
+};
 
 // This function returns columns based on whether we are in "table" or "list" mode
 export const getTaskColumns = (
@@ -96,6 +130,7 @@ export const getTaskColumns = (
       accessorKey: "assigned_date",
       // Set a fixed width for metadata columns to keep them compact
       header: ({ column }) => <DataTableColumnHeader column={column} title="Scheduled" className="w-[140px]" />,
+      sortingFn: dateSortingWithNullsLast,
       cell: ({ row }) => {
         const date = row.getValue("assigned_date") as string;
         if (!date) return <span className="text-muted-foreground/30 text-xs">—</span>;
@@ -105,6 +140,7 @@ export const getTaskColumns = (
     {
       accessorKey: "hard_deadline",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Deadline" className="w-[140px]" />,
+      sortingFn: dateSortingWithNullsLast,
       cell: ({ row }) => {
         const date = row.getValue("hard_deadline") as string;
         if (!date) return <span className="text-muted-foreground/30 text-xs">—</span>;
@@ -120,6 +156,7 @@ export const getTaskColumns = (
       accessorKey: "created_at",
       // Set a fixed width for metadata columns to keep them compact
       header: ({ column }) => <DataTableColumnHeader column={column} title="Created" className="w-[140px]" />,
+      sortingFn: dateSortingWithNullsLast,
       cell: ({ row }) => {
         const date = row.getValue("created_at") as string;
         if (!date) return <span className="text-muted-foreground/30 text-xs">—</span>;
@@ -130,6 +167,7 @@ export const getTaskColumns = (
     {
       accessorKey: "status",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Status" className="w-[120px]" />,
+      sortingFn: statusSortingFn,
       cell: ({ row }) => {
         const status = row.getValue("status") as string;
         return (

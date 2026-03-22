@@ -1,4 +1,13 @@
 export type Status = 'backlog' | 'todo' | 'in_progress' | 'completed' | 'canceled';
+// Define the "Heat" order (Higher number = "Hotter" / Top of list)
+export const STATUS_WEIGHTS: Record<Status, number> = {
+  in_progress: 5,
+  todo: 4,
+  backlog: 3,
+  completed: 2,
+  canceled: 1,
+};
+
 export type JournalType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'project' | 'general';
 
 export interface Project {

@@ -1,6 +1,6 @@
 # Developer Guide: Data Table System
 
-This guide explains how to use the project's **Data Table Engine** to build powerful, sortable, and filterable tables for any backend entity.
+This guide explains how to use the project's **Data Table Engine** to build powerful, sortable, and filterable tables for any backend entity, with a specific focus on advanced sorting logic.
 
 ## Architecture Overview
 
@@ -11,85 +11,105 @@ The system uses a **Three-Layer Architecture** powered by `@tanstack/react-table
 | :--- | :--- |
 | `components/dashboard/shared/data-table/` | **Shared UI Layer:** Generic table engine, sortable headers, and column togglers. |
 | `components/dashboard/[entity]/table/` | **Definition Layer:** Column definitions (`columns.tsx`) and specific filters (`toolbar.tsx`). |
-| `components/dashboard/[entity]/[entity]-table.tsx` | **Orchestrator:** Connects the engine to the definitions and handles bulk action logic. |
+| `components/dashboard/[entity]/[entity]-table.tsx` | **Orchestrator:** Connects the engine to the definitions, defines default sorting, and handles bulk logic. |
 
 ---
 
-## 1. The Core Components
+## 1. Sorting Fundamentals
 
-### `DataTable` (The Engine)
-Located at `components/dashboard/shared/data-table/data-table.tsx`. It is a generic component that accepts any data type (`TData`).
+### The `DataTableColumnHeader`
+To make a column sortable, you must use the `DataTableColumnHeader` component in the column definition. This provides the UI for toggling between Ascending, Descending, and Clear.
 
-**Key Props:**
-- `columns`: The column definitions.
-- `data`: The array of objects from the API.
-- `getRowId`: **Critical.** A function returning a unique string ID for each row. This ensures selection state survives re-sorting.
-- `renderToolbar`: A render-prop function that receives the `table` instance to render search/filters.
-- `renderFloatingBar`: A render-prop function for bulk action bars.
-
-### `DataTableColumnHeader`
-Use this inside your column definitions to enable sorting UI.
 ```tsx
-header: ({ column }) => <DataTableColumnHeader column={column} title="My Column" />
+header: ({ column }) => <DataTableColumnHeader column={column} title="Due Date" />
+```
+
+### Initial & Multi-Field Sorting
+The orchestrator component defines the `initialSorting` state. This allows you to stack multiple sort rules (e.g., sort by Status first, then by Date).
+
+```tsx
+const defaultSorting: SortingState = [
+  { id: "status", desc: true },      // Primary sort
+  { id: "hard_deadline", desc: false } // Secondary sort (tie-breaker)
+];
 ```
 
 ---
 
-## 2. Implementation Workflow (Example: `News` Entity)
+## 2. Advanced Sorting Logic
 
-### Step 1: Define Columns (`columns.tsx`)
-Create a file to define how data maps to the table. Use `accessorFn` for complex data (like nested objects) to ensure sorting works correctly.
+By default, JavaScript sorts alphabetically or numerically. For production-grade tables, you often need to override this behavior.
+
+### Pattern A: The "Nulls Last" Strategy
+Standard sorting puts empty values (null/undefined) at the top of ascending lists. To force empty values to the bottom, use a custom `sortingFn`.
 
 ```tsx
-// components/dashboard/news/table/columns.tsx
-export const getNewsColumns = (): ColumnDef<News>[] => [
+const dateSortingWithNullsLast = (rowA: Row<any>, rowB: Row<any>, columnId: string) => {
+  const a = rowA.getValue(columnId);
+  const b = rowB.getValue(columnId);
+
+  if (!a && !b) return 0;
+  if (!a) return 1;  // Move nulls to the end
+  if (!b) return -1; 
+  
+  return new Date(a).getTime() - new Date(b).getTime();
+};
+```
+
+### Pattern B: Status Weight Sorting (Enums)
+When sorting statuses (e.g., "In Progress" vs "Backlog"), alphabetical order is rarely useful. Use a weight map to define a logical "heat" or priority.
+
+```tsx
+const STATUS_WEIGHTS = { in_progress: 3, todo: 2, backlog: 1 };
+
+const statusSortingFn = (rowA: Row<any>, rowB: Row<any>, columnId: string) => {
+  const weightA = STATUS_WEIGHTS[rowA.getValue(columnId)] ?? 0;
+  const weightB = STATUS_WEIGHTS[rowB.getValue(columnId)] ?? 0;
+  return weightA - weightB; // Use desc: true in initialSorting to show highest weight first
+};
+```
+
+---
+
+## 3. Implementation Workflow (Example: `Task` Entity)
+
+### Step 1: Define Columns with Custom Logic (`columns.tsx`)
+```tsx
+// components/dashboard/tasks/table/columns.tsx
+export const getTaskColumns = (): ColumnDef<Task>[] => [
   {
-    accessorKey: "title",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Headline" />,
-    cell: ({ row }) => <div className="font-bold">{row.getValue("title")}</div>,
+    accessorKey: "status",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+    sortingFn: statusSortingFn, // Apply custom weight sort
+    cell: ({ row }) => <Badge>{row.getValue("status")}</Badge>,
   },
   {
-    id: "category",
-    accessorFn: (row) => row.category.name, // Extract string for sorting/filtering
-    header: "Category",
+    accessorKey: "hard_deadline",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Deadline" />,
+    sortingFn: dateSortingWithNullsLast, // Apply "Nulls Last" sort
+    cell: ({ row }) => <div>{row.getValue("hard_deadline") || "No Date"}</div>,
   }
 ];
 ```
 
-### Step 2: Create the Toolbar (`toolbar.tsx`)
-The toolbar allows users to search and toggle column visibility.
-
+### Step 2: Orchestrate and Set Default Sort (`task-table.tsx`)
 ```tsx
-// components/dashboard/news/table/toolbar.tsx
-export function NewsTableToolbar({ table }: { table: Table<any> }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <Input
-        placeholder="Search headlines..."
-        value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
-        onChange={(e) => table.getColumn("title")?.setFilterValue(e.target.value)}
-        className="h-8 w-[250px]"
-      />
-      <DataTableViewOptions table={table} />
-    </div>
-  );
-}
-```
+// components/dashboard/tasks/task-table.tsx
+export function TaskTable({ tasks }: { tasks: Task[] }) {
+  const columns = React.useMemo(() => getTaskColumns(), []);
 
-### Step 3: Orchestrate in the Main Table Component
-Create the entry-point component that brings everything together.
-
-```tsx
-// components/dashboard/news/news-table.tsx
-export function NewsTable({ news }: { news: News[] }) {
-  const columns = React.useMemo(() => getNewsColumns(), []);
+  const defaultSorting = React.useMemo(() => [
+    { id: "status", desc: true },        // Highest priority status first
+    { id: "hard_deadline", desc: false } // Then soonest deadline
+  ], []);
 
   return (
     <DataTable
-      data={news}
+      data={tasks}
       columns={columns}
+      initialSorting={defaultSorting}
       getRowId={(row) => row.id.toString()}
-      renderToolbar={(table) => <NewsTableToolbar table={table} />}
+      renderToolbar={(table) => <TaskTableToolbar table={table} />}
     />
   );
 }
@@ -97,120 +117,33 @@ export function NewsTable({ news }: { news: News[] }) {
 
 ---
 
-## 3. Advanced Patterns
-
-### Selection and Bulk Actions
+## 4. Selection and Bulk Actions
 To handle bulk actions, use the `renderFloatingBar` prop. Access selected data using `table.getSelectedRowModel()`.
 
 ```tsx
 renderFloatingBar={(table) => {
-  const selectedIds = table.getSelectedRowModel().rows.map(r => r.original.id);
-  return <BulkActionBar selectedIds={selectedIds} onClear={() => table.resetRowSelection()} />;
-}}
-```
-
-### Context-Aware Visibility (Variants)
-You can hide columns by default based on where the table is used (e.g., hiding the "Project" column when already inside a project page).
-
-1. Add a `variant` prop to your Orchestrator.
-2. Define `initialColumnVisibility` logic.
-
-```tsx
-// inside news-table.tsx
-const initialVisibility = {
-  category: variant !== "category-view", // Hide category column in specific views
-};
-
-<DataTable ... initialColumnVisibility={initialVisibility} />
-```
-
----
-
-## 4. Full Code Example: "Project Table"
-Below is a complete implementation for a `Project` list using the system.
-
-### A. Column Definition (`columns.tsx`)
-```tsx
-"use client";
-
-import { ColumnDef } from "@tanstack/react-table";
-import { Project } from "@/types/productivity";
-import { DataTableColumnHeader } from "../../shared/data-table/column-header";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-
-export const projectColumns: ColumnDef<Project>[] = [
-  {
-    accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Project Name" />,
-    cell: ({ row }) => (
-      <Link href={`/dashboard/projects/${row.original.id}`} className="font-bold hover:underline">
-        {row.getValue("name")}
-      </Link>
-    ),
-  },
-  {
-    accessorKey: "status",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
-    cell: ({ row }) => <Badge variant="outline">{row.getValue("status")}</Badge>,
-  },
-];
-```
-
-### B. The Toolbar (`toolbar.tsx`)
-```tsx
-"use client";
-
-import { Table } from "@tanstack/react-table";
-import { Input } from "@/components/ui/input";
-import { DataTableViewOptions } from "../../shared/data-table/view-options";
-
-export function ProjectTableToolbar<TData>({ table }: { table: Table<TData> }) {
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
+  const selectedIds = selectedRows.map(r => (r.original as any).id);
+  
+  if (selectedIds.length === 0) return null;
+  
   return (
-    <div className="flex items-center justify-between py-4">
-      <Input
-        placeholder="Filter projects..."
-        value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-        onChange={(e) => table.getColumn("name")?.setFilterValue(e.target.value)}
-        className="max-w-sm h-8"
-      />
-      <DataTableViewOptions table={table} />
-    </div>
-  );
-}
-```
-
-### C. The Orchestrator (`project-table.tsx`)
-```tsx
-"use client";
-
-import * as React from "react";
-import { Project } from "@/types/productivity";
-import { DataTable } from "../shared/data-table/data-table";
-import { projectColumns } from "./table/columns";
-import { ProjectTableToolbar } from "./table/toolbar";
-
-export function ProjectTable({ projects }: { projects: Project[] }) {
-  // UseMemo prevents column re-definitions on every render
-  const columns = React.useMemo(() => projectColumns, []);
-
-  return (
-    <DataTable
-      data={projects}
-      columns={columns}
-      getRowId={(row) => row.id.toString()}
-      renderToolbar={(table) => <ProjectTableToolbar table={table} />}
+    <BulkActionBar 
+      selectedIds={selectedIds} 
+      onClear={() => table.resetRowSelection()} 
     />
   );
-}
+}}
 ```
 
 ---
 
 ## 5. Best Practices
-1.  **Memoize Columns:** Always wrap `getColumns()` calls in `useMemo` to prevent the table from re-calculating on every render.
-2.  **Stable IDs:** Always provide `getRowId`. Without it, row selection will "jump" to different items when the list is sorted.
-3.  **Formatting Strategy:**
-    - **`accessorFn`**: Use this to return a plain **string or number**. This is what the engine uses for **sorting and filtering**.
-    - **`cell`**: Use this to return **JSX/React Components** (Links, Badges, Buttons). This is only for **display**.
-4.  **Loading States:** Tables are usually rendered in Server Components. Use React `Suspense` in the `page.tsx` for loading states while the Server Action fetches data.
+
+1.  **Stable Accessors:** Use `accessorKey` for simple fields and `accessorFn` for nested data. Sorting and filtering rely on the raw value returned by these.
+2.  **Memoization:** Always wrap `getColumns()` and `defaultSorting` in `useMemo`. This prevents the table from re-calculating logic on every state change (like typing in a search box).
+3.  **Unique IDs:** Always provide `getRowId`. Without it, TanStack uses the array index, which causes selection to break when the user sorts the table.
+4.  **Display vs. Data:** 
+    - Use `accessorFn` to return a **sortable primitive** (string, number, date).
+    - Use `cell` to return the **JSX/UI** (Badges, Links). Never try to sort based on a JSX element.
+5.  **Multi-Sort:** Keep `enableMultiSort={true}` in the `DataTable` engine to allow users to `Shift + Click` multiple columns for complex manual sorting.
