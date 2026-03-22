@@ -31,6 +31,8 @@ interface DataTableProps<TData, TValue> {
   getRowId?: (row: TData) => string;
 
   initialColumnVisibility?: VisibilityState;
+  initialSorting?: SortingState;
+  enableMultiSort?: boolean;
 
   // The caller would supply the function to initialise these react components
   // Slot for search/filters
@@ -43,11 +45,13 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   getRowId,
+  initialSorting = [],
+  enableMultiSort = true,
   initialColumnVisibility = {},
   renderToolbar,
   renderFloatingBar,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(initialColumnVisibility);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = React.useState({});
@@ -63,6 +67,7 @@ export function DataTable<TData, TValue>({
       columnFilters,
     },
     enableRowSelection: true,
+    enableMultiSort,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,

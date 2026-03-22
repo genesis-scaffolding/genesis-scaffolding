@@ -117,6 +117,17 @@ export const getTaskColumns = (
       },
     },
     {
+      accessorKey: "created_at",
+      // Set a fixed width for metadata columns to keep them compact
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Created" className="w-[140px]" />,
+      cell: ({ row }) => {
+        const date = row.getValue("created_at") as string;
+        if (!date) return <span className="text-muted-foreground/30 text-xs">—</span>;
+        return <span className="text-xs font-medium">{date}</span>;
+      },
+    },
+
+    {
       accessorKey: "status",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Status" className="w-[120px]" />,
       cell: ({ row }) => {
