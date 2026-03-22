@@ -11,7 +11,7 @@ import { SortingState } from "@tanstack/react-table";
 interface TaskTableProps {
   tasks: Task[];
   projects: Project[];
-  variant?: "table" | "list"; // Use 'list' for the project detail view
+  variant?: "table" | "list" | "dashboard"; // Use 'list' for the project detail view
   floatingOffset?: boolean
 }
 
@@ -19,11 +19,12 @@ export function TaskTable({ tasks, projects, variant = "table", floatingOffset =
   const columns = React.useMemo(() => getTaskColumns(projects, variant), [projects, variant]);
 
   const initialVisibility = React.useMemo(() => ({
-    // If we are looking at a single project list, hide the project column by default
-    project: variant !== "list",
-    created_at: false
+    project: variant !== "list" && variant !== "dashboard", // Hide project on dashboard
+    created_at: false,
+    scheduled_start: false,
+    assigned_date: variant !== "dashboard", // Hide scheduled date on dashboard
+    hard_deadline: variant !== "dashboard",  // Hide deadline on dashboard
   }), [variant]);
-
 
   // Default sorting:
   // - Show todo items higher
@@ -41,7 +42,11 @@ export function TaskTable({ tasks, projects, variant = "table", floatingOffset =
     },
     {
       id: "assigned_date",
-      desc: false, // Soonest tasks first
+      desc: variant === "dashboard", // Soonest tasks first
+    },
+    {
+      id: "scheduled_start",
+      desc: variant === "dashboard", // Soonest tasks first
     },
     {
       id: "created_at",

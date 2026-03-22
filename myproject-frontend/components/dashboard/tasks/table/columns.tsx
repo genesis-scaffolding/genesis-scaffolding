@@ -6,8 +6,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { DataTableColumnHeader } from "@/components/dashboard/shared/data-table/column-header";
 import Link from "next/link";
-import { Calendar, Edit2 } from "lucide-react";
+import { Calendar, Edit2, Clock, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isThisWeek, isToday, parseISO, format } from "date-fns";
 
 /**
  *
@@ -46,7 +47,7 @@ const statusSortingFn = (rowA: Row<Task>, rowB: Row<Task>, columnId: string) => 
 // This function returns columns based on whether we are in "table" or "list" mode
 export const getTaskColumns = (
   projects: Project[],
-  variant: "table" | "list" = "table"
+  variant: "table" | "list" | "dashboard" = "table"
 ): ColumnDef<Task>[] => [
     {
       id: "select",
@@ -76,23 +77,58 @@ export const getTaskColumns = (
         <DataTableColumnHeader column={column} title="Task" className="min-w-[400px]" />
       ),
       cell: ({ row }) => {
-        const isCompleted = row.original.status === "completed";
+        const task = row.original;
+        const isCompleted = task.status === "completed";
+
+        // Logic for Task Types
+        const isAppointment = !!task.scheduled_start;
+        const isDeadline = !!task.hard_deadline;
+
+        // Logic for Highlighting
+        // assigned_date is "YYYY-MM-DD", parseISO handles this correctly
+        const scheduledForToday = task.assigned_date ? isToday(parseISO(task.assigned_date)) : false;
+
+        // hard_deadline is ISO string
+        const deadlineThisWeek = task.hard_deadline
+          ? isThisWeek(parseISO(task.hard_deadline), { weekStartsOn: 1 })
+          : false;
         return (
           <div className="flex flex-col py-1">
-            <Link
-              href={`/dashboard/tasks/${row.original.id}`}
-              className={cn(
-                "font-medium hover:underline text-primary leading-tight",
-                variant === "list" && isCompleted && "line-through opacity-50 text-muted-foreground"
+            <div className="flex items-center gap-2">
+              {/* Optional Icon Indicators for Type */}
+              {isAppointment && <Clock className="h-3 w-3 text-blue-500" />}
+              {isDeadline && !isAppointment && <Bell className="h-3 w-3 text-orange-500" />}
+
+              <Link
+                href={`/dashboard/tasks/${task.id}`}
+                className={cn(
+                  "hover:underline text-primary leading-tight transition-colors",
+                  // Requirement: Bold if scheduled for today
+                  scheduledForToday ? "font-bold text-base" : "font-medium",
+                  // Requirement: Red if deadline is this week
+                  deadlineThisWeek && !isCompleted && "text-destructive",
+                  variant === "list" && isCompleted && "line-through opacity-50 text-muted-foreground"
+                )}
+              >
+                {task.title}
+              </Link>
+            </div>
+
+            <div className="flex items-center gap-3 mt-1">
+              {task.assigned_date && (
+                <span className={cn(
+                  "text-[10px] uppercase tracking-wider font-semibold",
+                  scheduledForToday ? "text-blue-600" : "text-muted-foreground"
+                )}>
+                  {scheduledForToday ? "★ Today" : `Scheduled: ${task.assigned_date}`}
+                </span>
               )}
-            >
-              {row.getValue("title")}
-            </Link>
-            {row.original.assigned_date && (
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-1">
-                Scheduled: {row.original.assigned_date}
-              </span>
-            )}
+              {isAppointment && task.scheduled_start && (
+                <span className="text-[10px] uppercase tracking-wider text-amber-600 font-bold">
+                  Appt: {format(parseISO(task.scheduled_start), "p")}
+                </span>
+              )}
+            </div>
           </div>
         );
       },
@@ -143,6 +179,22 @@ export const getTaskColumns = (
       sortingFn: dateSortingWithNullsLast,
       cell: ({ row }) => {
         const date = row.getValue("hard_deadline") as string;
+        if (!date) return <span className="text-muted-foreground/30 text-xs">—</span>;
+        return (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            <span>{new Date(date).toLocaleDateString()}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "scheduled_start",
+      // Set a fixed width for metadata columns to keep them compact
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Appointment" className="w-[140px]" />,
+      sortingFn: dateSortingWithNullsLast,
+      cell: ({ row }) => {
+        const date = row.getValue("scheduled_start") as string;
         if (!date) return <span className="text-muted-foreground/30 text-xs">—</span>;
         return (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
