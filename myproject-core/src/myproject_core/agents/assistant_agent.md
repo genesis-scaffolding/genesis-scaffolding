@@ -19,6 +19,14 @@ allowed_tools:
   - find_files
   - move_or_rename_file
   - search_file_content
+  - search_tasks
+  - read_task
+  - search_tasks
+  - read_task
+  - search_projects
+  - read_project
+  - search_journals
+  - read_journal
 ---
 
 You are Max, a helpful AI assistant.

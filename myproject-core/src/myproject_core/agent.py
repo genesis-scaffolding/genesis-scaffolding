@@ -12,7 +12,8 @@ from myproject_tools.schema import ToolResult
 from .agent_memory import AgentMemory
 from .configs import get_config
 from .llm import get_llm_response
-from .schemas import AgentConfig, LLMProvider, LLMModelConfig, StreamCallback, ToolCallback
+from .productivity.db import get_user_session
+from .schemas import AgentConfig, LLMModelConfig, LLMProvider, StreamCallback, ToolCallback
 from .utils import streamcallback_simple_print
 
 SYSTEM_PROMPT_PREFIX = """
@@ -101,6 +102,7 @@ class Agent:
         working_directory: Path | None = None,
         content_chunk_callbacks: list[StreamCallback] | None = None,
         reasoning_chunk_callbacks: list[StreamCallback] | None = None,
+        user_db_url: str | None = None,
     ) -> None:
         self.agent_config = agent_config
         if not agent_config.provider_config:
@@ -136,6 +138,9 @@ class Agent:
         self._resolve_tools()
 
         self.timezone = timezone  # Timezone for providing agent with accurate local time
+        self.user_db_url = (
+            user_db_url  # Passing connection string to user's private database for agent to use in tools
+        )
 
     def _resolve_tools(self):
         """
@@ -188,7 +193,12 @@ class Agent:
                 result_str = f"Error: Tool {name} not found."
             else:
                 # Execute (Pure data generation)
-                result: ToolResult = await tool.run(working_directory=working_directory, **args)
+                result: ToolResult = await tool.run(
+                    working_directory=working_directory,
+                    user_db_url=self.user_db_url,
+                    timezone=self.timezone,
+                    **args,
+                )
 
                 # Side Effect: Add files to clipboard
                 if result.status == "success" and result.files_to_add_to_clipboard:
@@ -200,6 +210,20 @@ class Agent:
                     self.memory.add_tool_results_to_clipboard(
                         tool_name=name, tool_call_id=tool_id, results=result.results_to_add_to_clipboard
                     )
+
+                # Side Effect: Pin productivity entities to clipboard
+                if (
+                    result.status == "success"
+                    and hasattr(result, "entities_to_track")
+                    and result.entities_to_track
+                ):
+                    for entity in result.entities_to_track:
+                        self.memory.pin_entity(
+                            item_type=entity.item_type,
+                            item_id=entity.item_id,
+                            resolution=entity.resolution,
+                            ttl=entity.ttl,
+                        )
 
                 result_str = result.tool_response
         except Exception as e:
@@ -309,6 +333,13 @@ class Agent:
         # Start the tool call loop
         # Significantly reduce the number of turn for testing
         for turn in range(max_turns):
+            # Sync the productivity pinned entities
+            if self.user_db_url and self.memory.agent_clipboard.pinned_entities:
+                # get_user_session is a generator, so we iterate to get the session
+                # and ensure it closes automatically afterwards
+                for session in get_user_session(db_url=self.user_db_url):
+                    self.memory.sync_entities(session)
+
             # Build the ephemeral payload for the LLM
             # Current memory.messages is [..., UserMsg]
             history = self.memory.get_messages()

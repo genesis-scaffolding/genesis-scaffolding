@@ -1,9 +1,13 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 from zoneinfo import ZoneInfo
 
-from .configs import get_config
+from sqlmodel import Session
+
+from myproject_core.productivity.models import Task
+
+from .productivity import service as prod_service
 from .schemas import AgentClipboard
 
 
@@ -93,6 +97,53 @@ class AgentMemory:
             if self.agent_clipboard.remove_file_from_clipboard(file_path):
                 files_removed.append(file_path)
         return files_removed
+
+    def pin_entity(
+        self,
+        item_type: Literal["task", "project", "journal"],
+        item_id: int,
+        resolution: Literal["summary", "detail"],
+        ttl: int = 10,
+    ):
+        """Delegates pinning a productivity item to the clipboard schema."""
+        self.agent_clipboard.pin_entity(item_type, item_id, resolution, ttl)
+
+    def sync_entities(self, session: Session):
+        """
+        Iterates over all pinned entities in the clipboard, fetches their
+        latest state from the database, and converts them to dictionaries for the LLM.
+        If an entity was deleted from the database, it removes it from the clipboard.
+        """
+        # We iterate over a list of keys so we can safely delete from the dict if needed
+        keys_to_sync = list(self.agent_clipboard.pinned_entities.keys())
+
+        for key in keys_to_sync:
+            entity = self.agent_clipboard.pinned_entities[key]
+            db_item = None
+
+            # 1. Fetch from DB
+            if entity.item_type == "task":
+                db_item = prod_service.get_task(session, entity.item_id)
+            elif entity.item_type == "project":
+                db_item = prod_service.get_project(session, entity.item_id)
+            elif entity.item_type == "journal":
+                db_item = prod_service.get_journal(session, entity.item_id)
+
+            # 2. Update or Remove
+            if db_item is None:
+                # The item was deleted from the DB (e.g., by the user in the UI)
+                del self.agent_clipboard.pinned_entities[key]
+            else:
+                # Serialize the SQLModel to a dict.
+                # Mode="json" ensures dates/datetimes are converted to strings safely
+                data = db_item.model_dump(mode="json")
+
+                # Special handling for Task's computed property "project_ids"
+                if entity.item_type == "task":
+                    db_item = cast(Task, db_item)
+                    data["project_ids"] = db_item.project_ids
+
+                entity.data = data
 
     def estimate_total_tokens(self) -> int:
         """

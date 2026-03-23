@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Literal, Optional
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
@@ -122,10 +122,24 @@ class AgentClipboardTodoItem(BaseModel):
     task_desc: str
 
 
+class AgentClipboardPinnedEntity(BaseModel):
+    """Represents a database entity pinned to the clipboard."""
+
+    item_type: Literal["task", "project", "journal"]
+    item_id: int
+    resolution: Literal["summary", "detail"]
+    ttl: int
+
+    # The actual database record converted to a dictionary.
+    # This is updated every turn by the Agent loop (Live-Sync).
+    data: dict[str, Any] = {}
+
+
 class AgentClipboard(BaseModel):
     accessed_files: dict[str, AgentClipboardFile] = {}
     tool_results: dict[str, AgentClipboardToolResult] = {}
     todo_list: list[AgentClipboardTodoItem] = []
+    pinned_entities: dict[str, AgentClipboardPinnedEntity] = {}
 
     def add_file_to_clipboard(self, file_path: Path, content: str):
         """Adds or updates a file in the clipboard."""
@@ -158,21 +172,49 @@ class AgentClipboard(BaseModel):
             return True
         return False
 
+    def pin_entity(
+        self,
+        item_type: Literal["task", "project", "journal"],
+        item_id: int,
+        resolution: Literal["summary", "detail"],
+        ttl: int = 10,
+    ):
+        """Adds or updates a pinned productivity entity."""
+        key = f"{item_type}_{item_id}"
+        if key in self.pinned_entities:
+            # If it exists, update resolution and reset TTL
+            self.pinned_entities[key].resolution = resolution
+            self.pinned_entities[key].ttl = ttl
+        else:
+            self.pinned_entities[key] = AgentClipboardPinnedEntity(
+                item_type=item_type, item_id=item_id, resolution=resolution, ttl=ttl
+            )
+
     def reduce_ttl(self):
         """Reduce ttl of every item stored in clipboard"""
         if self.accessed_files:
             for _, file in self.accessed_files.items():
                 file.ttl = file.ttl - 1
+
         if self.tool_results:
             for _, tool_result in self.tool_results.items():
                 tool_result.ttl = tool_result.ttl - 1
+
+        if self.pinned_entities:
+            for _, entity in self.pinned_entities.items():
+                entity.ttl -= 1
+                # DECAY: If an item gets old (e.g., <= 5 turns left), downgrade it to save tokens
+                if entity.ttl <= 5 and entity.resolution == "detail":
+                    entity.resolution = "summary"
 
     def remove_expired_items(self):
         """Remove expired files and tool call results"""
         # Reconstruct the dictionaries keeping only items with ttl > 0
         self.accessed_files = {key: file for key, file in self.accessed_files.items() if file.ttl > 0}
-
         self.tool_results = {key: result for key, result in self.tool_results.items() if result.ttl > 0}
+        self.pinned_entities = {
+            key: entity for key, entity in self.pinned_entities.items() if entity.ttl > 0
+        }
 
     def commit(self):
         """
@@ -189,11 +231,59 @@ class AgentClipboard(BaseModel):
 
         # Render Todo List
         if self.todo_list:
-            todo_section = "### TODO LIST\n"
+            todo_section = "### AGENT INTERNAL TODO LIST\n"
+            todo_section = "This list is your own to-do list to keep track of your tasks towards achieving your current goals.\n\n"
             for item in self.todo_list:
                 status = "[x]" if item.completed else "[ ]"
                 todo_section += f"{status} {item.task_desc}\n"
             sections.append(todo_section)
+
+        # Render pinned productivity items
+        if self.pinned_entities:
+            prod_section = "### USER PRODUCTIVITY SYSTEM (LIVE SYNCED)\n"
+            prod_section += "These items are pinned to your clipboard and reflect their real-time state in the database.\n\n"
+
+            # Group by type for cleaner reading
+            tasks = [e for e in self.pinned_entities.values() if e.item_type == "task" and e.data]
+            projects = [e for e in self.pinned_entities.values() if e.item_type == "project" and e.data]
+            journals = [e for e in self.pinned_entities.values() if e.item_type == "journal" and e.data]
+
+            if tasks:
+                prod_section += "#### TRACKED TASKS\n"
+                for t in tasks:
+                    d = t.data
+                    prod_section += f"- **[ID: {t.item_id}]** {d.get('title', 'Unknown')} | Status: `{d.get('status', 'Unknown')}`"
+                    if d.get("assigned_date"):
+                        prod_section += f" | Date: {d.get('assigned_date')}"
+                    if d.get("hard_deadline"):
+                        prod_section += f" | Deadline: {d.get('hard_deadline')}"
+                    prod_section += "\n"
+
+                    if t.resolution == "detail" and not shorten:
+                        prod_section += f"  - **Description:** {d.get('description') or 'None'}\n"
+                        prod_section += f"  - **Project Links:** {d.get('project_ids', [])}\n"
+                prod_section += "\n"
+
+            if projects:
+                prod_section += "#### TRACKED PROJECTS\n"
+                for p in projects:
+                    d = p.data
+                    prod_section += f"- **[ID: {p.item_id}]** {d.get('name', 'Unknown')} | Status: `{d.get('status', 'Unknown')}`\n"
+                    if p.resolution == "detail" and not shorten:
+                        prod_section += f"  - **Description:** {d.get('description') or 'None'}\n"
+                        prod_section += f"  - **Deadline:** {d.get('deadline') or 'None'}\n"
+                prod_section += "\n"
+
+            if journals:
+                prod_section += "#### TRACKED JOURNALS\n"
+                for j in journals:
+                    d = j.data
+                    prod_section += f"- **[ID: {j.item_id}]** {d.get('title') or 'Untitled'} | Type: `{d.get('entry_type', 'Unknown')}` | Ref Date: {d.get('reference_date', 'Unknown')}\n"
+                    if j.resolution == "detail" and not shorten:
+                        prod_section += f"  - **Content:**\n```markdown\n{d.get('content', '')}\n```\n"
+                prod_section += "\n"
+
+            sections.append(prod_section)
 
         # Render Files
         if self.accessed_files:

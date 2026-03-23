@@ -197,6 +197,7 @@ class AgentRegistry:
             working_directory=working_directory,
             memory=memory,
             timezone=self.settings.timezone,
+            user_db_url=self.settings.user_db.connection_string,  # injecting user's database connection string
         )
 
     def get_all_agent_types(self):
