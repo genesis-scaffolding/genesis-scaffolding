@@ -1,21 +1,120 @@
+# LLM Package Refactor Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Refactor the giant `llm.py` module into an `llm/` package with separate modules for different LLM providers (Anthropic, LiteLLM), while preserving the same public interface that `agent.py` depends on.
+
+**Architecture:** The `llm/` package acts as an orchestrator that routes requests to the appropriate provider-specific implementation. The public interface `get_llm_response()` remains unchanged, so no changes needed to `agent.py` or other consumers.
+
+**Tech Stack:** Python async/await, Anthropic SDK, LiteLLM
+
+---
+
+## File Structure
+
+### Current
+```
+myproject_core/src/myproject_core/llm.py  # ~460 lines giant module
+```
+
+### After Refactor
+```
+myproject_core/src/myproject_core/llm/
+  __init__.py      # Orchestrator: get_llm_response() routes to correct provider
+  _base.py         # Shared: provider detection, type guards
+  _anthropic.py    # Anthropic SDK path: _call_anthropic, stream/nonstream parsers
+  _litellm.py      # LiteLLM path: litellm streaming/nonstream handling
+```
+
+**No changes needed to `agent.py`** - the import `from .llm import get_llm_response` will continue to work because `llm/__init__.py` will re-export it.
+
+---
+
+### Task 1: Create `llm/` directory and `_base.py`
+
+**Files:**
+- Create: `myproject-core/src/myproject_core/llm/__init__.py`
+- Create: `myproject-core/src/myproject_core/llm/_base.py`
+- Modify: `myproject-core/src/myproject_core/llm.py` (to be deleted after)
+
+- [ ] **Step 1: Create `llm/` directory**
+
+Run: `mkdir -p myproject-core/src/myproject_core/llm`
+
+- [ ] **Step 2: Create `llm/_base.py`** with provider detection
+
+```python
+"""Shared utilities for LLM provider routing."""
+
+from ..schemas import LLMProvider
+
+
+def is_anthropic_provider(provider_config: LLMProvider) -> bool:
+    """Check if this provider should use the Anthropic SDK directly.
+
+    Providers like MiniMax that are Anthropic-compatible but have issues
+    with LiteLLM should use the official Anthropic SDK.
+    """
+    return provider_config.name == "minimax"
+```
+
+- [ ] **Step 3: Create `llm/__init__.py`** with re-export stub
+
+```python
+"""LLM package - provider-agnostic interface to various LLM backends."""
+
+from ._anthropic import (
+    get_llm_response as _anthropic_get_llm_response,
+    _convert_messages_for_anthropic,
+    _convert_tools_for_anthropic,
+)
+from ._litellm import get_llm_response as _litellm_get_llm_response
+from ..schemas import LLMResponse
+
+__all__ = ["get_llm_response"]
+
+
+async def get_llm_response(
+    llm_model_config,
+    provider_config,
+    messages,
+    stream=False,
+    content_chunk_callbacks=None,
+    reasoning_chunk_callbacks=None,
+    tools=None,
+):
+    """Stub - will be implemented in Step 4."""
+    raise NotImplementedError("Placeholder")
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add myproject-core/src/myproject_core/llm/
+git commit -m "feat(llm): create llm package structure with _base.py"
+```
+
+---
+
+### Task 2: Extract Anthropic path to `_anthropic.py`
+
+**Files:**
+- Create: `myproject-core/src/myproject_core/llm/_anthropic.py`
+- Modify: `myproject-core/src/myproject_core/llm/__init__.py`
+
+- [ ] **Step 1: Create `llm/_anthropic.py`** with Anthropic-specific code
+
+```python
+"""Anthropic SDK implementation for Minimax and similar providers."""
+
 import asyncio
 import json
-from typing import Any, cast
+from typing import Any
 
 import anthropic
 from anthropic import AsyncAnthropic
-import litellm
-from litellm import CustomStreamWrapper, ModelResponse, acompletion
-from litellm.types.utils import Choices, StreamingChoices
 
-from .schemas import LLMModelConfig, LLMProvider, LLMResponse, StreamCallback, ToolCall
-
-litellm.suppress_debug_info = True  # Silences provider suggestion logs
-
-
-def _is_minimax_provider(provider_config: LLMProvider) -> bool:
-    """Check if this provider should use the Anthropic SDK directly."""
-    return provider_config.name == "minimax"
+from ..schemas import LLMModelConfig, LLMProvider, LLMResponse, StreamCallback, ToolCall
 
 
 def _convert_tools_for_anthropic(tools: list[dict]) -> list[dict]:
@@ -36,12 +135,14 @@ def _convert_tools_for_anthropic(tools: list[dict]) -> list[dict]:
                 "name": func["name"],
                 "description": func.get("description", ""),
                 "input_schema": func.get("parameters", {}),
-            },
+            }
         )
     return anthropic_tools
 
 
-def _convert_messages_for_anthropic(messages: list[dict]) -> tuple[list[dict], str | None]:
+def _convert_messages_for_anthropic(
+    messages: list[dict],
+) -> tuple[list[dict], str | None]:
     """Convert message list to Anthropic API format.
 
     Anthropic expects message content as {"type": "text", "text": "..."} blocks
@@ -64,13 +165,9 @@ def _convert_messages_for_anthropic(messages: list[dict]) -> tuple[list[dict], s
             continue
 
         # Tool messages become user messages with tool_result content blocks
-        # Per Anthropic spec: tool results are sent as role=user with tool_result content
         if role == "tool":
             tool_use_id = msg.get("tool_call_id", "")
             tool_content = content
-            print(
-                f"[TOOL RESULT DEBUG] Converting tool message: tool_use_id={tool_use_id}, content={tool_content[:100]}..."
-            )
             anthropic_messages.append(
                 {
                     "role": "user",
@@ -79,9 +176,9 @@ def _convert_messages_for_anthropic(messages: list[dict]) -> tuple[list[dict], s
                             "type": "tool_result",
                             "tool_use_id": tool_use_id,
                             "content": tool_content,
-                        },
+                        }
                     ],
-                },
+                }
             )
             continue
 
@@ -94,7 +191,6 @@ def _convert_messages_for_anthropic(messages: list[dict]) -> tuple[list[dict], s
             for tc in tool_calls:
                 func = tc.get("function", {})
                 args = func.get("arguments", "{}")
-                # Parse arguments JSON if string
                 if isinstance(args, str):
                     try:
                         args = json.loads(args)
@@ -113,24 +209,9 @@ def _convert_messages_for_anthropic(messages: list[dict]) -> tuple[list[dict], s
         elif isinstance(content, str):
             anthropic_messages.append({"role": role, "content": [{"type": "text", "text": content}]})
         else:
-            # Already in block format, pass through
             anthropic_messages.append({"role": role, "content": content})
 
-    # Combine all system messages
     system_prompt = "\n\n".join(system_parts) if system_parts else None
-
-    print(
-        f"[MESSAGE DEBUG] Converted {len(anthropic_messages)} messages, system_prompt length: {len(system_prompt) if system_prompt else 0}"
-    )
-    for i, msg in enumerate(anthropic_messages):
-        role = msg.get("role")
-        content = msg.get("content", "")
-        if isinstance(content, list):
-            types = [c.get("type") for c in content if isinstance(c, dict)]
-            print(f"[MESSAGE DEBUG]   [{i}] role={role}, content_types={types}")
-        else:
-            print(f"[MESSAGE DEBUG]   [{i}] role={role}, content={str(content)[:50]}...")
-
     return anthropic_messages, system_prompt
 
 
@@ -144,20 +225,14 @@ async def _call_anthropic(
     tools: list[Any] | None,
 ) -> LLMResponse:
     """Use official Anthropic SDK for Minimax and similar providers."""
-    print("REACH CALL ANTHROPIC")
-    print(provider_config)
     client = anthropic.Anthropic(
         api_key=provider_config.api_key,
         base_url=str(provider_config.base_url) if provider_config.base_url else None,
     )
 
-    # Convert messages to Anthropic format - returns (messages, system_prompt)
     anthropic_messages, extracted_system = _convert_messages_for_anthropic(messages)
-
-    # Convert tools to Anthropic format
     anthropic_tools = _convert_tools_for_anthropic(tools) if tools else None
 
-    # Build params
     params: dict[str, Any] = {
         "model": llm_model_config.model,
         "messages": anthropic_messages,
@@ -166,7 +241,6 @@ async def _call_anthropic(
     if anthropic_tools:
         params["tools"] = anthropic_tools
 
-    # Handle additional params - system from model config takes priority
     if "system" in llm_model_config.params:
         params["system"] = llm_model_config.params["system"]
     elif extracted_system:
@@ -174,11 +248,6 @@ async def _call_anthropic(
 
     if "temperature" in llm_model_config.params:
         params["temperature"] = llm_model_config.params["temperature"]
-
-    print(f"[DEBUG] Minimax params: model={params['model']}, max_tokens={params['max_tokens']}")
-    print(f"[DEBUG] First message: {params['messages'][0] if params['messages'] else 'NONE'}")
-    print(f"[DEBUG] System: {params.get('system', 'NONE')[:100]}...")
-    print(f"[DEBUG] Full messages being sent: {params['messages']}")
 
     if stream:
         async_client = AsyncAnthropic(
@@ -206,14 +275,13 @@ def _parse_anthropic_nonstream(response: anthropic.types.Message) -> LLMResponse
         elif block.type == "thinking":
             full_reasoning_content += block.thinking
         elif block.type == "tool_use":
-            # Non-streaming tool_use blocks have id, name, input directly (no index)
             args_dict = block.input if isinstance(block.input, dict) else {}
             tool_calls_list.append(
                 {
                     "id": block.id,
                     "name": block.name,
                     "args": args_dict,
-                },
+                }
             )
 
     final_tool_calls = []
@@ -226,7 +294,7 @@ def _parse_anthropic_nonstream(response: anthropic.types.Message) -> LLMResponse
                 id=tc["id"],
                 function_name=tc["name"],
                 arguments=str(args_str),
-            ),
+            )
         )
 
     return LLMResponse(
@@ -242,14 +310,7 @@ async def _parse_anthropic_stream(
     content_chunk_callbacks: list[StreamCallback] | None,
     reasoning_chunk_callbacks: list[StreamCallback] | None,
 ) -> LLMResponse:
-    """Parse streaming Anthropic response using async iteration for real-time callbacks.
-
-    Per Anthropic streaming spec:
-    - text comes through content_block_delta with delta.type == "text_delta"
-    - thinking comes through content_block_delta with delta.type == "thinking_delta"
-    - tool args come through content_block_delta with delta.type == "input_json_delta"
-    - signature_delta events should be ignored
-    """
+    """Parse streaming Anthropic response using async iteration for real-time callbacks."""
     full_content = ""
     full_reasoning_content = ""
     tool_calls_dict: dict[int, dict[str, Any]] = {}
@@ -258,50 +319,24 @@ async def _parse_anthropic_stream(
         async for event in stream:
             event_type = getattr(event, "type", None)
 
-            # Debug: log all event types we receive
-            print(f"[STREAM DEBUG] Received event: {event_type}")
-
-            # Debug: log all event types and content_block info
-            if event_type in ("content_block_start", "content_block_delta", "text", "thinking"):
-                content_block = getattr(event, "content_block", None)
-                print(f"[STREAM DEBUG]   index={getattr(event, 'index', 'N/A')}")
-                if content_block:
-                    print(
-                        f"[STREAM DEBUG]   content_block type={getattr(content_block, 'type', 'N/A')}, id={getattr(content_block, 'id', 'N/A')}, name={getattr(content_block, 'name', 'N/A')}"
-                    )
-                if event_type == "content_block_delta":
-                    delta = getattr(event, "delta", None)
-                    if delta:
-                        print(
-                            f"[STREAM DEBUG]   delta type={getattr(delta, 'type', 'N/A')}, text={getattr(delta, 'text', 'N/A')[:50] if getattr(delta, 'text', None) else 'N/A'}"
-                        )
-
-            # Handle content block start - initialize tool use tracking
             if event_type == "content_block_start":
-                idx = event.index  # type: ignore
+                idx = event.index
                 content_block = getattr(event, "content_block", None)
                 if content_block and getattr(content_block, "type", None) == "tool_use":
-                    tool_id = getattr(content_block, "id", "") or ""
-                    tool_name = getattr(content_block, "name", "") or ""
-                    print(
-                        f"[TOOL DEBUG] content_block_start: idx={idx}, tool_id={tool_id}, tool_name={tool_name}"
-                    )
                     tool_calls_dict[idx] = {
-                        "id": tool_id,
-                        "name": tool_name,
+                        "id": getattr(content_block, "id", "") or "",
+                        "name": getattr(content_block, "name", "") or "",
                         "args": "",
                     }
 
-            # Handle content block delta - this is where ALL content arrives
             elif event_type == "content_block_delta":
                 delta = getattr(event, "delta", None)
                 if not delta:
                     continue
 
                 delta_type = getattr(delta, "type", None)
-                idx = event.index  # type: ignore
+                idx = event.index
 
-                # Text content
                 if delta_type == "text_delta":
                     text_value = getattr(delta, "text", "") or ""
                     if text_value:
@@ -309,7 +344,6 @@ async def _parse_anthropic_stream(
                         if content_chunk_callbacks:
                             await asyncio.gather(*[cb(text_value) for cb in content_chunk_callbacks])
 
-                # Thinking content
                 elif delta_type == "thinking_delta":
                     thinking_value = getattr(delta, "thinking", "") or ""
                     if thinking_value:
@@ -317,7 +351,6 @@ async def _parse_anthropic_stream(
                         if reasoning_chunk_callbacks:
                             await asyncio.gather(*[cb(thinking_value) for cb in reasoning_chunk_callbacks])
 
-                # Tool use arguments (partial JSON)
                 elif delta_type == "input_json_delta":
                     partial_json = getattr(delta, "partial_json", "") or ""
                     if partial_json:
@@ -325,17 +358,11 @@ async def _parse_anthropic_stream(
                             tool_calls_dict[idx] = {"id": "", "name": "", "args": ""}
                         tool_calls_dict[idx]["args"] = tool_calls_dict[idx].get("args", "") + partial_json
 
-                # signature_delta - ignore, used for integrity verification only
-
-    # Build final tool calls
     final_tool_calls = []
     for idx, tc in sorted(tool_calls_dict.items()):
         args_str = tc.get("args", "")
         if isinstance(args_str, dict):
             args_str = json.dumps(args_str)
-        print(
-            f"[TOOL DEBUG] Building ToolCall: id={tc.get('id', '')}, name={tc.get('name', '')}, args={args_str[:100]}..."
-        )
         final_tool_calls.append(
             ToolCall(
                 id=tc.get("id", ""),
@@ -344,16 +371,43 @@ async def _parse_anthropic_stream(
             )
         )
 
-    print(
-        f"[TOOL DEBUG] Final tool_calls: {[{'id': tc.id, 'name': tc.function_name} for tc in final_tool_calls]}"
-    )
-    print(f"[TOOL DEBUG] Full tool_calls_dict: {tool_calls_dict}")
-
     return LLMResponse(
         content=full_content,
         reasoning_content=full_reasoning_content,
         tool_calls=final_tool_calls,
     )
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add myproject-core/src/myproject_core/llm/_anthropic.py
+git commit -m "feat(llm): extract Anthropic SDK path to _anthropic.py"
+```
+
+---
+
+### Task 3: Extract LiteLLM path to `_litellm.py`
+
+**Files:**
+- Create: `myproject-core/src/myproject_core/llm/_litellm.py`
+- Modify: `myproject-core/src/myproject_core/llm/__init__.py`
+
+- [ ] **Step 1: Create `llm/_litellm.py`** with LiteLLM code
+
+```python
+"""LiteLLM implementation for OpenAI-compatible providers."""
+
+import asyncio
+from typing import Any, cast
+
+import litellm
+from litellm import CustomStreamWrapper, ModelResponse, acompletion
+from litellm.types.utils import Choices, StreamingChoices
+
+from ..schemas import LLMModelConfig, LLMProvider, LLMResponse, StreamCallback, ToolCall
+
+litellm.suppress_debug_info = True
 
 
 async def get_llm_response(
@@ -365,43 +419,8 @@ async def get_llm_response(
     reasoning_chunk_callbacks: list[StreamCallback] | None = None,
     tools: list[Any] | None = None,
 ) -> LLMResponse:
-    """Executes a completion request against an LLM and handles both static and streaming outputs. This function is async by default.
-
-    The caller receives full content and reasoning content from the LLM regardless of whether they stream or not.
-
-    The caller can pass callback functions to handle each of the content and reasoning chunk coming from the model (e.g., to display to UI)
-
-    Args:
-        llm_model_config: An LLMModel configuration object containing details about the models to call and additional params.
-        provider_config: base url and api key of the model provider
-        messages: A list of message dictionaries (role/content) representing the conversation history.
-        stream: If True, the function iterates over the response stream and triggers callbacks. Defaults to False.
-        content_chunk_callbacks: An optional list of async functions triggered every time a new 'content' text chunk is received during streaming. Useful for real-time UI updates.
-        reasoning_chunk_callbacks: An optional list of async functions triggered every time a 'reasoning_content' chunk (Chain-of-Thought) is received. Used for displaying the model's internal logic as it generates.
-
-    Returns:
-        LLMResponse: A custom object containing the fully accumulated 'content' and 'reasoning_content'.
-
-    Raises:
-        RuntimeError: If the returned LiteLLM object does not match the requested 'stream' mode.
-        ValueError: If the provider config does not match the model config
-
-    """
-    # Route to Anthropic SDK for minimax provider
-    if _is_minimax_provider(provider_config):
-        return await _call_anthropic(
-            llm_model_config,
-            provider_config,
-            messages,
-            stream,
-            content_chunk_callbacks,
-            reasoning_chunk_callbacks,
-            tools,
-        )
-
-    # Default: use LiteLLM for OpenAI-compatible providers
+    """Execute LLM call via LiteLLM for OpenAI-compatible providers."""
     response: Any = await acompletion(
-        # base_url=provider_config.base_url,
         api_base=provider_config.base_url,
         api_key=provider_config.api_key,
         model=f"{provider_config.name}/{llm_model_config.model}",
@@ -415,32 +434,27 @@ async def get_llm_response(
 
     full_content = ""
     full_reasoning_content = ""
-    tool_calls_dict = {}
+    tool_calls_dict: dict[int, dict[str, Any]] = {}
 
     if stream:
         if not isinstance(response, CustomStreamWrapper):
             raise RuntimeError("Expected a stream from litellm but didn't get one.")
-        full_content = ""
-        full_reasoning_content = ""
+
         async for chunk in response:
-            # This cast prevents pyright from assign the type of choice correctly to streaming choice
             choice = cast("StreamingChoices", chunk.choices[0])
 
-            # Handle Content Chunk
             content = getattr(choice.delta, "content", "") or ""
             if content:
                 full_content += content
                 if content_chunk_callbacks:
                     await asyncio.gather(*[cb(content) for cb in content_chunk_callbacks])
 
-            # Handle Reasoning Chunk
             reasoning = getattr(choice.delta, "reasoning_content", "") or ""
             if reasoning:
                 full_reasoning_content += reasoning
                 if reasoning_chunk_callbacks:
                     await asyncio.gather(*[cb(reasoning) for cb in reasoning_chunk_callbacks])
 
-            # Handle tool call chunks
             tool_calls = getattr(choice.delta, "tool_calls", None)
             if tool_calls:
                 for tc in tool_calls:
@@ -458,7 +472,6 @@ async def get_llm_response(
         if not isinstance(response, ModelResponse):
             raise RuntimeError("Expected a ModelResponse from litellm but didn't get one.")
 
-        # This cast prevents pyright from incorrectly assign the type of choice to be StreamingChoice
         choices = response.choices[0]
         choices = cast("Choices", choices)
 
@@ -473,6 +486,7 @@ async def get_llm_response(
                     "name": getattr(tc.function, "name", ""),
                     "args": getattr(tc.function, "arguments", ""),
                 }
+
     final_tool_calls = [
         ToolCall(id=v["id"], function_name=v["name"], arguments=v["args"]) for v in tool_calls_dict.values()
     ]
@@ -481,3 +495,159 @@ async def get_llm_response(
         reasoning_content=full_reasoning_content,
         tool_calls=final_tool_calls,
     )
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add myproject-core/src/myproject_core/llm/_litellm.py
+git commit -m "feat(llm): extract LiteLLM path to _litellm.py"
+```
+
+---
+
+### Task 4: Wire up `__init__.py` orchestrator
+
+**Files:**
+- Modify: `myproject-core/src/myproject_core/llm/__init__.py`
+
+- [ ] **Step 1: Replace `__init__.py` with full orchestrator implementation**
+
+```python
+"""LLM package - provider-agnostic interface to various LLM backends.
+
+The main entry point is get_llm_response() which routes to either:
+- _anthropic: for providers that need Anthropic SDK (e.g., MiniMax)
+- _litellm: for OpenAI-compatible providers (e.g., OpenRouter)
+"""
+
+from typing import Any
+
+from ._anthropic import (
+    _call_anthropic,
+    _convert_messages_for_anthropic,
+    _convert_tools_for_anthropic,
+)
+from ._base import is_anthropic_provider
+from ._litellm import get_llm_response as _litellm_get_llm_response
+from ..schemas import LLMModelConfig, LLMProvider, LLMResponse, StreamCallback
+
+__all__ = ["get_llm_response"]
+
+
+async def get_llm_response(
+    llm_model_config: LLMModelConfig,
+    provider_config: LLMProvider,
+    messages: list[Any],
+    stream: bool = False,
+    content_chunk_callbacks: list[StreamCallback] | None = None,
+    reasoning_chunk_callbacks: list[StreamCallback] | None = None,
+    tools: list[Any] | None = None,
+) -> LLMResponse:
+    """Execute a completion request against an LLM.
+
+    Routes to the appropriate provider implementation based on the provider config.
+
+    Args:
+        llm_model_config: Model configuration (model name, params like max_tokens, temperature)
+        provider_config: Provider configuration (base_url, api_key, provider name)
+        messages: List of message dicts in OpenAI format
+        stream: Whether to stream the response
+        content_chunk_callbacks: Optional callbacks for content chunks
+        reasoning_chunk_callbacks: Optional callbacks for reasoning/thinking chunks
+        tools: Optional list of tool definitions in OpenAI format
+
+    Returns:
+        LLMResponse with content, reasoning_content, and tool_calls
+    """
+    if is_anthropic_provider(provider_config):
+        return await _call_anthropic(
+            llm_model_config,
+            provider_config,
+            messages,
+            stream,
+            content_chunk_callbacks,
+            reasoning_chunk_callbacks,
+            tools,
+        )
+
+    # Default: use LiteLLM for OpenAI-compatible providers
+    return await _litellm_get_llm_response(
+        llm_model_config,
+        provider_config,
+        messages,
+        stream,
+        content_chunk_callbacks,
+        reasoning_chunk_callbacks,
+        tools,
+    )
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add myproject-core/src/myproject_core/llm/__init__.py
+git commit -m "feat(llm): wire up __init__.py as orchestrator"
+```
+
+---
+
+### Task 5: Delete old `llm.py` and verify imports
+
+**Files:**
+- Delete: `myproject-core/src/myproject_core/llm.py`
+- Verify: `myproject-core/src/myproject_core/agent.py` imports still work
+
+- [ ] **Step 1: Delete old `llm.py`**
+
+Run: `rm myproject-core/src/myproject_core/llm.py`
+
+- [ ] **Step 2: Verify agent.py import works**
+
+Run: `cd myproject-core && python -c "from src.myproject_core.agent import Agent; print('Import OK')"`
+
+Expected: `Import OK`
+
+- [ ] **Step 3: Commit deletion**
+
+```bash
+git add -A
+git commit -m "refactor(llm): convert llm.py to llm/ package"
+```
+
+---
+
+### Task 6: Remove debug print statements
+
+**Files:**
+- Modify: `myproject-core/src/myproject_core/llm/_anthropic.py`
+
+- [ ] **Step 1: Remove debug print statements**
+
+The debug prints were added during troubleshooting. Remove all print statements with `[DEBUG]`, `[STREAM DEBUG]`, `[TOOL DEBUG]`, `[TOOL RESULT DEBUG]`, `[MESSAGE DEBUG]`, `[TOOL RESULT DEBUG]` prefixes.
+
+- [ ] **Step 2: Verify functionality still works**
+
+Run a quick test or let the user verify with their test case.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add myproject-core/src/myproject_core/llm/_anthropic.py
+git commit -m "chore(llm): remove debug print statements"
+```
+
+---
+
+### Task 7: Verify end-to-end with tool call
+
+**Files:**
+- None (testing)
+
+- [ ] **Step 1: User tests tool call flow**
+
+User runs the same test that triggered tool calls earlier to verify everything works.
+
+- [ ] **Step 2: If all good, final commit if needed**
+
+Any final cleanup commits as needed.
