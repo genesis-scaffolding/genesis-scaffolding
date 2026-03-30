@@ -137,14 +137,26 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="center" side="top" sideOffset={16}>
-            <Calendar
-              mode="single"
-              onSelect={(date) => {
-                if (date) {
-                  handleBulkUpdate({ assigned_date: format(date, "yyyy-MM-dd") });
-                }
-              }}
-            />
+            <div className="flex flex-col">
+              <Calendar
+                mode="single"
+                onSelect={(date) => {
+                  if (date) {
+                    handleBulkUpdate({ assigned_date: format(date, "yyyy-MM-dd") });
+                  }
+                }}
+              />
+              <div className="p-2 border-t border-border">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-center text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => handleBulkUpdate({ assigned_date: null })}
+                >
+                  Clear date
+                </Button>
+              </div>
+            </div>
           </PopoverContent>
         </Popover>
 
@@ -156,16 +168,28 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="center" side="top" sideOffset={16}>
-            <Calendar
-              mode="single"
-              onSelect={(date) => {
-                if (date) {
-                  const endOfDay = new Date(date);
-                  endOfDay.setHours(23, 59, 59, 999);
-                  handleBulkUpdate({ hard_deadline: endOfDay.toISOString() });
-                }
-              }}
-            />
+            <div className="flex flex-col">
+              <Calendar
+                mode="single"
+                onSelect={(date) => {
+                  if (date) {
+                    const endOfDay = new Date(date);
+                    endOfDay.setHours(23, 59, 59, 999);
+                    handleBulkUpdate({ hard_deadline: endOfDay.toISOString() });
+                  }
+                }}
+              />
+              <div className="p-2 border-t border-border">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-center text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => handleBulkUpdate({ hard_deadline: null })}
+                >
+                  Clear deadline
+                </Button>
+              </div>
+            </div>
           </PopoverContent>
         </Popover>
 
