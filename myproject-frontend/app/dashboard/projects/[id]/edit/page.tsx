@@ -1,35 +1,69 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, useEffect, useTransition } from "react";
 import { getProjectAction, updateProjectAction, deleteProjectAction } from "@/app/actions/productivity";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
 
-export default async function EditProjectPage({
+export default function EditProjectPage({
   params
 }: {
   params: Promise<{ id: string }>
 }) {
-  const { id } = await params;
-  const project = await getProjectAction(id);
+  const router = useRouter();
+  const [id, setId] = useState<string | null>(null);
+  const [project, setProject] = useState<{ name: string; description?: string; deadline?: string; status: string } | null>(null);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    params.then(({ id }) => {
+      setId(id);
+      getProjectAction(id).then(setProject);
+    });
+  }, [params]);
 
   async function handleUpdate(formData: FormData) {
-    "use server";
+    if (!id) return;
     await updateProjectAction(id, {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
       deadline: (formData.get("deadline") as string) || null,
       status: formData.get("status") as string,
     });
-    redirect(`/dashboard/projects/${id}`);
+    setUpdateSuccess(true);
   }
 
-  async function handleDelete() {
-    "use server";
+  async function handleDelete(formData: FormData) {
+    if (!id) return;
     await deleteProjectAction(id);
-    redirect("/dashboard/projects");
+    router.replace("/dashboard/projects");
+  }
+
+  useEffect(() => {
+    if (updateSuccess && id) {
+      router.replace(`/dashboard/projects/${id}`);
+    }
+  }, [updateSuccess, id, router]);
+
+  function handleCancel() {
+    if (id) {
+      router.replace(`/dashboard/projects/${id}`);
+    }
+  }
+
+  if (!project || !id) {
+    return (
+      <PageContainer variant="prose">
+        <PageBody>
+          <div className="animate-pulse">Loading...</div>
+        </PageBody>
+      </PageContainer>
+    );
   }
 
   return (
@@ -37,7 +71,6 @@ export default async function EditProjectPage({
       <PageBody>
         <h1 className="text-2xl font-bold mb-6">Edit Project</h1>
 
-        {/* Single Main Form */}
         <form action={handleUpdate} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Project Name</Label>
@@ -72,8 +105,8 @@ export default async function EditProjectPage({
           </div>
 
           <div className="flex gap-4 justify-between pt-4">
-            {/* 
-               Use formAction here. This button will trigger handleDelete 
+            {/*
+               Use formAction here. This button will trigger handleDelete
                instead of the main form's handleUpdate action.
             */}
             <Button
@@ -85,10 +118,12 @@ export default async function EditProjectPage({
             </Button>
 
             <div className="flex gap-2">
-              <Button variant="ghost" asChild>
-                <Link href={`/dashboard/projects/${id}`}>Cancel</Link>
+              <Button variant="ghost" type="button" onClick={handleCancel}>
+                Cancel
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Saving..." : "Save Changes"}
+              </Button>
             </div>
           </div>
         </form>

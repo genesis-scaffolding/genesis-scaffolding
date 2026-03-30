@@ -1,6 +1,9 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, useEffect, useTransition } from "react";
 import { getTaskAction, getProjectsAction, updateTaskAction, deleteTaskAction } from "@/app/actions/productivity";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,7 +12,6 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Folder, Calendar, FileText } from "lucide-react";
-import Link from "next/link";
 import { Status } from "@/types/productivity";
 
 
@@ -26,21 +28,46 @@ function formatForInput(utcString?: string) {
   return localISOTime;
 }
 
-export default async function EditTaskPage({
+export default function EditTaskPage({
   params
 }: {
   params: Promise<{ id: string }>
 }) {
-  const { id } = await params;
-  const task = await getTaskAction(id);
-  const projects = await getProjectsAction();
+  const router = useRouter();
+  const [id, setId] = useState<string | null>(null);
+  const [task, setTask] = useState<{
+    id: number;
+    title: string;
+    description?: string;
+    status: Status;
+    assigned_date?: string;
+    hard_deadline?: string;
+    scheduled_start?: string;
+    duration_minutes?: number;
+    project_ids: number[];
+  } | null>(null);
+  const [projects, setProjects] = useState<Array<{ id: number; name: string }>>([]);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    params.then(async ({ id }) => {
+      setId(id);
+      const [taskData, projectsData] = await Promise.all([
+        getTaskAction(id),
+        getProjectsAction(),
+      ]);
+      setTask(taskData);
+      setProjects(projectsData);
+    });
+  }, [params]);
 
   async function handleUpdate(formData: FormData) {
-    "use server";
+    if (!id) return;
 
     const title = formData.get("title") as string;
     const description = (formData.get("description") as string) || undefined;
-    const status = formData.get("status") as Status; // Cast to the Enum type
+    const status = formData.get("status") as Status;
 
     const assigned_date = (formData.get("assigned_date") as string) || undefined;
     const raw_deadline = (formData.get("hard_deadline") as string) || undefined;
@@ -80,14 +107,35 @@ export default async function EditTaskPage({
       project_ids: selectedProjectIds,
     });
 
-
-    redirect(`/dashboard/tasks/${id}`);
+    setUpdateSuccess(true);
   }
 
-  async function handleDelete() {
-    "use server";
-    await deleteTaskAction(id);
-    redirect("/dashboard/tasks");
+  async function handleDelete(formData: FormData) {
+    if (!id) return;
+    await deleteTaskAction(Number(id));
+    router.replace("/dashboard/tasks");
+  }
+
+  useEffect(() => {
+    if (updateSuccess && id) {
+      router.replace(`/dashboard/tasks/${id}`);
+    }
+  }, [updateSuccess, id, router]);
+
+  function handleCancel() {
+    if (id) {
+      router.replace(`/dashboard/tasks/${id}`);
+    }
+  }
+
+  if (!task || !id) {
+    return (
+      <PageContainer variant="prose">
+        <PageBody>
+          <div className="animate-pulse">Loading...</div>
+        </PageBody>
+      </PageContainer>
+    );
   }
 
   return (
@@ -95,7 +143,7 @@ export default async function EditTaskPage({
       <PageBody>
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold">Edit Task</h1>
-          <Badge variant="outline">ID: {task.id}</Badge>
+          <Badge variant="outline">ID: {id}</Badge>
         </div>
 
         <form action={handleUpdate} className="space-y-10">
@@ -197,12 +245,14 @@ export default async function EditTaskPage({
           </section>
 
           <div className="flex gap-4 justify-between border-t pt-8">
-            <Button variant="destructive" formAction={handleDelete}>
+            <Button variant="destructive" type="submit" formAction={handleDelete}>
               Delete Task
             </Button>
             <div className="flex gap-2">
-              <Button variant="ghost" type="button" asChild><Link href={`/dashboard/tasks/${task.id}`}>Cancel</Link></Button>
-              <Button type="submit">Update Task</Button>
+              <Button variant="ghost" type="button" onClick={handleCancel}>Cancel</Button>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Updating..." : "Update Task"}
+              </Button>
             </div>
           </div>
         </form>

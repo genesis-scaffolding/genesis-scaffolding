@@ -111,7 +111,7 @@ export function AgentForm({ initialData }: AgentFormProps) {
         toast.success("Agent created successfully!");
       }
 
-      router.push('/dashboard/agents');
+      router.replace('/dashboard/agents');
       router.refresh(); // Ensure the registry list updates
     } catch (error: any) {
       toast.error(error.message);
