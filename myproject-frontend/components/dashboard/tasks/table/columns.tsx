@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { ColumnDef, Row } from "@tanstack/react-table";
 import { Task, Project, Status, STATUS_WEIGHTS } from "@/types/productivity";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,6 +10,7 @@ import Link from "next/link";
 import { Calendar, Edit2, Clock, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isThisWeek, isToday, parseISO, format } from "date-fns";
+import { TaskStatusBadge } from "./task-status-badge";
 
 /**
  *
@@ -107,7 +109,7 @@ export const getTaskColumns = (
                   scheduledForToday ? "font-bold text-base" : "font-medium",
                   // Requirement: Red if deadline is this week
                   deadlineThisWeek && !isCompleted && "text-destructive",
-                  variant === "list" && isCompleted && "line-through opacity-50 text-muted-foreground"
+                  (variant === "list" && isCompleted || task.status === "canceled") && "line-through opacity-50 text-muted-foreground"
                 )}
               >
                 {task.title}
@@ -125,7 +127,7 @@ export const getTaskColumns = (
               )}
               {isAppointment && task.scheduled_start && (
                 <span className="text-[10px] uppercase tracking-wider text-amber-600 font-bold">
-                  Appt: {format(parseISO(task.scheduled_start), "p")}
+                  Appt: {format(parseISO(task.scheduled_start), "EEE, MMM d, p")}
                 </span>
               )}
             </div>
@@ -221,18 +223,8 @@ export const getTaskColumns = (
       header: ({ column }) => <DataTableColumnHeader column={column} title="Status" className="w-[120px]" />,
       sortingFn: statusSortingFn,
       cell: ({ row }) => {
-        const status = row.getValue("status") as string;
-        return (
-          <Badge
-            variant="outline"
-            className={cn(
-              "capitalize font-normal",
-              status === 'completed' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-            )}
-          >
-            {status.replace("_", " ")}
-          </Badge>
-        );
+        const status = row.getValue("status") as Status;
+        return <TaskStatusBadge taskId={row.original.id} status={status} />;
       },
     },
     {
