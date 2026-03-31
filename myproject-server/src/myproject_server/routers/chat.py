@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -191,8 +192,9 @@ async def send_message(
                         db_msg = ChatMessage(session_id=session_id, payload=msg)
                         bg_db.add(db_msg)
 
-                    # Save clipboard and unlock
+                    # Save clipboard, update timestamp, and unlock
                     session_to_update.clipboard_state = agent.memory.agent_clipboard.model_dump(mode="json")
+                    session_to_update.updated_at = datetime.now(UTC)
                     session_to_update.is_running = False
                     bg_db.commit()
 
