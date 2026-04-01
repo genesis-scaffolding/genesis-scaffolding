@@ -209,6 +209,25 @@ def delete_topical_memory(session: Session, memory_id: int) -> bool:
 # --- UNIFIED SEARCH ---
 
 
+def _escape_fts5_query(query: str) -> str:
+    """Escape special characters in FTS5 query syntax.
+
+    FTS5's MATCH operator interprets certain characters as operators:
+    - Hyphen at the start of a term means negation
+    - Hyphen between terms is parsed as column selector
+
+    This function escapes hyphens to prevent misinterpretation.
+    """
+    tokens = query.split()
+    escaped_tokens = []
+    for token in tokens:
+        if "-" in token:
+            # Replace hyphens with spaces to preserve AND semantics for stemmed search
+            token = token.replace("-", " ")
+        escaped_tokens.append(token)
+    return " ".join(escaped_tokens)
+
+
 def search_memories(
     session: Session,
     query: str,
@@ -222,6 +241,9 @@ def search_memories(
     """
     if not query.strip():
         return {"events": [], "topics": []}
+
+    # Escape FTS5 special characters (hyphens) to prevent query syntax errors
+    safe_query = _escape_fts5_query(query)
 
     # FTS5 query: all terms must match (AND), porter tokenizer handles stemming
     # superseded_by_id IS NULL filter ensures we only get current topics
@@ -242,7 +264,7 @@ def search_memories(
         ORDER BY score
         LIMIT :limit
     """)
-    fts_results: list[Any] = list(session.execute(fts_sql, {"query": query, "limit": limit}).all())  # type: ignore[arg-type,return-value]
+    fts_results: list[Any] = list(session.execute(fts_sql, {"query": safe_query, "limit": limit}).all())  # type: ignore[arg-type,return-value]
 
     if not fts_results:
         return {"events": [], "topics": []}
