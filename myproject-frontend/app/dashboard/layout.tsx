@@ -30,6 +30,7 @@ import {
   ListTodo,
   BookOpen,
   Calendar,
+  Brain,
 } from 'lucide-react';
 import LogoutButton from '@/components/auth/logout-button';
 import Link from 'next/link';
@@ -80,6 +81,12 @@ const navGroups = [
         url: "/dashboard/chats",
         icon: History,
         tooltip: "Resume past conversations"
+      },
+      {
+        title: "Agent Memory",
+        url: "/dashboard/memory",
+        icon: Brain,
+        tooltip: "Persistent knowledge for the agent"
       }
     ]
   },

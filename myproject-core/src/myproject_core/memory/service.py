@@ -95,10 +95,10 @@ def list_topical_memories(
     """List topical memories. By default excludes superseded (old) entries."""
     q = session.query(TopicalMemory)
 
-    if not superseded:
-        q = q.filter(TopicalMemory.superseded_by_id is None)  # type: ignore
+    if superseded:
+        q = q.filter(TopicalMemory.superseded_by_id.isnot(None))  # type: ignore
     else:
-        q = q.filter(TopicalMemory.superseded_by_id is not None)  # type: ignore
+        q = q.filter(TopicalMemory.superseded_by_id.is_(None))  # type: ignore
 
     if tag:
         tag_pattern = f'%"{tag}"%'

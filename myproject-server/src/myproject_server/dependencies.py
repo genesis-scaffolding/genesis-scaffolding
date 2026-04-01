@@ -176,3 +176,19 @@ WorkflowRegDep = Annotated[WorkflowRegistry, Depends(get_workflow_registry)]
 WorkspaceDep = Annotated[WorkspaceManager, Depends(get_workspace_manager)]
 EngineDep = Annotated[WorkflowEngine, Depends(get_workflow_engine)]
 ProdSessionDep = Annotated[Session, Depends(get_productivity_session)]
+
+
+async def get_memory_session(
+    user_config: Annotated[Config, Depends(get_user_config)],
+):
+    """Returns a session for the user's private memory database."""
+    from myproject_core.memory.db import get_memory_engine
+    engine = get_memory_engine(config=user_config)
+    session = Session(engine)
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+MemorySessionDep = Annotated[Session, Depends(get_memory_session)]
