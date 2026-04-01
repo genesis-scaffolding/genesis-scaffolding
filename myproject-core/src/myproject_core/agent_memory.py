@@ -170,6 +170,11 @@ class AgentMemory:
                 data = db_item.model_dump(mode="json")
                 entity.data = data
 
+    def sync_memory_tag_hints(self, session: Session):
+        """Fetch current tag counts from the memory DB and update the clipboard."""
+        counts = memory_service.get_memory_tag_counts(session)
+        self.agent_clipboard.memory_tag_hints = counts
+
     def estimate_total_tokens(self) -> int:
         """Estimates the total token count of history + current clipboard.
         Uses a 4-char-per-token heuristic.

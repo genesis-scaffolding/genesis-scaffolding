@@ -300,3 +300,42 @@ def rebuild_fts_index(session: Session) -> dict[str, int]:
 
     session.commit()
     return {"events": event_count, "topics": topic_count}
+
+
+# --- TAG COUNTS ---
+
+
+def get_memory_tag_counts(session: Session) -> dict[str, int]:
+    """Returns {tag: count} for all tags across current (non-superseded) memories.
+
+    Count is deduplicated per memory — if a single memory has the same tag twice,
+    it counts once. Events and topics are pooled together.
+    Only considers:
+    - EventLog rows (all events are current by nature — append-only)
+    - TopicalMemory rows where superseded_by_id IS NULL (current revisions only)
+    """
+    tag_counts: dict[str, int] = {}
+
+    # Count tags from EventLog (all events are current — append-only)
+    event_tag_sql = text("""
+        SELECT value as tag
+        FROM eventlog, json_each(eventlog.tags)
+        WHERE eventlog.tags IS NOT NULL AND json_each.value IS NOT NULL
+    """)
+    for row in session.execute(event_tag_sql).all():
+        tag = row.tag
+        tag_counts[tag] = tag_counts.get(tag, 0) + 1
+
+    # Count tags from current TopicalMemory (non-superseded)
+    topic_tag_sql = text("""
+        SELECT value as tag
+        FROM topicalmemory, json_each(topicalmemory.tags)
+        WHERE topicalmemory.tags IS NOT NULL
+          AND json_each.value IS NOT NULL
+          AND topicalmemory.superseded_by_id IS NULL
+    """)
+    for row in session.execute(topic_tag_sql).all():
+        tag = row.tag
+        tag_counts[tag] = tag_counts.get(tag, 0) + 1
+
+    return tag_counts

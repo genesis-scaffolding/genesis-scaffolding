@@ -343,6 +343,11 @@ class Agent:
                 for session in get_memory_session(memory_db_url=self.memory_db_url):
                     self.memory.sync_memory_entities(session)
 
+            # Sync memory tag hints
+            if self.memory_db_url:
+                for session in get_memory_session(memory_db_url=self.memory_db_url):
+                    self.memory.sync_memory_tag_hints(session)
+
             # Build the ephemeral payload for the LLM
             # Current memory.messages is [..., UserMsg]
             history = self.memory.get_messages()

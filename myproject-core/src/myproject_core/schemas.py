@@ -139,6 +139,7 @@ class AgentClipboard(BaseModel):
     tool_results: dict[str, AgentClipboardToolResult] = {}
     todo_list: list[AgentClipboardTodoItem] = []
     pinned_entities: dict[str, AgentClipboardPinnedEntity] = {}
+    memory_tag_hints: dict[str, int] = {}  # tag -> count of current memories
 
     def add_file_to_clipboard(self, file_path: Path, content: str):
         """Adds or updates a file in the clipboard."""
@@ -344,6 +345,16 @@ class AgentClipboard(BaseModel):
 
                     tool_section += "\n\n-----\n\n"
             sections.append(tool_section)
+
+        # Render memory tag hints
+        if self.memory_tag_hints:
+            tag_section = "### MEMORY TAGS\n\n"
+            tag_section += "Available semantic tags across all memories:\n"
+            # Sort alphabetically for stable, predictable output
+            for tag in sorted(self.memory_tag_hints):
+                count = self.memory_tag_hints[tag]
+                tag_section += f"- {tag} ({count})\n"
+            sections.append(tag_section)
 
         if not sections:
             return "Clipboard is currently empty."
