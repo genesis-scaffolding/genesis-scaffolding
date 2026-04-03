@@ -175,12 +175,14 @@ class AgentMemory:
     def sync_user_profile(self, session: Session):
         """Fetch the user profile topical memory and cache its content in the clipboard.
 
-        If no profile exists, sets user_profile_content to None — the clipboard
-        will render the onboarding nudge instead.
+        Uses get_user_profile() which finds entries tagged "user-profile", returning
+        the most recently updated active entry. If no profile exists, sets
+        user_profile_content to None — the clipboard will render the onboarding nudge
+        instead.
         """
         from .memory import service as memory_service
 
-        profile = memory_service.get_topical_memory_by_subject(session, "user-profile")
+        profile = memory_service.get_user_profile(session)
         self.agent_clipboard.user_profile_content = profile.content if profile else None
 
     def estimate_total_tokens(self) -> int:

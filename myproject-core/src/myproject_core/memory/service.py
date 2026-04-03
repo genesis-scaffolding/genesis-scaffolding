@@ -363,6 +363,39 @@ def get_memory_tag_counts(session: Session) -> dict[str, int]:
     return tag_counts
 
 
+def get_user_profile(session: Session) -> TopicalMemory | None:
+    """Find the active user profile entry.
+
+    Look up all TopicalMemory entries tagged "user-profile" where superseded_by_id
+    is NULL. If exactly one is found, return it. If multiple are found (agent created
+    a duplicate via remember_this without superseding), return the one with the latest
+    updated_at. If none are found, return None.
+
+    This function is the single authoritative place for user-profile lookup.
+    Strategy changes should be made here only.
+    """
+    from sqlalchemy import text
+
+    # Use json_each for reliable JSON array containment on the tags column
+    sql = text("""
+        SELECT topicalmemory.id
+        FROM topicalmemory, json_each(topicalmemory.tags)
+        WHERE json_each.value = :tag
+          AND topicalmemory.superseded_by_id IS NULL
+        ORDER BY topicalmemory.updated_at DESC
+    """)
+    ids = [row.id for row in session.execute(sql, {"tag": "user-profile"}).all()]
+
+    if not ids:
+        return None
+    if len(ids) == 1:
+        return session.get(TopicalMemory, ids[0])
+    # Multiple active entries — pick the most recently updated (covers the
+    # duplicate-creation mistake where agent used remember_this instead of
+    # update_memory)
+    return session.get(TopicalMemory, ids[0])
+
+
 def get_topical_memory_by_subject(session: Session, subject: str) -> TopicalMemory | None:
     """Lookup a TopicalMemory by its subject field. Returns the current (non-superseded) entry."""
     return (
