@@ -1,10 +1,27 @@
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+import zoneinfo
+
+
+def _format_utc_for_display(value: str | datetime, timezone_str: str) -> str:
+    """Convert a UTC datetime string to the given timezone for display."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        dt = datetime.fromisoformat(value)
+    else:
+        dt = value
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=zoneinfo.ZoneInfo("UTC"))
+    local = dt.astimezone(zoneinfo.ZoneInfo(timezone_str))
+    return local.strftime("%Y-%m-%d %H:%M")
 
 
 ### JobContext object to be used by workspace manager
@@ -228,7 +245,7 @@ class AgentClipboard(BaseModel):
             clipboard_file.is_edited = False
             clipboard_file.previous_file_content = None
 
-    def render_to_markdown(self, shorten: bool = False) -> str:
+    def render_to_markdown(self, shorten: bool = False, timezone: str = "UTC") -> str:
         """Converts clipboard contents into a structured Markdown string."""
         sections = []
 
@@ -261,7 +278,11 @@ class AgentClipboard(BaseModel):
                     if d.get("assigned_date"):
                         prod_section += f" | Date: {d.get('assigned_date')}"
                     if d.get("hard_deadline"):
-                        prod_section += f" | Deadline: {d.get('hard_deadline')}"
+                        deadline = _format_utc_for_display(d["hard_deadline"], timezone)
+                        prod_section += f" | Deadline: {deadline}"
+                    if d.get("scheduled_start"):
+                        scheduled = _format_utc_for_display(d["scheduled_start"], timezone)
+                        prod_section += f" | Scheduled Start Date: {scheduled}"
                     prod_section += "\n"
 
                     if t.resolution == "detail" and not shorten:

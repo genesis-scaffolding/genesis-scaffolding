@@ -59,7 +59,7 @@ class AgentMemory:
         now = datetime.now(ZoneInfo(timezone))
         content = (
             "## CURRENT CLIPBOARD\n"
-            f"{self.agent_clipboard.render_to_markdown(shorten=shorten)}\n\n\n=====\n"
+            f"{self.agent_clipboard.render_to_markdown(shorten=shorten, timezone=timezone)}\n\n\n=====\n"
             "## CURRENT DATE TIME\n"
             f"{now.strftime('%Y-%m-%d %H:%M:%S %Z %z')}\n\n====="
         )
