@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from myproject_tools.pdf import convert_pdf_to_markdown
 from myproject_tools.registry import tool_registry
@@ -338,6 +339,7 @@ class Agent:
             # 5. Check if we need to call tools
             if not llm_response.tool_calls:
                 # No more tools? Return the final text
+                self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
                 return llm_response.content
 
             # --- LOOP DETECTION LOGIC ---
@@ -355,6 +357,7 @@ class Agent:
                 )
                 if repeat_count >= max_repetitions:
                     # Naive solution: just stop the agent loop for now. We will find a more elegant handling in the future
+                    self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
                     return f"Agent terminated: Detected a loop in tool calls ({llm_response.tool_calls[0].function_name})."
 
             tool_call_history.append(current_calls_signature)
@@ -385,6 +388,7 @@ class Agent:
                     ]
                     await asyncio.gather(*tool_start_cb)
 
+        self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
         return "Agent reached maximum allowed turns without reaching a conclusion."
 
     async def add_file(self, file_path: Path, working_directory: Path | None = None):

@@ -24,6 +24,29 @@ def _format_utc_for_display(value: str | datetime, timezone_str: str) -> str:
     return local.strftime("%Y-%m-%d %H:%M")
 
 
+def _format_elapsed(last_turn_at: datetime, now: datetime, timezone_str: str) -> str:
+    """Format elapsed time as a natural language string."""
+    delta = now - last_turn_at
+    total_seconds = int(delta.total_seconds())
+
+    if total_seconds < 60:
+        return ""
+
+    minutes = total_seconds // 60
+    if minutes < 60:
+        unit = "minute" if minutes == 1 else "minutes"
+        return f"{minutes} {unit} ago"
+
+    hours = minutes // 60
+    if hours < 24:
+        unit = "hour" if hours == 1 else "hours"
+        return f"{hours} {unit} ago"
+
+    days = hours // 24
+    unit = "day" if days == 1 else "days"
+    return f"{days} {unit} ago"
+
+
 ### JobContext object to be used by workspace manager
 class JobContext:
     """A value object representing an active job session of a workflow
@@ -158,6 +181,7 @@ class AgentClipboard(BaseModel):
     pinned_entities: dict[str, AgentClipboardPinnedEntity] = {}
     memory_tag_hints: dict[str, int] = {}  # tag -> count of current memories
     user_profile_content: str | None = None  # Rendered user profile, never TTL-expires
+    last_turn_at: datetime | None = None  # UTC timestamp of last user turn
 
     def add_file_to_clipboard(self, file_path: Path, content: str):
         """Adds or updates a file in the clipboard."""
@@ -249,7 +273,16 @@ class AgentClipboard(BaseModel):
         """Converts clipboard contents into a structured Markdown string."""
         sections = []
 
-        print(f"DEBUG: FROM INSIDE RENDER_TO_MARKDOWN OF CLIPBOARD: {self}")
+        # Render conversation timing if elapsed > 60 seconds
+        if self.last_turn_at is not None:
+            now = datetime.now(zoneinfo.ZoneInfo("UTC"))
+            elapsed = _format_elapsed(self.last_turn_at, now, timezone)
+            if elapsed:
+                last_local = _format_utc_for_display(self.last_turn_at, timezone)
+                now_local = now.astimezone(zoneinfo.ZoneInfo(timezone)).strftime("%Y-%m-%d %H:%M")
+                timing_section = "### CONVERSATION TIMING\n"
+                timing_section += f"The last exchange was at {last_local} ({elapsed}).\n"
+                sections.append(timing_section)
 
         # Render Todo List
         if self.todo_list:
