@@ -65,6 +65,8 @@ Follow the playbook for the selected extensions. Each playbook is a checklist.
 
 If the user selected multiple extensions, combine the relevant playbooks. Execute the **keep**, **remove**, and **add** steps from each.
 
+**After executing the playbook:** Review the [configuration guide](../extending-the-server/adding-configuration.md). If the adaptation introduced new capabilities (new extensions, tools, or workflow types), check whether new configuration options are needed. Add them before proceeding to verification.
+
 ---
 
 ## Step 5: Verify

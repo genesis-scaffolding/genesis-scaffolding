@@ -48,6 +48,17 @@ Before changing the scaffold, summarize: what you're keeping, what you're removi
 
 ---
 
+## 7. Authentication Is Never Optional for Web Apps
+
+The authentication system is **always required** for any web app adaptation. A single-user web app still has one user who must be authenticated and authorized. Removing auth breaks the user isolation architecture, session management, and the overall security model of the base web app.
+
+**Wrong:** Removing auth because "there's only one user."
+**Right:** Keep the auth system. The single user still logs in.
+
+This applies only to web app adaptations (the base layer). CLI apps bypass the FastAPI server entirely and have no authentication concern.
+
+---
+
 ## Anti-Patterns Summary
 
 | Don't | Instead |

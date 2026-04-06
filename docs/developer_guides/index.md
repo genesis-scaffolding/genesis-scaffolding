@@ -9,6 +9,7 @@ These guides cover the processes and conventions for extending and maintaining t
 ### Extending the Server
 
 - [Adding Entities](extending-the-server/adding-entities.md) — How to add new database entities and FastAPI routers to the backend
+- [Adding Configuration](extending-the-server/adding-configuration.md) — How to add new configuration options to the system
 - [Implementing Tools](extending-the-agent/implementing-tools.md) — How to implement a new agent tool and register it with the ToolRegistry
 
 ### Extending the Agent
