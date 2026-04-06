@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: myproject-aio
+    image: myproject/myproject-aio:latest
+    pull_policy: build
     # Load your API keys and secrets from the root .env file
     env_file:
       - .env
@@ -14,6 +16,12 @@ services:
       - database_data:/app/database
       - workspace_data:/app/workspaces
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ps", "aux"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
   database_data:

@@ -72,19 +72,40 @@ _term() {\n\
 # Trap SIGTERM and SIGINT\n\
 trap _term SIGTERM SIGINT\n\
 \n\
-echo "Starting Backend..."\n\
+# Track process health\necho "Starting Backend..."\n\
 uv run myproject serve &\n\
 backend_pid=$!\n\
+\n\
+# Wait briefly to check backend started\n\
+sleep 2\n\
+if ! kill -0 "$backend_pid" 2>/dev/null; then\n\
+  echo "Backend failed to start!"\n\
+  exit 1\n\
+fi\n\
 \n\
 echo "Starting Frontend..."\n\
 cd /app/myproject-frontend && npm run start -- -p 3000 &\n\
 frontend_pid=$!\n\
+\n\
+# Wait briefly to check frontend started\n\
+sleep 2\n\
+if ! kill -0 "$frontend_pid" 2>/dev/null; then\n\
+  echo "Frontend failed to start!"\n\
+  kill -TERM "$backend_pid" 2>/dev/null\n\
+  exit 1\n\
+fi\n\
+\n\
+echo "All services started successfully"\n\
 \n\
 # Wait for processes to exit, but keep the script alive to catch signals\n\
 wait -n\n\
 \n\
 # If one process dies, kill the other and exit\n\
 _term' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
+# Healthcheck - verify both processes are still running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD ps aux | grep -q "[u]v run myproject serve" && ps aux | grep -q "[n]ext start"
 
 # Expose ports: Backend (usually 8000) and Frontend (3000)
 EXPOSE 8000
