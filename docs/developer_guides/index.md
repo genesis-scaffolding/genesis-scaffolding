@@ -11,6 +11,10 @@ These guides cover the processes and conventions for extending and maintaining t
 - [Adding Entities](extending-the-server/adding-entities.md) — How to add new database entities and FastAPI routers to the backend
 - [Implementing Tools](extending-the-agent/implementing-tools.md) — How to implement a new agent tool and register it with the ToolRegistry
 
+### Extending the Agent
+
+- [Writing Agents](extending-the-agent/writing-agents.md) — How to create a new agent by writing a Markdown file with YAML frontmatter
+
 ### Extending the Frontend
 
 - [Frontend Components](extending-the-frontend/frontend-components.md) — How to integrate new backend entities into the frontend UI
