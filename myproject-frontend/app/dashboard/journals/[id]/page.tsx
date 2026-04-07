@@ -1,11 +1,11 @@
 import { getJournalAction } from "@/app/actions/productivity";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
-import { Button } from "@/components/ui/button";
-import { Edit3, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { JournalDetailActions } from "@/components/dashboard/journals/journal-detail-actions";
 
 export default async function JournalDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -23,11 +23,7 @@ export default async function JournalDetailPage({ params }: { params: Promise<{ 
             </p>
             <h1 className="text-4xl font-extrabold tracking-tight">{entry.title || "Untitled Entry"}</h1>
             <div className="pt-4">
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/dashboard/journals/${entry.id}/edit`}>
-                  <Edit3 className="mr-2 h-4 w-4" /> Edit Entry
-                </Link>
-              </Button>
+              <JournalDetailActions journalId={entry.id.toString()} entryTitle={entry.title || undefined} />
             </div>
           </header>
 

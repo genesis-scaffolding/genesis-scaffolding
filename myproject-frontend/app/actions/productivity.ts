@@ -195,6 +195,15 @@ export async function updateJournalAction(id: string | number, data: any) {
   return res.json();
 }
 
+export async function deleteJournalAction(id: string | number) {
+  const res = await apiFetch(`/productivity/journals/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error("Failed to delete journal entry");
+  revalidatePath('/dashboard/journals');
+  revalidatePath(`/dashboard/journals/${id}`);
+}
+
 export async function findOrCreateJournalAction(data: {
   entry_type: JournalType;
   reference_date: string;

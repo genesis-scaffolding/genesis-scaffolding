@@ -5,8 +5,9 @@ import { JournalEntry, Project } from "@/types/productivity";
 import { Badge } from "@/components/ui/badge";
 import { DataTableColumnHeader } from "@/components/dashboard/shared/data-table/column-header";
 import Link from "next/link";
-import { FileText, Edit2 } from "lucide-react";
+import { FileText, Edit2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { JournalDeleteDialog } from "@/components/dashboard/journals/journal-delete-dialog";
 
 /**
  * Custom sorting function that forces null/undefined values to the bottom
@@ -90,12 +91,16 @@ export const getJournalColumns = (
     cell: ({ row }) => {
       const entry = row.original;
       return (
-        <Link
-          href={`/dashboard/journals/${entry.id}/edit`}
-          className="opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
-        </Link>
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Link href={`/dashboard/journals/${entry.id}/edit`}>
+            <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
+          </Link>
+          <JournalDeleteDialog journalId={entry.id.toString()} entryTitle={entry.title || undefined}>
+            <button className="cursor-pointer">
+              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+            </button>
+          </JournalDeleteDialog>
+        </div>
       );
     },
   },
