@@ -151,10 +151,11 @@ async def get_workspace_manager(
 async def get_workflow_engine(
     wm: Annotated[WorkspaceManager, Depends(get_workspace_manager)],
     agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
 ) -> WorkflowEngine:
     """Returns a WorkflowEngine initialized with the user's specific workspace and agents.
     """
-    return WorkflowEngine(wm, agent_reg)
+    return WorkflowEngine(wm, agent_reg, user_workdir)
 
 
 # --- System-Level Injections ---

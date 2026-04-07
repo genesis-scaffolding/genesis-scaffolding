@@ -77,7 +77,7 @@ class SchedulerManager:
             user_registry = WorkflowRegistry(user_config)
             user_agent_registry = AgentRegistry(user_config)
             user_wm = WorkspaceManager(user_config)
-            user_engine = WorkflowEngine(user_wm, user_agent_registry)
+            user_engine = WorkflowEngine(user_wm, user_agent_registry, user_config.path.working_directory)
 
             # 3. Create the job record
             workflow_manifest = user_registry.get_workflow(schedule.workflow_id)

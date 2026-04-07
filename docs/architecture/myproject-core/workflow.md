@@ -12,7 +12,7 @@ A shared state object accumulated across step execution. Each step writes its ou
 
 ```
 User input: {"writing_topic": "Python uv"}
-Step 1 (agent_outline) → writes {content: "...", file_path: "..."}
+Step 1 (agent_outline) → writes {content: "...", file_paths: ["..."]}
 Step 2 (agent_drafting) → reads {{ steps.agent_outline.content }} → writes {content: "..."}
 ```
 
@@ -35,47 +35,94 @@ Workflows are YAML files with a defined schema. The engine discovers manifests f
 
 ## Map-Reduce Design
 
-The workflow engine follows a **map-reduce pattern**:
+The workflow engine follows a **map-reduce pattern** built around **array semantics**. Every step input and output is structured as arrays — even when there is only one item.
 
-1. **Map tasks** run in parallel, each producing intermediate results written to the blackboard
-2. **Reduce tasks** read from the blackboard and assemble final outputs
-3. **Projection tasks** handle simple transformations without agent involvement
+### Array Semantics
 
-This pattern keeps steps composable and testable — each task does one thing; the engine composes them into pipelines.
+- Every step output is an **array** of items (e.g., `content: [...]`, `file_paths: [...]`)
+- Every step input is also treated as an **array** — the same transformation is applied to each item
+- A map step with 5 input items produces 5 output items; a reduce step takes the whole array and produces a new (usually smaller) array
 
-## Task Types
+### Task Types
 
-Each task is a Python class with typed inputs and outputs. The engine dispatches to the correct task type based on the `type` field in the manifest.
+#### Map (`agent_map`)
 
-### `prompt_agent`
+Applies the same transformation to each element of an input array, producing a new array of the same length.
 
-Calls an LLM agent with a prompt. The prompt can reference blackboard data via Jinja2. Output is the agent's text response.
+```
+input: [item1, item2, item3]
+↓  agent_map (one agent turn per item)
+output: ["result1", "result2", "result3"]
+```
 
-### `file` Operations
+Example: quality-assessment map step that applies the same evaluation prompt to each search result, producing one verdict per result.
 
-File tasks read from or write to the job directory. They support reading from `input/`, writing to `output/`, and managing `internal/` artifacts.
+#### Reduce (`agent_reduce`)
 
-### `web_search`
+Takes the entire input array and applies one transformation to it as a whole, producing a new array (typically of 1 item, but can be any length).
 
-Search the web for a query and return results as structured data.
+```
+input: ["result1", "result2", "result3"]
+↓  agent_reduce (one agent turn on the whole array)
+output: ["synthesized_summary"]
+```
 
-### `arxiv`
+Example: synthesis step that reads all quality-checked sources and writes one coherent report.
 
-Search ArXiv for papers and retrieve metadata or abstracts.
+#### Projection (`agent_projection`)
 
-### `rss_fetch`
+Transforms each element of an input array independently, producing a new array. Unlike map, projection does not call the LLM — it performs structured data transformations (e.g., parse, reformat, filter).
 
-Fetch and parse an RSS feed.
+#### Built-in Tasks
 
-### `pdf_to_markdown`
+| Task Type | Description |
+|---|---|
+| `agent_map` | LLM map over array items in parallel |
+| `agent_reduce` | LLM reduce entire array to synthesized output |
+| `agent_projection` | Structural transform without LLM |
+| `file_ingest` | Ingest files into the job directory |
+| `web_search` | Search the web and return results as array |
+| `arxiv_search` | Search ArXiv for papers |
+| `web_fetch` | Fetch and parse web pages |
+| `rss_fetch` | Fetch and parse RSS feeds |
 
-Convert a PDF file to Markdown text.
+## Output Publishing
+
+After all steps complete, the engine can copy output files from the job directory to the user's working directory. This is declared in the manifest using the `destination` field on each output.
+
+```
+manifest.outputs
+  └── output_key
+        ├── value         — Jinja2 reference to the source data (content string or file paths)
+        └── destination   — relative path in the user's working directory (optional)
+```
+
+**Single-file outputs**: `destination` is the target filename. The resolved value (a content string or a file path in `output/`) is copied there.
+
+**Multi-file outputs**: `destination` is treated as a directory. All files referenced by the resolved value are copied into it.
+
+```yaml
+outputs:
+  final_report:
+    description: "The completed research report."
+    value: "{{ steps.final_synthesis.content[0] }}"
+    destination: "research/report.md"           # copy content string to this file
+
+  source_files:
+    description: "All source files collected."
+    value: "{{ steps.assess_and_extract.file_paths }}"
+    destination: "research/raw_sources/"         # copy all files into this directory
+```
+
+If `destination` is omitted, no file is copied out of the job directory.
+
+Destination paths support Jinja2 templates referencing `inputs.*` and `steps.*`, just like `value`.
 
 ## Parameter Passing and Static Verification
 
 ### Jinja2 Template Resolution
 
-Manifests use Jinja2 to inject blackboard values into task parameters. Before execution, the engine resolves all `{{ ... }}` expressions against the blackboard.
+Manifests use Jinja2 to inject blackboard values into task parameters. Before execution, the engine resolves all `{{ ... }}` expressions against the blackboard — including output `destination` fields.
 
 ### Static Logic Verification (`_verify_logic`)
 
@@ -99,16 +146,18 @@ This catches broken references at declaration time, not at runtime.
 
 | Component | Responsibility |
 |---|---|
-| **WorkflowEngine** | Executes steps in sequence, resolves templates, updates blackboard, invokes callbacks |
+| **WorkflowEngine** | Executes steps in sequence, resolves templates, updates blackboard, invokes callbacks, publishes outputs |
 | **WorkflowRegistry** | Discovers manifests, validates schema, performs static logic verification |
 | **WorkflowManifest** | Pydantic schema for YAML structure: inputs, steps, outputs, version |
 | **Task base class** | Abstract base (`BaseTask`) parameterized by `TParams` and `TOutput` |
-| **Built-in tasks** | prompt_agent, file, web_search, arxiv, rss_fetch, pdf_to_markdown |
+| **OutputPublisher** | Copies output files from job directory to user working directory |
+| **Built-in tasks** | agent_map, agent_reduce, agent_projection, file_ingest, web_search, etc. |
 | **JobContext** | Carries the job root, input/output/internal paths, and blackboard to each task |
 
 ## Related Modules
 
 - `myproject_core.workflow.engine` — `WorkflowEngine` and `JobContext`
+- `myproject_core.workflow.publisher` — `OutputPublisher` for copying outputs to working directory
 - `myproject_core.workflow.registry` — `WorkflowRegistry`, manifest discovery and validation
 - `myproject_core.workflow.manifest` — `WorkflowManifest` Pydantic schema
-- `myproject_core.workflow.tasks` — Built-in task implementations (prompt_agent, file, web_search, arxiv, rss_fetch, pdf_to_markdown)
+- `myproject_core.workflow.tasks` — Built-in task implementations

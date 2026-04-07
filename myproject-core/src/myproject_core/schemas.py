@@ -575,6 +575,16 @@ class OutputDefinition(BaseModel):
         ...,
         description="Contain {{ placeholders }} that specifies data source for this output.",
     )
+    destination: str | None = Field(
+        default=None,
+        description=(
+            "Relative path in the user's working directory to copy output files to. "
+            "For single-file outputs, this is the destination filename. "
+            "For multi-file outputs (e.g., a list of file paths), this is treated as a directory "
+            "and all files are copied into it. "
+            "If omitted, no files are copied out of the job directory."
+        ),
+    )
 
 
 class WorkflowManifest(BaseModel):

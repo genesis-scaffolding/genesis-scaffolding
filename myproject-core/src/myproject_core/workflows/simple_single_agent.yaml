@@ -11,6 +11,10 @@ inputs:
     type: "list[file]"
     description: "List of files to provide to the agent."
     default: []
+  output_file_path:
+    type: "string"
+    description: "Path to store the output file in the working directory"
+    default: ""
 
 steps:
   - id: "file_ingest_step"
@@ -32,7 +36,8 @@ steps:
 outputs:
   output_content:
     description: "Output response from the agent"
-    value: "{{ steps.agent_step.content }}"
+    value: "{{ steps.agent_step.content[0] }}"
+    destination: "{{ inputs.output_file_path }}"
   output_path:
     description: "File path to the output from agent"
     value: "{{ steps.agent_step.file_paths }}"

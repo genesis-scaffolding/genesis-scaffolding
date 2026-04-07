@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+from pathlib import Path
 from typing import Any
 
 from .agent_registry import AgentRegistry
@@ -19,9 +20,10 @@ from .workspace import WorkspaceManager
 
 
 class WorkflowEngine:
-    def __init__(self, workspace_manager: WorkspaceManager, agent_registry: AgentRegistry):
+    def __init__(self, workspace_manager: WorkspaceManager, agent_registry: AgentRegistry, working_directory: Path):
         self.workspace_manager = workspace_manager
         self.agent_registry = agent_registry
+        self.working_directory = working_directory
 
     async def run(
         self,
@@ -102,9 +104,22 @@ class WorkflowEngine:
                 )
                 await asyncio.gather(*(cb(event) for cb in step_callbacks))
 
-        # Create outputs
+        # Create outputs — resolve both value and destination through Jinja2
         raw_outputs = {k: v.value for k, v in manifest.outputs.items()}
         workflow_output = resolve_placeholders(raw_outputs, state)
+
+        # Resolve destinations (which may reference inputs or step outputs)
+        resolved_destinations: dict[str, str | None] = {}
+        for k, v in manifest.outputs.items():
+            if v.destination is not None:
+                resolved_destinations[k] = resolve_placeholders({k: v.destination}, state)[k]
+            else:
+                resolved_destinations[k] = None
+
+        # Publish output files to the user's working directory
+        from .workflow_publisher import OutputPublisher
+        publisher = OutputPublisher(self.working_directory)
+        await publisher.publish(manifest.outputs, workflow_output, resolved_destinations, job_context)
 
         return WorkflowOutput(workflow_result=workflow_output, workspace_directory=job_context.root)
 
@@ -124,7 +139,7 @@ async def main():
     wm = WorkspaceManager(settings)
     reg = WorkflowRegistry(settings)
     agent_reg = AgentRegistry(settings)
-    engine = WorkflowEngine(wm, agent_reg)
+    engine = WorkflowEngine(wm, agent_reg, settings.path.working_directory)
 
     # 2. Pick the sample workflow
     manifest = reg.get_workflow("sample_workflow_multi_agent")

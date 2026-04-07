@@ -27,6 +27,7 @@ class GenesisCLI:
         workflow_registry: WorkflowRegistry,
         agent_registry: AgentRegistry,
         engine: WorkflowEngine,
+        working_directory: Path,
     ):
         self._console = Console()
         self.settings = settings
@@ -34,6 +35,7 @@ class GenesisCLI:
         self.workflow_registry = workflow_registry
         self.agent_registry = agent_registry
         self.engine = engine
+        self.working_directory = working_directory
         self.app = typer.Typer(help="Genesis CLI")
 
         # Register the dispatch command
