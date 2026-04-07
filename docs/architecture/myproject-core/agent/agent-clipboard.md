@@ -30,7 +30,7 @@ The clipboard replaces naive file reading. Key features:
 
 ## Clipboard Content Types
 
-The clipboard tracks six categories of information:
+The clipboard tracks seven categories of information:
 
 1. **Todo List** — A list of tasks to keep the agent on track without repeating them in history.
 
@@ -43,6 +43,8 @@ The clipboard tracks six categories of information:
 5. **Pinned Memory Entities** — Live-synced database records from the agent's memory subsystem (memory events and topics).
 
 6. **System Context** — memory_tag_hints (counts of available semantic tags) and user_profile_content (rendered user profile; never expires via TTL).
+
+7. **Conversation Timing** — Tracks the UTC timestamp of the last user turn (last_turn_at). When rendered to markdown, if more than 60 seconds have elapsed since the last turn, a timing section is included showing when the last exchange occurred and how much time has passed.
 
 ## How Tools Pin Entities
 
@@ -74,13 +76,14 @@ TTL Defaults:
 
 The clipboard is converted to a Markdown string for injection into the LLM context. Rendered sections in order:
 
-1. Agent Internal Todo List
-2. User Productivity System (tasks, projects, journals — grouped by type)
-3. Tracked Memories (memory events and memory topics)
-4. Accessed Files (with status flags: "Recently Added", "Recently Modified")
-5. Tool Call Results
-6. Memory Tags (semantic tag directory)
-7. User Profile (onboarding nudge if absent)
+1. Conversation Timing (if more than 60 seconds since last user turn)
+2. Agent Internal Todo List
+3. User Productivity System (tasks, projects, journals — grouped by type)
+4. Tracked Memories (memory events and memory topics)
+5. Accessed Files (with status flags: "Recently Added", "Recently Modified")
+6. Tool Call Results
+7. Memory Tags (semantic tag directory)
+8. User Profile (onboarding nudge if absent)
 
 Pinned entities render differently based on resolution:
 
