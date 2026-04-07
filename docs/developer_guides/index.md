@@ -101,3 +101,11 @@ You can also call `uv` and `pnpm` directly for more granular control (e.g., `uv 
 | Frontend dev | `pnpm dev` / `pnpm build` | Next.js via pnpm |
 | Linting/Type | ruff, pyright, eslint | Configured per package |
 | Quality gates | `make check-all-backend` | Used by CI — prefer over raw uv/pnpm calls |
+
+### Handling Type Errors
+
+When type errors occur, use judgment to determine whether they indicate a real bug or a tooling limitation:
+
+- **Third-party library type errors** (e.g., SQLAlchemy, Pydantic, FastAPI) — If you're confident the code works but the type checker rejects third-party library functions, a targeted `// @ts-ignore` or `# type: ignore` is acceptable.
+
+- **Our own type mismatches** — If the error is caused by mismatches against types or schemas **we define**, fix the type properly. Do not use `as any`, `as unknown`, or `type: ignore` to suppress errors from our own code.
