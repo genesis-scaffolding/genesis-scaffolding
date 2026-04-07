@@ -11,8 +11,9 @@ from ..schemas import LLMModelConfig, LLMProvider, LLMResponse, StreamCallback
 from ._anthropic import _call_anthropic
 from ._base import is_anthropic_provider
 from ._litellm import get_llm_response as _litellm_get_llm_response
+from .token_utils import count_tokens, get_max_context_tokens
 
-__all__ = ["get_llm_response"]
+__all__ = ["get_llm_response", "count_tokens", "get_max_context_tokens"]
 
 
 async def get_llm_response(

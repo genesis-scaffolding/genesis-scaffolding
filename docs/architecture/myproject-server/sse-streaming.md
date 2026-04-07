@@ -70,6 +70,7 @@ Streams SSE events to the frontend:
 | `reasoning` | Server → Client | `{data: string, index: number}` | Appends text to `message[index].reasoning_content` |
 | `tool_start` | Server → Client | `{data: {name, args}, index: number}` | Pushes tool to `message[index].tool_calls` with `status: 'running'` |
 | `tool_result` | Server → Client | `{data: {role, name, content}, index: number}` | Replaces `message[index]` with full tool message |
+| `token_usage` | Server → Client | `{data: {history_tokens, clipboard_tokens, total_tokens, max_tokens, percent}}` | Updates token usage display in the UI |
 
 ## Data Flow
 
@@ -95,9 +96,11 @@ Message persistence to the database happens exclusively in the background task a
 
 **Adding a new SSE event type** requires changes in three layers:
 
-1. **Agent core** (`myproject_core.agent`): Invoke the new callback at the appropriate point in `step()`
-2. **ActiveRun** (`myproject_server.chat_manager`): Add a new `handle_*` method that broadcasts the event
-3. **Frontend** (`myproject_frontend`): Add a new `addEventListener` for the event type
+1. **Agent core** (`myproject_core.agent`): Call `agent.get_context_info()` and pass the result to the SSE broadcast at the appropriate point in `run_agent_task()` (e.g., in the `finally` block after DB persistence)
+2. **ActiveRun** (`myproject_server.chat_manager`): Add a new `handle_*` method (e.g., `handle_token_usage`) that calls `_broadcast()`
+3. **Frontend** (`myproject_frontend`): Add a new `addEventListener` for the event type and update relevant state
+
+For `token_usage` specifically, the broadcast happens in `finally` after DB persistence succeeds, ensuring clients never receive token counts for a failed run.
 
 ## Related Modules
 

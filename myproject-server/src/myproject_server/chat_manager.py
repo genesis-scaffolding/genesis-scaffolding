@@ -68,6 +68,10 @@ class ActiveRun:
         # 3. Broadcast. The frontend sees a new index and knows it's a tool result message.
         await self._broadcast("tool_result", tool_msg, index=new_idx)
 
+    async def handle_token_usage(self, context_info: dict):
+        """Called after DB persistence to broadcast token usage to all SSE clients."""
+        await self._broadcast("token_usage", context_info)
+
     def add_client(self) -> asyncio.Queue:
         q = asyncio.Queue()
         self.clients.append(q)

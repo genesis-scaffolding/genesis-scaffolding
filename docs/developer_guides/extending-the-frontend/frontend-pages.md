@@ -108,6 +108,105 @@ Adding `min-h-0` to a flex child overrides this default, telling the browser "th
 - Any flex child that scrolls
 - Any flex child that **contains** a scrolling element
 
+## Server vs. Client Components
+
+Next.js App Router distinguishes between server components and client components. This distinction is enforced at runtime — violating it causes hard errors.
+
+### `'use client'` Directive
+
+Any component that uses React hooks (`useState`, `useEffect`, `useContext`, etc.) **must** be a client component. Add `'use client'` at the very top of the file:
+
+```typescript
+'use client'
+
+import { useState } from 'react'
+export function MyComponent() {
+  const [value, setValue] = useState(0)
+  // ...
+}
+```
+
+### The Hard Rule: Server Components Cannot Call Client Hooks
+
+A server component is any `.tsx` file without `'use client'` at the top — including `page.tsx` files. Server components can **render** client components, but they cannot **call** client hooks.
+
+Attempting to call a client hook (like `useChat()`) from a server component throws a runtime error:
+
+```
+Error: Attempted to call useChat() from the server.
+useChat is a client function but was called from a server component.
+```
+
+**Wrong:**
+```tsx
+// app/dashboard/chats/[id]/page.tsx — this is a SERVER component
+import { useChat } from '@/components/chat/chat-context'  // ❌ will crash
+
+export default function ChatDetailPage() {
+  const { tokenUsage } = useChat()  // ❌ calling client hook from server
+  return <TokenBar data={tokenUsage} />
+}
+```
+
+**Correct — pass data as props from server to client:**
+```tsx
+// app/dashboard/chats/[id]/page.tsx — SERVER component
+export default async function ChatDetailPage() {
+  const data = await getChatHistoryAction(sessionId)
+  return (
+    <ChatProvider initialTokenUsage={data.context_tokens}>
+      <ChatWidget />  {/* ChatWidget is a CLIENT component that calls useChat() */}
+    </ChatProvider>
+  )
+}
+```
+
+### Pattern Summary
+
+| Situation | Approach |
+|----------|----------|
+| Page fetches data server-side | Use `page.tsx` as server component, pass data as props |
+| Need React state (`useState`) | `'use client'` component |
+| Need context (`useChat`, etc.) | `'use client'` component |
+| New UI component with hooks | `'use client'` at top of file |
+| Static display component (no hooks) | Can be server component, no `'use client'` needed |
+
+**Rule of thumb**: If a component imports from `context.tsx` or uses `useState`/`useEffect`, it must be a client component. Place it inside the client component tree, not in the server page itself.
+
+## PageContainer is the Root Rule
+
+**Every page must have `PageContainer` as its single root element.** There are no siblings outside `PageContainer`. This rule ensures:
+
+1. All page content is contained within the scroll/viewport management system
+2. Horizontal alignment (via `chat-viewport-container`) is consistent across all components
+3. No elements can accidentally break the flex/scroll hierarchy
+
+```tsx
+// ✅ CORRECT — PageContainer wraps everything
+export default function MyPage() {
+  return (
+    <PageContainer variant="app">
+      <header>Title</header>
+      <ChatWidget />
+    </PageContainer>
+  )
+}
+
+// ❌ WRONG — sibling elements outside PageContainer
+export default function MyPage() {
+  return (
+    <>
+      <TokenBar />          {/* ❌ outside PageContainer — breaks layout */}
+      <PageContainer variant="app">
+        <ChatWidget />
+      </PageContainer>
+    </>
+  )
+}
+```
+
+If you need a UI element to appear above a page's content (e.g., a token bar, a notification banner), place it **inside** a client component that is already inside `PageContainer` — like `ChatWidget`. Never add elements as siblings to `PageContainer`.
+
 ## Visual Checklist for PR Reviews
 
 Run through this checklist before submitting a PR:

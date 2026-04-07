@@ -32,3 +32,6 @@ user_directories/
 
 # Ignore the debug file
 debug_messages.json
+
+# Ignore agent's plan
+docs/superpowers/**

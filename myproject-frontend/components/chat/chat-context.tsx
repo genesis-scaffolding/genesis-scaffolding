@@ -9,6 +9,13 @@ interface ChatContextType {
   messages: ChatMessage[];
   sendMessage: (input: string) => Promise<void>;
   isRunning: boolean;
+  tokenUsage: {
+    history_tokens: number
+    clipboard_tokens: number
+    total_tokens: number
+    max_tokens: number
+    percent: number
+  } | null
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -16,10 +23,18 @@ const ChatContext = createContext<ChatContextType | null>(null);
 export const ChatProvider = ({
   session: initialSession,
   initialMessages,
+  initialTokenUsage,
   children
 }: {
   session: ChatSession;
   initialMessages: ChatMessage[];
+  initialTokenUsage?: {
+    history_tokens: number
+    clipboard_tokens: number
+    total_tokens: number
+    max_tokens: number
+    percent: number
+  };
   children: React.ReactNode;
 }) => {
   const [session, setSession] = useState(initialSession);
@@ -30,6 +45,8 @@ export const ChatProvider = ({
   const [displayActiveMessages, setDisplayActiveMessages] = useState<ChatMessage[]>([]);
 
   const [isRunning, setIsRunning] = useState(initialSession.is_running);
+
+  const [tokenUsage, setTokenUsage] = useState(initialTokenUsage ?? null)
 
   // --- 10fps Display Debouncer ---
   useEffect(() => {
@@ -54,6 +71,7 @@ export const ChatProvider = ({
     try {
       const data = await getChatHistoryAction(session.id);
       setHistoricalMessages(data.messages.map((m: any) => m.payload));
+      if (data.context_tokens) setTokenUsage(data.context_tokens);
       activeRunRef.current = [];
       setDisplayActiveMessages([]);
     } catch (err) {
@@ -123,6 +141,11 @@ export const ChatProvider = ({
       activeRunRef.current[index] = data;
     });
 
+    eventSource.addEventListener('token_usage', (e) => {
+      const data = JSON.parse(e.data);
+      setTokenUsage(data);
+    });
+
     eventSource.onerror = () => {
       console.log("🔚 [SSE] Connection closed or errored");
       eventSource.close();
@@ -158,7 +181,7 @@ export const ChatProvider = ({
   const allMessages = [...historicalMessages, ...displayActiveMessages];
 
   return (
-    <ChatContext.Provider value={{ session, messages: allMessages, sendMessage, isRunning }}>
+    <ChatContext.Provider value={{ session, messages: allMessages, sendMessage, isRunning, tokenUsage }}>
       {children}
     </ChatContext.Provider>
   );

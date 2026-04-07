@@ -279,7 +279,6 @@ class AgentClipboard(BaseModel):
             elapsed = _format_elapsed(self.last_turn_at, now, timezone)
             if elapsed:
                 last_local = _format_utc_for_display(self.last_turn_at, timezone)
-                now_local = now.astimezone(zoneinfo.ZoneInfo(timezone)).strftime("%Y-%m-%d %H:%M")
                 timing_section = "### CONVERSATION TIMING\n"
                 timing_section += f"The last exchange was at {last_local} ({elapsed}).\n"
                 sections.append(timing_section)

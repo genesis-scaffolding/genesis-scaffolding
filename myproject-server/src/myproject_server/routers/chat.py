@@ -101,6 +101,8 @@ async def get_chat_history(
     session_id: int,
     db: Annotated[Session, Depends(get_session)],
     user: Annotated[User, Depends(get_current_active_user)],
+    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
+    working_dir: Annotated[Path, Depends(get_user_inbox_path)],
 ):
     session = db.get(ChatSession, session_id)
     if not session or session.user_id != user.id:
@@ -110,7 +112,19 @@ async def get_chat_history(
         select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(col(ChatMessage.id).asc()),
     ).all()
 
-    return {"session": session, "messages": messages}
+    # Reconstruct memory to get token counts via agent's public interface
+    memory_list = [m.payload for m in messages]
+    clipboard = AgentClipboard.model_validate(session.clipboard_state) if session.clipboard_state else None
+    memory = AgentMemory(messages=memory_list, agent_clipboard=clipboard) if (memory_list or clipboard) else None
+
+    # Create agent to access its token counting interface
+    agent = agent_reg.create_agent(session.agent_id, working_directory=working_dir, memory=memory)
+
+    # Trigger token count update via agent's public method
+    agent.update_context_tokens()
+    context_tokens = agent.get_context_info()
+
+    return {"session": session, "messages": messages, "context_tokens": context_tokens}
 
 
 @router.post("/{session_id}/message")
@@ -210,7 +224,12 @@ async def send_message(
                     bg_db.add(session_to_update)
                     bg_db.commit()
         finally:
+            # Capture active_run reference before clearing
+            run = chat_manager.active_runs.get(session_id)
             chat_manager.clear_run(session_id)
+            # Broadcast token usage AFTER successful persistence and session unlock
+            if run is not None:
+                await run.handle_token_usage(agent.get_context_info())
 
     # 6. Dispatch to background and return 202
     background_tasks.add_task(run_agent_task)

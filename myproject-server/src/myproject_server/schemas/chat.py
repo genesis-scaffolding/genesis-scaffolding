@@ -24,6 +24,15 @@ class ChatMessageRead(BaseModel):
     created_at: datetime
 
 
+class ContextTokensRead(BaseModel):
+    history_tokens: int
+    clipboard_tokens: int
+    total_tokens: int
+    max_tokens: int
+    percent: float
+
+
 class ChatHistoryRead(BaseModel):
     session: ChatSessionRead
     messages: list[ChatMessageRead]
+    context_tokens: ContextTokensRead

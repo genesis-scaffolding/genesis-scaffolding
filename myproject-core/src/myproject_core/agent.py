@@ -12,7 +12,7 @@ from myproject_tools.schema import ToolResult
 
 from .agent_memory import AgentMemory
 from .configs import get_config
-from .llm import get_llm_response
+from .llm import get_llm_response, get_max_context_tokens
 from .memory.db import get_memory_session
 from .productivity.db import get_user_session
 from .prompts import BuildPromptConfig, build_system_prompt
@@ -73,6 +73,8 @@ class Agent:
             user_db_url  # Passing connection string to user's private database for agent to use in tools
         )
         self.memory_db_url = memory_db_url  # Connection string to user's private memory database
+
+        self.max_context_tokens = get_max_context_tokens(self.llm_model_config.model) or 0
 
     def _resolve_tools(self):
         """Attempts to import the tool registry and look up tools
@@ -340,6 +342,7 @@ class Agent:
             if not llm_response.tool_calls:
                 # No more tools? Return the final text
                 self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
+                self.update_context_tokens()
                 return llm_response.content
 
             # --- LOOP DETECTION LOGIC ---
@@ -358,6 +361,7 @@ class Agent:
                 if repeat_count >= max_repetitions:
                     # Naive solution: just stop the agent loop for now. We will find a more elegant handling in the future
                     self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
+                    self.update_context_tokens()
                     return f"Agent terminated: Detected a loop in tool calls ({llm_response.tool_calls[0].function_name})."
 
             tool_call_history.append(current_calls_signature)
@@ -389,6 +393,7 @@ class Agent:
                     await asyncio.gather(*tool_start_cb)
 
         self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
+        self.update_context_tokens()
         return "Agent reached maximum allowed turns without reaching a conclusion."
 
     async def add_file(self, file_path: Path, working_directory: Path | None = None):
@@ -508,6 +513,26 @@ class Agent:
 
     def get_clipboard(self):
         return self.memory.get_clipboard_message(timezone=self.timezone)
+
+    def update_context_tokens(self):
+        """Update stored token counts on memory by asking memory."""
+        self.memory.history_tokens = self.memory.count_history_tokens(self.llm_model_config.model)
+        self.memory.clipboard_tokens = self.memory.count_clipboard_tokens(self.llm_model_config.model)
+
+    def get_context_info(self) -> dict[str, Any]:
+        """Return context token breakdown for external consumers."""
+        history = self.memory.history_tokens
+        clipboard = self.memory.clipboard_tokens
+        total = history + clipboard
+        max_tok = self.max_context_tokens
+        percent = round(total / max_tok * 100, 1) if max_tok else 0.0
+        return {
+            "history_tokens": history,
+            "clipboard_tokens": clipboard,
+            "total_tokens": total,
+            "max_tokens": max_tok,
+            "percent": percent,
+        }
 
 
 async def main():

@@ -20,6 +20,8 @@ class AgentMemory:
     ) -> None:
         self.messages = messages or []
         self.agent_clipboard = agent_clipboard or AgentClipboard()
+        self.history_tokens = 0
+        self.clipboard_tokens = 0
 
     def append_memory(self, message: Any):
         self.messages.append(message)
@@ -184,6 +186,19 @@ class AgentMemory:
 
         profile = memory_service.get_user_profile(session)
         self.agent_clipboard.user_profile_content = profile.content if profile else None
+
+    def count_history_tokens(self, model: str) -> int:
+        """Count tokens in the stored message history using the LLM client's token counter."""
+        from .llm import count_tokens
+
+        return count_tokens(self.messages, model)
+
+    def count_clipboard_tokens(self, model: str) -> int:
+        """Count tokens in the clipboard as rendered for the LLM."""
+        from .llm import count_tokens
+
+        clipboard_text = self.agent_clipboard.render_to_markdown()
+        return count_tokens([{"role": "system", "content": clipboard_text}], model)
 
     def estimate_total_tokens(self) -> int:
         """Estimates the total token count of history + current clipboard.

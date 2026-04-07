@@ -100,6 +100,52 @@ Callbacks are asyncio.gather-ed for parallel invocation, ensuring minimal latenc
 
 5. **Raw JSON strings for tool arguments** — `ToolCall.arguments` stores the raw JSON string. Parsing is deferred to the tool execution layer, which handles JSON decode errors gracefully.
 
+## Token Utilities
+
+`myproject_core.llm.token_utils` provides two public functions for token counting and model context limits:
+
+### `count_tokens(messages, model) -> int`
+
+Counts tokens in a list of LLM message dicts. Three tiers:
+
+1. **Anthropic models** — calls `client.messages.count_tokens(messages, model)` from the official Anthropic SDK. Requires a model name (uses short-name extracted from provider-prefixed strings).
+2. **OpenAI/LiteLLM models** — uses `litellm.tokenizer.encode()` to count tokens.
+3. **Fallback** — 4-char-per-token heuristic (`len(text) // 4`).
+
+Handles provider-prefixed model names (e.g., `openrouter/anthropic/claude-3-5-haiku`) by extracting the short name via `split("/")[-1]`.
+
+### `get_max_context_tokens(model) -> int | None`
+
+Returns the context window limit for a model string. Checks:
+1. Exact match in the model map
+2. Suffix match (last path component) for provider-prefixed names
+
+Known models mapped:
+
+| Model | Context Limit |
+|-------|--------------|
+| Claude Opus 4.6 / Sonnet 4.6 | 1,048,576 |
+| Claude Haiku 4.5 | 204,800 |
+| Claude Sonnet 4.5 | 204,800 |
+| Claude Opus 4.5 | 1,048,576 |
+| Claude 3.5 Haiku / Sonnet | 204,800 |
+| Claude 3 Opus | 204,800 |
+| Claude 3 Haiku | 204,800 |
+| GPT-5.4 | 1,048,576 |
+| GPT-5.4-mini / GPT-5.4-nano | 409,600 |
+| GPT-4o / GPT-4o-mini | 128,000 |
+| GPT-4 / GPT-4 Turbo | 128,000 |
+| GPT-3.5 Turbo | 16,385 |
+| Gemini 2.5 Pro / Flash | 1,048,576 |
+| Gemini 2.0 Flash | 1,048,576 |
+| Gemini 1.5 Flash / Pro | 1,048,576 |
+| MiniMax M2.7 | 204,800 |
+| GLM-4.7 / GLM-4.7-flash | 204,800 |
+| Nemotron-3-Nano-30B-A3B-BF16 | 1,048,576 |
+
+Returns `None` for unknown models.
+
 ## Related Modules
 
 - `myproject_core.llm` — LLM provider abstraction (`get_llm_response()`, LiteLLM implementation, Anthropic SDK implementation)
+- `myproject_core.llm.token_utils` — Token counting and model context limits

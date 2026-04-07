@@ -16,7 +16,7 @@ export default async function ChatDetailPage({ params }: { params: Promise<{ id:
     const initialMessages = data.messages.map((m: any) => m.payload);
 
     return (
-      <ChatProvider session={data.session} initialMessages={initialMessages}>
+      <ChatProvider session={data.session} initialMessages={initialMessages} initialTokenUsage={data.context_tokens}>
         <PageContainer variant="app">
           <header className="shrink-0 border-b bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
             <div className="chat-viewport-container py-4">

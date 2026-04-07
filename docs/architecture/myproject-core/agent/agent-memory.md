@@ -139,7 +139,33 @@ The following features are intentionally deferred and not part of the current ar
 3. **Related memory linking** — automatic population of `related_memory_ids` based on detected topic, person, or event relationships between memories
 4. **LLM-assisted relevance scoring** — a pluggable retrieval strategy layer that would use the language model to re-rank or filter search results beyond basic BM25 scoring
 
+## Token Counting Interface
+
+`AgentMemory` tracks token usage for context monitoring and display. Two fields and two methods form the public interface:
+
+**Fields:**
+- `history_tokens: int` — cached token count for the message history, updated by the agent
+- `clipboard_tokens: int` — cached token count for the current clipboard, updated by the agent
+
+**Methods:**
+- `count_history_tokens(model: str) -> int` — counts tokens in `self.messages` using `count_tokens()` from the LLM client
+- `count_clipboard_tokens(model: str) -> int` — renders the clipboard to markdown and counts tokens using `count_tokens()`
+
+The counts are updated by the `Agent` at the end of each `step()` turn via `Agent.update_context_tokens()`. External consumers (e.g., the chat router) reconstruct an agent and call `get_context_info()` to retrieve the breakdown.
+
+**`get_context_info()` return shape:**
+```python
+{
+    "history_tokens": int,
+    "clipboard_tokens": int,
+    "total_tokens": int,
+    "max_tokens": int,
+    "percent": float,
+}
+```
+
 ## Related Modules
 
 - `myproject_core.memory` — Memory database models, service layer, and FTS5 search implementation
 - `myproject_core.prompts` — Memory-related prompt fragments (e.g., `FRAGMENT_MEMORY`)
+- `myproject_core.llm.token_utils` — Token counting implementation

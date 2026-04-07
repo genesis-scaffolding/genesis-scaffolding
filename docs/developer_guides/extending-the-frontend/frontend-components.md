@@ -196,3 +196,38 @@ Use `Zod` for validation and `react-hook-form` with the `zodResolver` for form l
 
 - **Width**: Components should default to `w-full`. Let the `PageContainer` and parent flex containers control width — don't hardcode widths like `w-[400px]` inside components.
 - **Height**: Avoid fixed heights like `h-[500px]`. Use `h-full` to fill a slot, or let content define the height.
+
+## Component Placement Rules
+
+### Client vs. Server Placement
+
+Every component that uses React hooks (`useState`, `useEffect`, `useContext`, etc.) **must** have `'use client'` at the top of its file. When placing such a component:
+
+1. If the page is a **server component** (`page.tsx` without `'use client'`), client components must appear as children inside `PageContainer`
+2. The server page passes all data as props; the client component consumes it via hooks or context
+3. Never call client hooks from server component files
+
+```tsx
+// ✅ CORRECT: ChatWidget is a client component, rendered inside the server page
+// page.tsx (server component)
+export default function ChatPage({ data }) {
+  return (
+    <PageContainer variant="app">
+      <ChatWidget tokenUsage={data.context_tokens} />
+    </PageContainer>
+  )
+}
+
+// chat-widget.tsx (client component)
+'use client'
+export function ChatWidget({ tokenUsage }) {
+  const { messages } = useChat()
+  // ...
+}
+```
+
+### Inside the Chat Context Tree
+
+For chat-specific components that need access to `useChat()`, render them as children of `ChatProvider`. For example, a `TokenBar` that needs `tokenUsage` from context should be placed inside `ChatWidget` (which calls `useChat()`), not in the server page.
+
+See [Frontend Pages](frontend-pages.md) for the full "Server vs. Client Components" and "PageContainer is the Root" rules.

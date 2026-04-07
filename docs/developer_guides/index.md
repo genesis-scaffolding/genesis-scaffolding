@@ -29,6 +29,8 @@ These guides cover the processes and conventions for extending and maintaining t
 
 ### Extending the Frontend
 
+> **⚠️ Before modifying any frontend code, you must read the frontend guides below.** Breaking the page layout rules (server/client component boundaries, PageContainer placement, scrollbar rules) causes runtime errors and broken layouts. The guides exist specifically to prevent these mistakes.
+
 - [Frontend Components](extending-the-frontend/frontend-components.md) — How to integrate new backend entities into the frontend UI
 - [Frontend Pages](extending-the-frontend/frontend-pages.md) — Layout, sizing, scroll management, and page archetypes
 - [Frontend Tables](extending-the-frontend/frontend-tables.md) — Data table patterns with TanStack Table
