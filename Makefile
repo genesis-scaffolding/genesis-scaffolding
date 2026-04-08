@@ -114,7 +114,8 @@ run-backend: ### Run backend on bare metal
 run-frontend: ### Run frontend on bare metal (build must be done first)
 	$(PNPM) start
 
-run: build run-backend run-frontend ## Build (if needed) and run both in prod mode on bare metal
+run: build ## Build (if needed) and run both in prod mode on bare metal
+	@$(MAKE) -j 2 run-backend run-frontend
 
 ### Docker / Container Management
 
