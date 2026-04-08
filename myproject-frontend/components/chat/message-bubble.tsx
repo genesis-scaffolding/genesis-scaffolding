@@ -20,7 +20,13 @@ export const MessageBubble = memo(({ message }: { message: ChatMessage }) => {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end mb-8">
-        <div className="bg-[#2f2f2f] text-white px-5 py-3 rounded-[24px] max-w-[85%] shadow-sm text-[15px] leading-relaxed">
+        <div className="bg-[#2f2f2f] text-white px-5 py-3 rounded-[24px] max-w-[85%] shadow-sm
+          prose prose-invert max-w-none
+          leading-[1.6]
+          prose-p:mb-4 prose-p:last:mb-0
+          prose-headings:font-semibold prose-headings:text-white
+          prose-strong:font-bold prose-strong:text-white
+          prose-a:text-blue-300 prose-a:underline">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {safeString(message.content)}
           </ReactMarkdown>

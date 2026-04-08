@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { ChatProvider } from "@/components/chat/chat-context";
 import { ChatWidget } from "@/components/chat/chat-widget";
 import { PageContainer } from "@/components/dashboard/page-container";
+import { VisibilityRefresh } from "./visibility-refresh";
 
 export default async function ChatDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,6 +19,7 @@ export default async function ChatDetailPage({ params }: { params: Promise<{ id:
     return (
       <ChatProvider session={data.session} initialMessages={initialMessages} initialTokenUsage={data.context_tokens}>
         <PageContainer variant="app" hasFloatingActionMenu={false}>
+          <VisibilityRefresh />
           <header className="shrink-0 border-b bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
             <div className="chat-viewport-container py-4">
               <h1 className="lg:text-xl text-lg font-bold tracking-tight truncate">
