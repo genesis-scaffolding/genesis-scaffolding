@@ -51,7 +51,7 @@ app = FastAPI(title="MyProject API", lifespan=lifespan)
 # Set up CORS using the safe list from our Config
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.server.cors_origins,
+    allow_origins=settings.server.all_cors_origins,
     allow_credentials=True,  # Required for Auth headers/cookies
     allow_methods=["*"],
     allow_headers=["*"],

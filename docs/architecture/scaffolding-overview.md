@@ -32,6 +32,68 @@ The platform splits into:
 
 ---
 
+## Deployed Architecture
+
+When the application is deployed, three processes run independently:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          User's Browser                               │
+│  (React SPA — receives HTML, hydrates, makes API calls to Next.js)   │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ HTTP/HTTPS
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Next.js Server                               │
+│  (Process 1 — handles SSR, serves React, proxies API to FastAPI)     │
+│  - Receives browser requests                                        │
+│  - Server Actions for mutations (login, forms)                       │
+│  - API proxy route /api/[...proxy] for fetch-based API calls          │
+│  - Manages session cookies                                          │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ HTTP (internal)
+                                  │ or same-process call
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         FastAPI Server                               │
+│  (Process 2 — REST API, auth, SSE, background jobs)                  │
+│  - All /auth/*, /users/*, /chat/*, etc. endpoints                   │
+│  - JWT validation, per-user database isolation                       │
+│  - No knowledge of React or Next.js                                 │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Process Responsibilities
+
+| Process | Role | Listens on |
+|---|---|---|
+| **Browser (React)** | UI, form submission, session cookie storage | N/A (client) |
+| **Next.js** | SSR, auth via server actions, API proxy | Port 3000 (default) |
+| **FastAPI** | Business logic, auth tokens, data | Port 8000 (default) |
+
+### Request Flow: Browser to FastAPI
+
+The frontend makes API calls in two ways:
+
+1. **Server Actions** (for auth: login, logout, register)
+   - `lib/auth.ts` calls `/auth/login` via `fetch()` with an absolute URL (`http://localhost:8000/auth/login`)
+   - This is a direct browser → FastAPI call, but the response sets cookies on the Next.js domain
+   - Used for operations that need to set session cookies
+
+2. **API Proxy** (for all other API calls)
+   - `lib/api-client.ts` sends requests through `/api/[...proxy]` (Next.js route)
+   - Next.js forwards to FastAPI, returning the response to the browser
+   - The proxy reads `access_token` from cookies and adds `Authorization: Bearer` header
+   - Used for chat, workflows, productivity, etc.
+
+### Why Two Paths?
+
+Server actions for auth must call FastAPI directly because they need to receive and store session cookies in the browser. The proxy cannot forward cookies from the browser to FastAPI (httponly, secure cookies are not accessible via JavaScript). For all other API calls, the proxy pattern keeps the FastAPI URL hidden from the browser and provides a consistent same-origin request path.
+
+---
+
 ## Sub-Repositories
 
 Each sub-repo is documented in its own directory. Read the sub-repo directory for an introduction to that part of the system.

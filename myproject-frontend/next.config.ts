@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  crossOrigin: "use-credentials"
 };
 
 export default nextConfig;

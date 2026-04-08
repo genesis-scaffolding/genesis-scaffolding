@@ -54,6 +54,14 @@ class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
     cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins_extra: str = ""  # Comma-separated additional origins (e.g., "https://yoga.tail43a73c.ts.net,https://other.tail.net")
+
+    @computed_field
+    @property
+    def all_cors_origins(self) -> list[str]:
+        """Combine default cors_origins with extra origins from env var."""
+        extra = [o.strip() for o in self.cors_origins_extra.split(",") if o.strip()]
+        return self.cors_origins + extra
     jwt_secret_key: str = Field(default_factory=lambda: secrets.token_hex(32))
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 600

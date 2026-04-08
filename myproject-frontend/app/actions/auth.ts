@@ -15,12 +15,17 @@ export async function loginAction(
   const username = formData.get('username') as string;
   const password = formData.get('password') as string;
 
+  console.log("USERNAME: ", username)
   const validationError = validateCredentials(username, password);
+  console.log("VALIDATION ERROR: ", validationError)
   if (validationError) {
     return { error: validationError };
   }
 
+
   const result = await authenticateUser(username, password);
+
+  console.log("AUTHENTICATE USER RESULTS: ", result)
 
   if (!result.success) {
     return { error: result.error };
