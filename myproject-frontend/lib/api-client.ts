@@ -1,4 +1,5 @@
 import { getAccessToken, getRefreshToken, createSession, deleteSession } from '@/lib/session';
+import { refreshAccessToken } from '@/lib/auth';
 import { ApiError } from '@/types/api';
 
 const FASTAPI_URL = process.env.FASTAPI_URL || 'http://localhost:8000';
@@ -39,8 +40,14 @@ export async function apiFetch(
       const refreshed = await refreshAccessToken(refreshToken);
 
       if (refreshed) {
+        // Persist new tokens in session
+        await createSession(
+          refreshed.access_token,
+          refreshed.refresh_token,
+          refreshed.expires_in
+        );
         // Retry the original request with new access token
-        headers.set('Authorization', `Bearer ${refreshed.accessToken}`);
+        headers.set('Authorization', `Bearer ${refreshed.access_token}`);
         response = await fetch(`${FASTAPI_URL}${endpoint}`, {
           ...fetchOptions,
           headers,
@@ -53,34 +60,6 @@ export async function apiFetch(
   }
 
   return response;
-}
-
-async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string } | null> {
-  try {
-    const response = await fetch(`${FASTAPI_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-
-    // Update session with new tokens
-    await createSession(
-      data.access_token,
-      data.refresh_token,
-      data.expires_in
-    );
-
-    return { accessToken: data.access_token };
-  } catch (error) {
-    console.error('Token refresh failed:', error);
-    return null;
-  }
 }
 
 // Convenience methods

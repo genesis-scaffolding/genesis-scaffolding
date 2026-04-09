@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { refreshAccessToken } from '@/lib/auth';
 
 // Paths that don't require authentication
 const PUBLIC_PATHS = ['/login', '/register'];
@@ -46,12 +47,13 @@ export async function proxy(request: NextRequest) {
     url: request.url,
   });
 
-  const isAuthenticated = accessToken && !isTokenExpired(accessToken);
+  const tokenExpired = accessToken ? isTokenExpired(accessToken) : null;
+  const isAuthenticated = accessToken && !tokenExpired;
 
   console.log('[Middleware] AUTH STATUS:', {
     isAuthenticated,
     hasToken: !!accessToken,
-    tokenExpired: accessToken ? isTokenExpired(accessToken) : null,
+    tokenExpired,
   });
 
   // Check if current path is public
@@ -94,6 +96,46 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
+  // If access token is expired but refresh token exists, try to refresh
+  if (!isAuthenticated && refreshToken && !isPublicPath) {
+    console.log('[Middleware] ACTION: Access token expired, attempting refresh');
+
+    const refreshed = await refreshAccessToken(refreshToken);
+
+    if (refreshed) {
+      console.log('[Middleware] SUCCESS: Token refreshed');
+      // Set the new access token and proceed
+      const response = NextResponse.next();
+      response.cookies.set('access_token', refreshed.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: refreshed.expires_in,
+        path: '/',
+      });
+      // Optionally update refresh token if backend rotated it
+      if (refreshed.refresh_token) {
+        response.cookies.set('refresh_token', refreshed.refresh_token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7, // 7 days
+          path: '/',
+        });
+      }
+      console.log('[Middleware] ACTION: Allowing request with refreshed token');
+      console.log('='.repeat(80));
+      return response;
+    } else {
+      console.log('[Middleware] FAILURE: Token refresh failed');
+      // Refresh failed, clear tokens and redirect to login
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete('access_token');
+      response.cookies.delete('refresh_token');
+      return response;
+    }
+  }
+
   // Redirect unauthenticated users to login (except for public paths)
   if (!isAuthenticated && !isPublicPath) {
     console.log('[Middleware] ACTION: Redirecting unauthenticated user to /login');
@@ -101,11 +143,6 @@ export async function proxy(request: NextRequest) {
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.delete('access_token');
     response.cookies.delete('refresh_token');
-    // if (accessToken || refreshToken) {
-    //   console.log('[Middleware] Clearing invalid/expired tokens');
-    //   response.cookies.delete('access_token');
-    //   response.cookies.delete('refresh_token');
-    // }
     return response;
   }
 

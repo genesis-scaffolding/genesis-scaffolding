@@ -1,7 +1,31 @@
-import type { AuthResult, TokenResponse } from '@/types/auth';
-import type { User } from '@/types/user'
+import type { TokenResponse } from '@/types/auth';
+import type { User } from '@/types/user';
 
 const FASTAPI_URL = process.env.FASTAPI_URL || 'http://localhost:8000';
+
+/**
+ * Refresh access token using refresh token.
+ * Does NOT persist tokens - caller is responsible for that.
+ * Works in both Route Handlers and Edge Runtime (middleware).
+ */
+export async function refreshAccessToken(refreshToken: string): Promise<TokenResponse | null> {
+  try {
+    const response = await fetch(`${FASTAPI_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Token refresh failed:', error);
+    return null;
+  }
+}
 
 /**
  * Authenticate user with FastAPI backend
@@ -9,7 +33,7 @@ const FASTAPI_URL = process.env.FASTAPI_URL || 'http://localhost:8000';
 export async function authenticateUser(
   username: string,
   password: string
-): Promise<AuthResult> {
+): Promise<{ success: boolean; data?: TokenResponse; error?: string }> {
   try {
     const response = await fetch(`${FASTAPI_URL}/auth/login`, {
       method: 'POST',
