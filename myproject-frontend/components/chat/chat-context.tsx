@@ -10,6 +10,7 @@ interface ChatContextType {
   sendMessage: (input: string) => Promise<void>;
   isRunning: boolean;
   tokenUsage: TokenUsage | null
+  clipboardMd: string | null;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -41,6 +42,8 @@ export const ChatProvider = ({
   const [isRunning, setIsRunning] = useState(initialSession.is_running);
 
   const [tokenUsage, setTokenUsage] = useState(initialTokenUsage ?? null)
+
+  const [clipboardMd, setClipboardMd] = useState<string | null>(null);
 
   // --- 10fps Display Debouncer ---
   useEffect(() => {
@@ -136,8 +139,13 @@ export const ChatProvider = ({
     });
 
     eventSource.addEventListener('token_usage', (e) => {
-      const data = JSON.parse(e.data);
-      setTokenUsage(data);
+      const parsed = JSON.parse(e.data);
+      setTokenUsage(parsed.data ?? parsed);
+    });
+
+    eventSource.addEventListener('clipboard', (e) => {
+      const parsed = JSON.parse(e.data);
+      setClipboardMd(parsed.data?.clipboard_md ?? null);
     });
 
     eventSource.onerror = () => {
@@ -175,7 +183,7 @@ export const ChatProvider = ({
   const allMessages = [...historicalMessages, ...displayActiveMessages];
 
   return (
-    <ChatContext.Provider value={{ session, messages: allMessages, sendMessage, isRunning, tokenUsage }}>
+    <ChatContext.Provider value={{ session, messages: allMessages, sendMessage, isRunning, tokenUsage, clipboardMd }}>
       {children}
     </ChatContext.Provider>
   );

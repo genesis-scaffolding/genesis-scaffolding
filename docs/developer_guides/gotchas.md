@@ -128,3 +128,55 @@ const res = await apiFetch('/chats/', { method: 'POST', ... });
 | External URLs (e.g., webhooks) | Raw `fetch` with absolute URL |
 
 Note: The existing `StartChatButton` in `components/dashboard/start-chat-button.tsx` uses raw `fetch('/api/chats', ...)` — this works only because it is a client component, not a server action. It should be migrated to use `apiFetch` for consistency.
+
+---
+
+## SSE `_broadcast` Wrapper Buries Event Data One Level Deep
+
+### The Problem
+
+All SSE events from `ActiveRun._broadcast()` share the same envelope format:
+
+```python
+payload = {"event": event, "data": data, "index": index}
+```
+
+This means `data` is **always one level inside** the parsed object, not at the top level. Frontend handlers that destructure directly from `JSON.parse(e.data)` work correctly for events where `data` is a primitive (e.g., `content` events where `data` is a string). But handlers that treat `data` as a top-level object get the wrapper instead.
+
+Example — `token_usage` was doing:
+```typescript
+eventSource.addEventListener('token_usage', (e) => {
+  setTokenUsage(JSON.parse(e.data)); // WRONG: sets {data: {...token_info...}, index: null}
+});
+```
+
+Instead of:
+```typescript
+eventSource.addEventListener('token_usage', (e) => {
+  const parsed = JSON.parse(e.data);
+  setTokenUsage(parsed.data ?? parsed); // Correct: unwraps or falls back
+});
+```
+
+### Why It Hid for So Long
+
+During streaming, the 10fps throttle only calls `setDisplayActiveMessages()` — `TokenBar` does not re-render. So even though `setTokenUsage` was corrupting state with the wrapped object, the broken values were never displayed.
+
+When the SSE connection ends, `refreshHistory()` fetches fresh data from the DB and calls `setTokenUsage` again with the correct server values, overwriting the corrupted state before `TokenBar` ever renders.
+
+The bug only surfaced when a new SSE event (`clipboard`) triggered a re-render of `ChatWidget` while `isRunning` was still `true` — bypassing `refreshHistory()` and exposing the corrupted `tokenUsage` state.
+
+### The Fix
+
+Always unwrap `parsed.data` for events that carry objects, not primitives:
+
+```typescript
+setTokenUsage(parsed.data ?? parsed);   // for token_usage
+setClipboardMd(parsed.data?.clipboard_md ?? null);  // for clipboard
+```
+
+Or consistently destructure with `const { data, index } = parsed` for all events, then use `data` directly.
+
+### Lesson
+
+SSE event handlers that process non-string data must account for the `_broadcast` wrapper. Any new SSE event type should be tested by forcing a re-render mid-stream (e.g., add a state setter for an unrelated piece of state in the handler) to catch these mismatches early.

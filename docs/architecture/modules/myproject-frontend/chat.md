@@ -21,7 +21,8 @@ const eventSource = new EventSource(`/api/chats/${session.id}/stream`);
 | `reasoning` | Append text to `message[index].reasoning_content` |
 | `tool_start` | Push tool to `message[index].tool_calls` with `status: 'running'` |
 | `tool_result` | Update tool status to completed, replace message index with full tool message |
-| `token_usage` | Update `tokenUsage` state with context breakdown (`history_tokens`, `clipboard_tokens`, `total_tokens`, `max_tokens`, `percent`) |
+| `token_usage` | Update `tokenUsage` state with context breakdown |
+| `clipboard` | Update `clipboardMd` state with rendered clipboard markdown |
 
 ## 10fps Display Throttle
 
@@ -48,7 +49,15 @@ This throttle balances responsiveness (10 updates per second) with performance (
 
 ## ChatProvider
 
-`ChatProvider` (`components/chat/chat-context.tsx`) manages the SSE connection, ephemeral message buffer, and the 10fps throttle interval. It exposes state and handlers to child components via React context. It also holds `tokenUsage` state, seeded from the initial GET response and updated on each `token_usage` SSE event.
+`ChatProvider` (`components/chat/chat-context.tsx`) manages the SSE connection, ephemeral message buffer, and the 10fps throttle interval. It exposes state and handlers to child components via React context. It also holds `tokenUsage` and `clipboardMd` state — both seeded from the initial GET response and updated on each SSE event.
+
+## Clipboard Panel
+
+The clipboard drawer consists of three components:
+
+- `ClipboardToggleButton` (`components/chat/clipboard-icon.tsx`) — Floating chevron button on the right edge of the chat widget, vertically centered. Only rendered when `showClipboardButton` prop is `true`.
+- `ClipboardDrawer` (`components/chat/clipboard-drawer.tsx`) — Slide-out drawer rendered at the widget level. Displays `clipboardMd` as rendered markdown using `react-markdown` + `remark-gfm`.
+- `ChatWidget` accepts `showClipboardButton` prop (defaults to `true`) to hide the toggle in compact contexts like the quick chat drawer.
 
 ## TokenBar
 
@@ -56,8 +65,10 @@ This throttle balances responsiveness (10 updates per second) with performance (
 
 ## Related Modules
 
-- `myproject_frontend/components/chat/chat-context.tsx` — SSE connection and ChatProvider
-- `myproject_frontend/components/chat/chat-widget.tsx` — ChatWidget, renders TokenBar
+- `myproject_frontend/components/chat/chat-context.tsx` — SSE connection, ChatProvider, clipboard state
+- `myproject_frontend/components/chat/chat-widget.tsx` — ChatWidget, composes all chat components
 - `myproject_frontend/components/chat/token-bar.tsx` — Token display bar
 - `myproject_frontend/components/chat/message-bubble.tsx` — Message rendering
+- `myproject_frontend/components/chat/clipboard-icon.tsx` — Floating clipboard toggle button
+- `myproject_frontend/components/chat/clipboard-drawer.tsx` — Clipboard slide-out drawer
 - `myproject_frontend/types/chat.ts` — ChatMessage type definitions

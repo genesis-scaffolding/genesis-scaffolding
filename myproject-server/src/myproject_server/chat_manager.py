@@ -72,6 +72,10 @@ class ActiveRun:
         """Called after DB persistence to broadcast token usage to all SSE clients."""
         await self._broadcast("token_usage", context_info)
 
+    async def handle_clipboard(self, clipboard_md: str):
+        """Broadcast clipboard markdown snapshot to all SSE clients after agent step."""
+        await self._broadcast("clipboard", {"clipboard_md": clipboard_md})
+
     def add_client(self) -> asyncio.Queue:
         q = asyncio.Queue()
         self.clients.append(q)

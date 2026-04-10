@@ -14,12 +14,12 @@ export function TokenBar({ history, clipboard, total, max, percent }: TokenBarPr
   return (
     <div className="shrink-0 border-b border-muted/50">
       <div className="chat-viewport-container py-1.5 flex gap-6 text-xs text-muted-foreground font-mono">
-        <span>History: {history.toLocaleString()}</span>
-        <span>Clipboard: {clipboard.toLocaleString()}</span>
+        <span>History: {(history ?? 0).toLocaleString()}</span>
+        <span>Clipboard: {(clipboard ?? 0).toLocaleString()}</span>
         <span>
-          Total: {total.toLocaleString()}
+          Total: {(total ?? 0).toLocaleString()}
           {isMaxKnown
-            ? ` / ${max.toLocaleString()} (${percent}%)`
+            ? ` / ${(max ?? 0).toLocaleString()} (${percent ?? 0}%)`
             : ` (model max unknown)`}
         </span>
       </div>

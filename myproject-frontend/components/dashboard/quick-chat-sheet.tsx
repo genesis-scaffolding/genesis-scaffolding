@@ -71,7 +71,7 @@ export function QuickChatSheet({ open, onOpenChange }: { open: boolean; onOpenCh
               initialMessages={messages}
               initialTokenUsage={tokenUsage}
             >
-              <ChatWidget />
+              <ChatWidget showClipboardButton={false} />
             </ChatProvider>
           )}
         </div>

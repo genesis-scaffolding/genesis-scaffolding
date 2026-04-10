@@ -33,6 +33,7 @@ These callbacks are passed into the `Agent` constructor and invoked during `step
 | `handle_reasoning` | Appends reasoning chunk, broadcasts to all clients |
 | `handle_tool_start` | Adds a `tool_calls` entry with `status='running'`, broadcasts `tool_start` |
 | `handle_tool_result` | Marks tool as completed, replaces index with full tool message, broadcasts `tool_result` |
+| `handle_clipboard` | Broadcasts the current clipboard markdown to all clients after an agent step |
 
 ### Broadcasting
 
@@ -63,14 +64,17 @@ Streams SSE events to the frontend:
 
 ## SSE Event Reference
 
-| Event | Direction | Payload | Effect on Frontend |
-|-------|-----------|---------|-------------------|
+All events share a `_broadcast` envelope: `{event: string, data: Any, index: number | null}`. Frontend handlers must unwrap `parsed.data` for events carrying objects (not primitives).
+
+| Event | Direction | Broadcast Payload (`parsed.data`) | Effect on Frontend |
+|-------|-----------|-----------------------------------|-------------------|
 | `catchup` | Server → Client | `{interim_messages: ChatMessage[]}` | Initializes client buffer with all messages so far |
-| `content` | Server → Client | `{data: string, index: number}` | Appends text to `message[index].content` |
-| `reasoning` | Server → Client | `{data: string, index: number}` | Appends text to `message[index].reasoning_content` |
-| `tool_start` | Server → Client | `{data: {name, args}, index: number}` | Pushes tool to `message[index].tool_calls` with `status: 'running'` |
-| `tool_result` | Server → Client | `{data: {role, name, content}, index: number}` | Replaces `message[index]` with full tool message |
-| `token_usage` | Server → Client | `{data: {history_tokens, clipboard_tokens, total_tokens, max_tokens, percent}}` | Updates token usage display in the UI |
+| `content` | Server → Client | `string` (text chunk) | Appends text to `message[index].content` |
+| `reasoning` | Server → Client | `string` (reasoning chunk) | Appends text to `message[index].reasoning_content` |
+| `tool_start` | Server → Client | `{name: string, args: dict}` | Pushes tool to `message[index].tool_calls` with `status: 'running'` |
+| `tool_result` | Server → Client | `{role: 'tool', name: string, content: string}` | Replaces `message[index]` with full tool message |
+| `token_usage` | Server → Client | `{history_tokens, clipboard_tokens, total_tokens, max_tokens, percent}` | Updates token usage display in the UI |
+| `clipboard` | Server → Client | `{clipboard_md: string}` | Updates clipboard markdown in context |
 
 ## Data Flow
 

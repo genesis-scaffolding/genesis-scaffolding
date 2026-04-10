@@ -226,10 +226,14 @@ async def send_message(
         finally:
             # Capture active_run reference before clearing
             run = chat_manager.active_runs.get(session_id)
-            chat_manager.clear_run(session_id)
-            # Broadcast token usage AFTER successful persistence and session unlock
+            # Broadcast final state BEFORE clearing the run
+            # (clear_run terminates SSE queues, so broadcasts must happen first)
             if run is not None:
                 await run.handle_token_usage(agent.get_context_info())
+                if agent.memory and agent.memory.agent_clipboard:
+                    clipboard_md = agent.memory.agent_clipboard.render_to_markdown()
+                    await run.handle_clipboard(clipboard_md)
+            chat_manager.clear_run(session_id)
 
     # 6. Dispatch to background and return 202
     background_tasks.add_task(run_agent_task)

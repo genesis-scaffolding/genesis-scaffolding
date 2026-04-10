@@ -33,5 +33,6 @@ user_directories/
 # Ignore the debug file
 debug_messages.json
 
-# Ignore agent's plan
+# Ignore other working artefacts of superpowers skill
 docs/superpowers/**
+.superpowers/**
