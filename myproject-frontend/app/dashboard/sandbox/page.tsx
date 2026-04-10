@@ -1,10 +1,34 @@
-import { getFilesAction } from '@/app/actions/sandbox';
+import { getFilesAction, getFoldersAction } from '@/app/actions/sandbox';
 import { PageBody, PageContainer } from '@/components/dashboard/page-container';
 import { SandboxFileExplorer } from '@/components/dashboard/sandbox-file-explorer';
 import { HardDrive } from 'lucide-react';
+import { Breadcrumb, BreadcrumbItem } from '@/components/dashboard/sandbox/breadcrumb';
 
-export default async function SandboxPage() {
-  const files = await getFilesAction();
+interface SandboxPageProps {
+  searchParams: Promise<{ folder?: string }>;
+}
+
+export default async function SandboxPage({ searchParams }: SandboxPageProps) {
+  const { folder } = await searchParams;
+  const [files, folders] = await Promise.all([getFilesAction(), getFoldersAction()]);
+
+  // Build breadcrumb items
+  const breadcrumbItems: BreadcrumbItem[] = [
+    { label: 'sandbox', href: '/dashboard/sandbox' },
+  ];
+  if (folder) {
+    const parts = folder.split('/');
+    let accumulated = '';
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      accumulated = accumulated ? `${accumulated}/${part}` : part;
+      const isLast = i === parts.length - 1;
+      breadcrumbItems.push({
+        label: part,
+        href: isLast ? undefined : `/dashboard/sandbox?folder=${accumulated}`,
+      });
+    }
+  }
 
   return (
     <PageContainer variant='dashboard'>
@@ -21,7 +45,13 @@ export default async function SandboxPage() {
           </div>
         </div>
 
-        <SandboxFileExplorer initialFiles={files} />
+        {breadcrumbItems.length > 1 && (
+          <div className="bg-white rounded-xl border shadow-sm p-3">
+            <Breadcrumb items={breadcrumbItems} />
+          </div>
+        )}
+
+        <SandboxFileExplorer allFiles={files} allFolders={folders} folder={folder} />
       </PageBody>
     </PageContainer>
   );

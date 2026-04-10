@@ -5,6 +5,7 @@ import { SandboxFile } from "@/types/sandbox";
 import { DataTableColumnHeader } from "@/components/dashboard/shared/data-table/column-header";
 import { Button } from "@/components/ui/button";
 import { FileText, FileDown, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { deleteFileAction } from "@/app/actions/sandbox";
 import { toast } from "sonner";
 
@@ -22,7 +23,12 @@ export const getSandboxColumns = (onFileDeleted: (fileId: number) => void): Colu
           >
             <FileText className="h-4 w-4" />
           </div>
-          <span className="font-medium text-sm truncate max-w-xs">{file.filename}</span>
+          <Link
+            href={`/dashboard/sandbox/file/${file.id}`}
+            className="font-medium text-sm truncate max-w-xs hover:text-primary transition-colors"
+          >
+            {file.filename}
+          </Link>
         </div>
       );
     },

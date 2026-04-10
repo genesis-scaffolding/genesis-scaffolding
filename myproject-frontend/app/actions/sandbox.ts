@@ -1,7 +1,7 @@
 'use server';
 
 import { getAccessToken } from '@/lib/session';
-import { SandboxFile } from '@/types/sandbox';
+import { SandboxFile, TEXT_EXTENSIONS } from '@/types/sandbox';
 import { revalidateTag } from 'next/cache';
 
 const FASTAPI_URL = process.env.FASTAPI_URL || 'http://localhost:8000';
@@ -72,12 +72,58 @@ export async function deleteFileAction(fileId: number) {
   return { success: true };
 }
 /**
+ * Fetch a single file's metadata and content by ID
+ *
+ * Note: The backend may not have a GET /files/{fileId}/content endpoint yet.
+ * If it doesn't exist, the file viewer will show download-only for all files.
+ */
+export async function getFileAction(
+  fileId: string | number
+): Promise<{ file: SandboxFile; content?: string }> {
+  const token = await getAccessToken();
+  const id = typeof fileId === "string" ? parseInt(fileId, 10) : fileId;
+
+  // Fetch metadata
+  const metaResponse = await fetch(`${FASTAPI_URL}/files/${id}`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!metaResponse.ok) {
+    const errorData = await metaResponse.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to fetch file metadata');
+  }
+
+  // Fetch content (text files only)
+  // Note: GET /files/{fileId}/content endpoint may not exist on the backend yet.
+  let content: string | undefined;
+  const meta = await metaResponse.json();
+  const ext = meta.filename.toLowerCase().slice(meta.filename.lastIndexOf('.'));
+  const isTextFile =
+    meta.mime_type?.startsWith('text/') ||
+    ['text/plain', 'text/markdown', 'application/json'].includes(meta.mime_type) ||
+    TEXT_EXTENSIONS.has(ext);
+
+  if (isTextFile) {
+    const contentResponse = await fetch(`${FASTAPI_URL}/files/${id}/content`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (contentResponse.ok) {
+      content = await contentResponse.text();
+    }
+  }
+
+  return { file: meta, content };
+}
+
+/**
  * Fetch available folders for organization
  */
-export async function getFoldersAction(): Promise<string[]> {
+export async function getFoldersAction(parentFolder?: string): Promise<string[]> {
   const token = await getAccessToken();
-  const response = await fetch(`${FASTAPI_URL}/files/folders`, {
+  const url = new URL(`${FASTAPI_URL}/files/folders`);
+  if (parentFolder) url.searchParams.append('parent_folder', parentFolder);
+  const response = await fetch(url.toString(), {
     headers: { 'Authorization': `Bearer ${token}` }
   });
+  if (!response.ok) throw new Error('Failed to fetch folders');
   return response.json();
 }
