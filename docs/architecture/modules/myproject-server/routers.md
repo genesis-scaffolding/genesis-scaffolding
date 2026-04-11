@@ -11,7 +11,7 @@ The FastAPI server uses a modular router structure. Each router handles a distin
 | `agents` | `/api/agents` | Agent CRUD, agent registry |
 | `auth` | `/auth` | Login, token refresh, logout |
 | `chat` | `/api/chats` | Chat sessions, SSE streaming |
-| `files` | `/api/files` | File upload/download, workspace files |
+| `files` | `/api/files` | File upload/download, sandbox file browser (list, view content, navigate folders) |
 | `jobs` | `/api/jobs` | Workflow job status and logs |
 | `llm_config` | `/api/llm-config` | LLM provider and model configuration |
 | `memory` | `/api/memory` | Agent memory operations |

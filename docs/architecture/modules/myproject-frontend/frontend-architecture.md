@@ -23,6 +23,7 @@ myproject-frontend/
 │   │   ├── tasks/          # Task-specific components
 │   │   ├── projects/       # Project-specific components
 │   │   ├── journals/       # Journal-specific components
+│   │   ├── sandbox/        # Sandbox file viewer components (FileViewer, Breadcrumb)
 │   │   └── ...             # Other domain-specific components
 │   └── ui/                 # Shadcn UI component library
 ├── lib/                    # Client-side utilities
@@ -64,7 +65,8 @@ The main application lives under `app/dashboard/`:
 | `app/dashboard/workflows/` | Workflow management |
 | `app/dashboard/schedules/` | Schedule management |
 | `app/dashboard/memory/` | Agent memory viewer |
-| `app/dashboard/sandbox/` | File sandbox browser |
+| `app/dashboard/sandbox/` | File sandbox browser with directory navigation |
+| `app/dashboard/sandbox/file/[id]/` | In-page file viewer with content preview (markdown, code, images) |
 | `app/dashboard/settings/` | User settings |
 | `app/dashboard/calendar/` | Calendar view |
 
