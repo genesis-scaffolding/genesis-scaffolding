@@ -29,3 +29,7 @@ class FileMoveResponse(BaseModel):
     message: str
     moved_files: list[SandboxFileRead]
     errors: list[str]  # Partial success — collect errors per file
+
+
+class CreateFolderRequest(BaseModel):
+    relative_path: str  # Path of the new directory (relative to sandbox root)

@@ -10,7 +10,13 @@ from fastapi.responses import FileResponse
 
 from ..dependencies import get_current_active_user, get_user_workdir
 from ..models.user import User
-from ..schemas.file_record import FileMoveRequest, FileMoveResponse, FileUploadResponse, SandboxFileRead
+from ..schemas.file_record import (
+    CreateFolderRequest,
+    FileMoveRequest,
+    FileMoveResponse,
+    FileUploadResponse,
+    SandboxFileRead,
+)
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -131,6 +137,27 @@ async def list_subfolders(
 
     try:
         return fs.get_subdirectories(parent_folder)
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
+
+
+@router.post("/folders", response_model=SandboxFileRead)
+async def create_folder(
+    request: CreateFolderRequest,
+    user: Annotated[User, Depends(get_current_active_user)],
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
+):
+    """Create a new directory in the sandbox."""
+    if not user.id:
+        raise HTTPException(status_code=403, detail="User not found")
+
+    if not request.relative_path:
+        raise HTTPException(status_code=400, detail="relative_path is required")
+
+    fs = _get_sandbox_filesystem(user_workdir)
+    try:
+        info = fs.create_directory(request.relative_path)
+        return _file_info_to_read(info)
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e)) from e
 
