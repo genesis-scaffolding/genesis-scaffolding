@@ -10,6 +10,7 @@ can replace LocalSandboxFilesystem without changing the calling code.
 """
 
 import mimetypes
+import os
 import shutil
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
@@ -215,26 +216,20 @@ class LocalSandboxFilesystem(SandboxFilesystem):
         """
         joined = self._root / relative_path
 
-        # Check for symlink BEFORE resolving - we need to know if it's a symlink
-        # that escapes the sandbox
-        is_symlink = joined.is_symlink()
+        # Normalize path: resolve . and .. components without following symlinks
+        normalized = Path(os.path.normpath(os.path.abspath(str(joined))))
 
-        # Resolve symlinks and normalize the path
-        # This handles both symlinks and path traversal (../..) in one step
-        try:
-            full = joined.resolve()
-        except OSError:
-            # Broken symlink - treat as non-existent
-            raise FileNotFoundError(f"Path not found: {relative_path}") from None
-
-        # Check that the resolved path is within the sandbox root
-        if not full.is_relative_to(self._root):
-            # If allow_symlinks_outside is True and the escape is due to a symlink,
-            # we allow it (for self-hosted users who symlink in external dirs)
-            if self._allow_symlinks_outside and is_symlink:
-                return full
+        # Check if normalized path is within sandbox
+        if not normalized.is_relative_to(self._root):
             raise ValueError(f"Traversal attempt detected: {relative_path}")
-        return full
+
+        # Path is inside sandbox - check if it's a symlink that escapes
+        if joined.is_symlink():
+            resolved = joined.resolve()
+            if not resolved.is_relative_to(self._root) and not self._allow_symlinks_outside:
+                raise ValueError(f"Traversal attempt detected: {relative_path}")
+
+        return normalized
 
     def _entry_to_file_info(self, entry: Path) -> SandboxFileInfo:
         """Convert a pathlib entry to SandboxFileInfo."""

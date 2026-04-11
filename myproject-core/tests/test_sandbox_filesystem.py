@@ -348,6 +348,138 @@ class TestLocalSandboxFilesystem:
         assert entries[0].name == "file.txt"
 
 
+class TestSymlinkBehavior:
+    """Tests for symlink handling in _resolve."""
+
+    @pytest.fixture
+    def temp_sandbox(self):
+        """Create a temporary sandbox directory for testing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    @pytest.fixture
+    def fs(self, temp_sandbox):
+        """Create a LocalSandboxFilesystem instance with symlinks allowed."""
+        return LocalSandboxFilesystem(temp_sandbox, allow_symlinks_outside=True)
+
+    @pytest.fixture
+    def fs_no_symlinks_outside(self, temp_sandbox):
+        """Create a LocalSandboxFilesystem instance with symlinks restricted."""
+        return LocalSandboxFilesystem(temp_sandbox, allow_symlinks_outside=False)
+
+    def test_resolve_does_not_follow_symlinks_within_sandbox(
+        self, fs, temp_sandbox
+    ):
+        """When a symlink is inside sandbox, _resolve returns the symlink path, not resolved target."""
+        # Create a symlink inside sandbox pointing to a file inside sandbox
+        target = temp_sandbox / "actual_dir" / "actual_file.txt"
+        target.parent.mkdir(parents=True)
+        target.write_text("content")
+
+        symlink_path = temp_sandbox / "mylink"
+        symlink_path.symlink_to(target, target_is_directory=False)
+
+        result = fs.resolve_path("mylink")
+
+        # Result should be the symlink itself (not resolved), so it starts with sandbox
+        assert str(result).startswith(str(temp_sandbox))
+        # And it should NOT be the resolved external path
+        assert result != target
+
+    def test_resolve_preserves_symlink_for_external_targets(
+        self, fs, temp_sandbox
+    ):
+        """When a symlink points outside sandbox, _resolve still returns symlink path when it's within sandbox."""
+        # Create an external directory (outside sandbox)
+        with tempfile.TemporaryDirectory() as external_dir:
+            external_target = Path(external_dir) / "external_file.txt"
+            external_target.write_text("external content")
+
+            # Create symlink inside sandbox pointing to external file
+            symlink_path = temp_sandbox / "external_link"
+            symlink_path.symlink_to(external_target, target_is_directory=False)
+
+            result = fs.resolve_path("external_link")
+
+            # Result should be the symlink path (not the resolved external path)
+            assert str(result).startswith(str(temp_sandbox))
+            # The external path should not appear in result
+            assert str(external_target) not in str(result)
+
+    def test_resolve_allow_symlinks_outside_returns_resolved_external(
+        self, fs, temp_sandbox
+    ):
+        """When allow_symlinks_outside=True, resolve_path exposes the real external path for reading."""
+        with tempfile.TemporaryDirectory() as external_dir:
+            external_file = Path(external_dir) / "secret.txt"
+            external_file.write_text("secret content")
+
+            symlink_path = temp_sandbox / "secret_link"
+            symlink_path.symlink_to(external_file, target_is_directory=False)
+
+            # resolve_path should still return the symlink path (not resolved)
+            result = fs.resolve_path("secret_link")
+            assert result == symlink_path
+
+            # But we should be able to read the file through the symlink
+            content = fs.read_file("secret_link")
+            assert content == b"secret content"
+
+    def test_resolve_rejects_symlinks_outside_when_disabled(
+        self, fs_no_symlinks_outside, temp_sandbox
+    ):
+        """When allow_symlinks_outside=False, symlinks pointing outside sandbox raise ValueError."""
+        with tempfile.TemporaryDirectory() as external_dir:
+            external_file = Path(external_dir) / "secret.txt"
+            external_file.write_text("content")
+
+            symlink_path = temp_sandbox / "secret_link"
+            symlink_path.symlink_to(external_file, target_is_directory=False)
+
+            with pytest.raises(ValueError, match="Traversal attempt detected"):
+                fs_no_symlinks_outside.resolve_path("secret_link")
+
+    def test_get_subdirectories_works_with_symlinked_dir(
+        self, fs, temp_sandbox
+    ):
+        """get_subdirectories returns correct relative paths when inside a symlinked directory."""
+        # Create external directory with subdirectories
+        with tempfile.TemporaryDirectory() as external_dir:
+            ext_docs = Path(external_dir) / "docs"
+            ext_notes = Path(external_dir) / "notes"
+            ext_docs.mkdir()
+            ext_notes.mkdir()
+
+            # Symlink external dir into sandbox
+            symlink_path = temp_sandbox / "knowledge-base"
+            symlink_path.symlink_to(external_dir, target_is_directory=True)
+
+            # Get subdirectories of the symlinked directory
+            subs = fs.get_subdirectories("knowledge-base")
+
+            # Should return subdirectory names relative to sandbox root
+            assert set(subs) == {"knowledge-base/docs", "knowledge-base/notes"}
+
+    def test_list_directory_works_with_symlinked_dir(
+        self, fs, temp_sandbox
+    ):
+        """list_directory returns correct relative paths when listing a symlinked directory."""
+        with tempfile.TemporaryDirectory() as external_dir:
+            (Path(external_dir) / "file1.txt").write_text("content1")
+            (Path(external_dir) / "file2.txt").write_text("content2")
+
+            symlink_path = temp_sandbox / "data"
+            symlink_path.symlink_to(external_dir, target_is_directory=True)
+
+            entries = fs.list_directory("data")
+
+            names = {e.name for e in entries}
+            assert names == {"file1.txt", "file2.txt"}
+            # Relative paths should be under the symlink name, not external path
+            for e in entries:
+                assert str(e.relative_path).startswith("data/")
+
+
 class TestSandboxFileInfo:
     """Tests for the SandboxFileInfo dataclass."""
 

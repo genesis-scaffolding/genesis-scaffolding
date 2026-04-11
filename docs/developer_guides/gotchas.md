@@ -243,3 +243,57 @@ if self.timezone:
 ### Lesson
 
 When a parameter flows through multiple layers of object construction, ensure it is explicitly propagated at each step. A timezone that is correctly used at one layer (LLM context) can be silently lost if the intermediate layers don't forward it. Always trace parameter flow from construction to final use — the symptom (wrong timezone in browser) was far removed from the cause (AgentMemory not forwarding timezone to AgentClipboard).
+
+---
+
+## `pathlib.Path.absolute()` Does Not Resolve `..` Components
+
+### Symptoms
+
+- `LocalSandboxFilesystem._resolve("../../../etc/passwd")` did not raise — traversal was allowed
+- `_resolve("some/../../other")` also bypassed the sandbox boundary check
+- But symlinks were correctly followed and rejected when they escaped
+
+### Root Cause
+
+`Path.absolute()` does NOT resolve `..` or `.` path components. It only converts a relative path to an absolute one without traversing symlinks:
+
+```python
+>>> from pathlib import Path
+>>> joined = Path('/tmp/sandbox') / '../../../etc/passwd'
+>>> joined.absolute()
+Path('/tmp/sandbox/../../../etc/passwd')  # still has .. components
+>>> joined.absolute().is_relative_to(Path('/tmp/sandbox'))
+True  # incorrect! /etc/passwd is NOT inside /tmp/sandbox
+```
+
+`Path.resolve()` does resolve `..` components, but it **also resolves symlinks**, which breaks the sandbox's ability to preserve symlink structure (e.g., `knowledge-base` → external directory).
+
+### The Fix
+
+Use `os.path.normpath(os.path.abspath(str(joined)))` instead:
+
+```python
+import os
+
+normalized = Path(os.path.normpath(os.path.abspath(str(joined))))
+# os.path.abspath() resolves symlinks too, but normpath strips the extra bits
+# os.path.normpath() collapses .. and . components WITHOUT following symlinks
+# Together they give a normalized absolute path that is safe to check against sandbox
+```
+
+The combination works because:
+
+- `os.path.abspath()` converts to absolute path but also normalizes (collapses `..`)
+- `os.path.normpath()` then cleans up any remaining `.` and `..` components
+- Neither function (alone or together) resolves symlinks the way `Path.resolve()` does
+
+This lets the sandbox:
+1. Detect real path traversal (`../../../etc/passwd`) by checking the normalized path
+2. Preserve symlink structure for paths inside the sandbox (so `get_subdirectories` returns `knowledge-base/docs`, not `/external/drive/docs`)
+3. Still detect when a symlink inside the sandbox points outside (when `allow_symlinks_outside=False`)
+
+### Lesson
+
+`Path.absolute()` is NOT equivalent to "normalized absolute path". It preserves `..` components that `is_relative_to()` cannot detect. Always use `os.path.normpath(os.path.abspath(...))` when normalizing user-supplied relative paths before boundary checks.
+
