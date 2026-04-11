@@ -11,7 +11,7 @@ The FastAPI server uses a modular router structure. Each router handles a distin
 | `agents` | `/api/agents` | Agent CRUD, agent registry |
 | `auth` | `/auth` | Login, token refresh, logout |
 | `chat` | `/api/chats` | Chat sessions, SSE streaming |
-| `files` | `/api/files` | File upload/download, sandbox file browser (list, view content, navigate folders) |
+| `files` | `/api/files` | File upload/download, sandbox file browser using `LocalSandboxFilesystem` (list, view content, navigate folders) |
 | `jobs` | `/api/jobs` | Workflow job status and logs |
 | `llm_config` | `/api/llm-config` | LLM provider and model configuration |
 | `memory` | `/api/memory` | Agent memory operations |
@@ -19,6 +19,53 @@ The FastAPI server uses a modular router structure. Each router handles a distin
 | `schedules` | `/api/schedules` | Cron schedule management |
 | `users` | `/api/users` | User account management |
 | `workflows` | `/api/workflows` | Workflow manifest management |
+
+### Files Router (`/api/files`)
+
+The files router provides the frontend-facing file operations using `LocalSandboxFilesystem`. File identity is determined by `relative_path` (base64url-encoded for URL safety), not a database ID.
+
+**Endpoints:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/upload` | Upload a file to a subfolder |
+| `GET` | `/` | List files in a folder (excludes directories) |
+| `GET` | `/folders` | List immediate subdirectories under a parent folder |
+| `GET` | `/{file_id}` | Get file metadata by encoded relative path |
+| `GET` | `/{file_id}/content` | Get file content as text (for text files) |
+| `GET` | `/{file_id}/download` | Download file with proper Content-Disposition |
+| `DELETE` | `/{file_id}` | Delete a file |
+
+**File ID Encoding:**
+
+`relative_path` values are base64url-encoded to make them URL-safe:
+```python
+def _encode_file_id(relative_path: str) -> str:
+    return urlsafe_b64encode(relative_path.encode()).rstrip(b"=").decode()
+```
+
+**Error Handling:**
+
+- `403 Forbidden` — Path traversal attempt detected
+- `404 Not Found` — File or folder does not exist
+- `400 Bad Request` — Invalid file ID encoding
+
+**Schemas:**
+
+```python
+class SandboxFileRead(BaseModel):
+    relative_path: str
+    name: str
+    is_dir: bool = False
+    size: int | None = None
+    mime_type: str | None = None
+    mtime: float | None = None
+    created_at: str | None = None
+
+class FileUploadResponse(BaseModel):
+    message: str
+    file: SandboxFileRead
+```
 
 ## Dependency Injection
 

@@ -65,8 +65,8 @@ The main application lives under `app/dashboard/`:
 | `app/dashboard/workflows/` | Workflow management |
 | `app/dashboard/schedules/` | Schedule management |
 | `app/dashboard/memory/` | Agent memory viewer |
-| `app/dashboard/sandbox/` | File sandbox browser with directory navigation |
-| `app/dashboard/sandbox/file/[id]/` | In-page file viewer with content preview (markdown, code, images) |
+| `app/dashboard/files/` | File sandbox browser with directory navigation |
+| `app/dashboard/files/[id]/` | In-page file viewer with content preview (markdown, code, images) |
 | `app/dashboard/settings/` | User settings |
 | `app/dashboard/calendar/` | Calendar view |
 
@@ -176,6 +176,56 @@ See [frontend-tables.md](frontend-tables.md) for detailed usage patterns.
 ## Chat UI
 
 The chat interface communicates with the backend via Server-Sent Events (SSE) at `/api/chats/{id}/stream`. For full streaming architecture details, see [myproject-server/sse-streaming.md](../myproject-server/sse-streaming.md).
+
+## Sandbox File Browser
+
+The sandbox file browser (`app/dashboard/files/`) provides a filesystem-like interface for users to upload, browse, and preview files in their sandboxed working directory.
+
+### Types
+
+```typescript
+// types/sandbox.ts
+interface SandboxFile {
+  relative_path: string;  // Primary identifier (base64url-encoded for URLs)
+  name: string;
+  is_dir: boolean;
+  size: number | null;
+  mime_type: string | null;
+  mtime: number | null;
+  created_at: string | null;
+}
+
+// File ID encoding: base64url encoding of relative_path
+export function encodeFileId(relativePath: string): string;
+export function decodeFileId(encoded: string): string;
+```
+
+### Server Actions
+
+```typescript
+// app/actions/sandbox.ts
+export async function getFilesAction(folder?: string): Promise<SandboxFile[]>
+export async function getFoldersAction(parentFolder?: string): Promise<string[]>
+export async function getFileAction(relativePath: string): Promise<{ file: SandboxFile; content?: string }>
+export async function uploadFileAction(formData: FormData): Promise<SandboxFile>
+export async function deleteFileAction(relativePath: string): Promise<void>
+```
+
+### Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `SandboxFileExplorer` | `components/dashboard/sandbox-file-explorer.tsx` | Main container; manages search, folders, and files in a unified table |
+| `SandboxTable` | `components/dashboard/sandbox/sandbox-table.tsx` | TanStack Table wrapper for file listing |
+| `FileViewer` | `components/dashboard/sandbox/file-viewer.tsx` | File content preview (text, markdown, images, PDF download) |
+| `Breadcrumb` | `components/dashboard/sandbox/breadcrumb.tsx` | Navigation breadcrumb |
+| `buildSandboxBreadcrumbs` | `components/dashboard/sandbox/breadcrumbs.ts` | Utility to build breadcrumb items from a relative path |
+
+### URL Structure
+
+- `/dashboard/files` — Browse sandbox root or a specific folder
+- `/dashboard/files?folder=docs/papers` — Browse specific folder
+- `/dashboard/files/{encoded_path}` — View specific file (relative_path is base64url-encoded)
 
 ## Tech Stack
 
