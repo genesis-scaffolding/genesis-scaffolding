@@ -23,6 +23,7 @@ export function FolderPickerDialog({ open, onOpenChange, onSelectFolder, current
     if (open) {
       setLoading(true);
       setError(null);
+      setSelectedFolder(".");
       getFoldersAction(".")
         .then((folds) => {
           setFolders(folds);
@@ -63,7 +64,7 @@ export function FolderPickerDialog({ open, onOpenChange, onSelectFolder, current
 
               {/* Option: each subfolder */}
               {folders.map((folder) => {
-                const isCurrentOrChild = folder === currentFolder || folder.startsWith(currentFolder + "/");
+                const isCurrentOrChild = folder === currentFolder || folder.startsWith(currentFolder ? currentFolder + "/" : "");
                 if (isCurrentOrChild) return null;
                 const folderName = folder.split("/").pop() || folder;
                 return (
