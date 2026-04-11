@@ -86,6 +86,62 @@ export async function deleteFileAction(relativePath: string) {
 }
 
 /**
+ * Move multiple files to a destination folder
+ * @param sourcePaths Array of relative paths to move
+ * @param destinationFolder Target folder path ("." for root)
+ */
+export async function moveFilesAction(sourcePaths: string[], destinationFolder: string) {
+  const token = await getAccessToken();
+
+  const response = await fetch(`${FASTAPI_URL}/files/move`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      source_paths: sourcePaths,
+      destination_folder: destinationFolder,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to move files');
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (revalidateTag as any)('sandbox');
+  return response.json();
+}
+
+/**
+ * Create a new directory in the sandbox
+ * @param relativePath Path for the new directory (e.g., "my_folder" or "docs/notes")
+ */
+export async function createFolderAction(relativePath: string): Promise<SandboxFile> {
+  const token = await getAccessToken();
+
+  const response = await fetch(`${FASTAPI_URL}/files/folders`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ relative_path: relativePath }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to create folder');
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (revalidateTag as any)('sandbox');
+  return response.json();
+}
+
+/**
  * Fetch a single file's metadata and content by relative path
  */
 export async function getFileAction(

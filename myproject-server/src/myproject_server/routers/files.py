@@ -10,7 +10,13 @@ from fastapi.responses import FileResponse
 
 from ..dependencies import get_current_active_user, get_user_workdir
 from ..models.user import User
-from ..schemas.file_record import FileUploadResponse, SandboxFileRead
+from ..schemas.file_record import (
+    CreateFolderRequest,
+    FileMoveRequest,
+    FileMoveResponse,
+    FileUploadResponse,
+    SandboxFileRead,
+)
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -135,6 +141,27 @@ async def list_subfolders(
         raise HTTPException(status_code=403, detail=str(e)) from e
 
 
+@router.post("/folders", response_model=SandboxFileRead)
+async def create_folder(
+    request: CreateFolderRequest,
+    user: Annotated[User, Depends(get_current_active_user)],
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
+):
+    """Create a new directory in the sandbox."""
+    if not user.id:
+        raise HTTPException(status_code=403, detail="User not found")
+
+    if not request.relative_path:
+        raise HTTPException(status_code=400, detail="relative_path is required")
+
+    fs = _get_sandbox_filesystem(user_workdir)
+    try:
+        info = fs.create_directory(request.relative_path)
+        return _file_info_to_read(info)
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
+
+
 @router.get("/{file_id}", response_model=FileUploadResponse)
 async def get_file(
     file_id: str,
@@ -241,3 +268,55 @@ async def delete_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from None
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
+
+
+@router.post("/move", response_model=FileMoveResponse)
+async def move_files(
+    request: FileMoveRequest,
+    user: Annotated[User, Depends(get_current_active_user)],
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
+):
+    """Move multiple files to a destination folder."""
+    if not user.id:
+        raise HTTPException(status_code=403, detail="User not found")
+
+    if not request.source_paths:
+        raise HTTPException(status_code=400, detail="No files specified")
+
+    fs = _get_sandbox_filesystem(user_workdir)
+
+    # Validate destination is within sandbox before touching anything
+    try:
+        fs.resolve_path(request.destination_folder)
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
+
+    moved_files: list[SandboxFileRead] = []
+    errors: list[str] = []
+
+    for source_path in request.source_paths:
+        try:
+            # Pre-validate: check it's not a directory
+            src_info = fs.get_file_info(source_path)
+            if src_info.is_dir:
+                errors.append(f"Directory move not supported: {source_path}")
+                continue
+
+            filename = Path(source_path).name
+            if request.destination_folder == ".":
+                dest_path = filename
+            else:
+                dest_path = f"{request.destination_folder}/{filename}"
+
+            info = fs.move_file(source_path, dest_path)
+            moved_files.append(_file_info_to_read(info))
+        except FileNotFoundError:
+            errors.append(f"File not found: {source_path}")
+        except Exception as e:
+            errors.append(f"Error moving {source_path}: {str(e)}")
+
+    return FileMoveResponse(
+        message=f"Moved {len(moved_files)} file(s)",
+        moved_files=moved_files,
+        errors=errors,
+    )

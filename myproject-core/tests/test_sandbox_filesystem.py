@@ -227,6 +227,46 @@ class TestLocalSandboxFilesystem:
         with pytest.raises(OSError):
             fs.delete_directory("mydir")
 
+    # --- move_file tests ---
+
+    def test_move_file_moves_file(self, fs, temp_sandbox):
+        fs.write_file("source.txt", b"content")
+        info = fs.move_file("source.txt", "dest.txt")
+
+        assert not (temp_sandbox / "source.txt").exists()
+        assert (temp_sandbox / "dest.txt").exists()
+        assert info.relative_path == "dest.txt"
+        assert info.name == "dest.txt"
+
+    def test_move_file_to_subfolder(self, fs, temp_sandbox):
+        fs.write_file("file.txt", b"content")
+        fs.create_directory("subdir")
+        info = fs.move_file("file.txt", "subdir/file.txt")
+
+        assert not (temp_sandbox / "file.txt").exists()
+        assert (temp_sandbox / "subdir" / "file.txt").exists()
+        assert info.relative_path == "subdir/file.txt"
+
+    def test_move_file_raises_on_nonexistent(self, fs, temp_sandbox):
+        with pytest.raises(FileNotFoundError):
+            fs.move_file("nonexistent.txt", "dest.txt")
+
+    def test_move_file_prevents_traversal(self, fs, temp_sandbox):
+        fs.write_file("file.txt", b"content")
+        with pytest.raises(ValueError, match="Traversal attempt"):
+            fs.move_file("file.txt", "../escape.txt")
+
+    def test_move_file_rejects_directory(self, fs, temp_sandbox):
+        fs.create_directory("mydir")
+        with pytest.raises(ValueError, match="Directory move is not supported"):
+            fs.move_file("mydir", "dest_dir")
+
+    def test_move_file_raises_on_name_collision(self, fs, temp_sandbox):
+        fs.write_file("file1.txt", b"content1")
+        fs.write_file("file2.txt", b"content2")
+        with pytest.raises(ValueError, match="Destination already exists"):
+            fs.move_file("file1.txt", "file2.txt")
+
     # --- get_subdirectories tests ---
 
     def test_get_subdirectories_returns_immediate_children(self, fs, temp_sandbox):

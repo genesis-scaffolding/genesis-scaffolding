@@ -10,6 +10,7 @@ can replace LocalSandboxFilesystem without changing the calling code.
 """
 
 import mimetypes
+import shutil
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from pathlib import Path
@@ -159,6 +160,24 @@ class SandboxFilesystem(ABC):
             OSError: If the directory is not empty.
         """
 
+    @abstractmethod
+    def move_file(self, source_relative_path: str, dest_relative_path: str) -> SandboxFileInfo:
+        """Move a file to a new location within the sandbox.
+
+        Only files are supported. Directory moves are not supported in this version.
+
+        Args:
+            source_relative_path: Current path relative to sandbox root.
+            dest_relative_path: Target path relative to sandbox root.
+
+        Returns:
+            SandboxFileInfo for the moved file at its new location.
+
+        Raises:
+            FileNotFoundError: If the source does not exist.
+            ValueError: If dest_relative_path escapes the sandbox or source is a directory.
+        """
+
 
 class LocalSandboxFilesystem(SandboxFilesystem):
     """Local filesystem implementation using pathlib.
@@ -305,3 +324,33 @@ class LocalSandboxFilesystem(SandboxFilesystem):
         if not path.is_dir():
             raise ValueError(f"Path is a file, not a directory: {relative_path}")
         path.rmdir()
+
+    def move_file(self, source_relative_path: str, dest_relative_path: str) -> SandboxFileInfo:
+        src = self._resolve(source_relative_path)
+        dst = self._resolve(dest_relative_path)
+
+        if not src.exists():
+            raise FileNotFoundError(f"Source not found: {source_relative_path}")
+
+        # Only files are supported — directories must use agent
+        if src.is_dir():
+            raise ValueError("Directory move is not supported. Use the agent to move directories.")
+
+        # Prevent moving into own subtree (no-op check)
+        try:
+            dst.relative_to(src)
+            raise ValueError("Cannot move a file into itself")
+        except ValueError:
+            pass  # Not a subdirectory, OK
+
+        # Detect name collision: refuse to overwrite
+        if dst.exists():
+            raise ValueError(f"Destination already exists: {dest_relative_path}")
+
+        # Create parent dirs if needed
+        dst.parent.mkdir(parents=True, exist_ok=True)
+
+        # Use shutil.move for cross-filesystem support
+        shutil.move(str(src), str(dst))
+
+        return self._entry_to_file_info(dst)

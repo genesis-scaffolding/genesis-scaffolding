@@ -1,11 +1,17 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { SandboxFile } from "@/types/sandbox";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { StandaloneUploadButton } from "./standalone-upload-button";
 import { SandboxTable } from "./sandbox/sandbox-table";
+import { FolderPickerDialog } from "./sandbox/folder-picker-dialog";
+import { FileBulkActionBar } from "./sandbox/file-bulk-action-bar";
+import { moveFilesAction, deleteFileAction } from "@/app/actions/sandbox";
+import { Table as TableType } from "@tanstack/react-table";
+import { toast } from "sonner";
 
 interface SandboxFileExplorerProps {
   allFiles: SandboxFile[];
@@ -16,6 +22,9 @@ interface SandboxFileExplorerProps {
 export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFileExplorerProps) {
   const [files, setFiles] = React.useState(allFiles);
   const [search, setSearch] = React.useState("");
+  const [selectedFiles, setSelectedFiles] = React.useState<SandboxFile[]>([]);
+  const [showFolderPicker, setShowFolderPicker] = React.useState(false);
+  const router = useRouter();
 
   React.useEffect(() => {
     setFiles(allFiles);
@@ -78,6 +87,27 @@ export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFil
     setFiles((prev) => [newFile, ...prev]);
   }, []);
 
+  async function handleMoveFiles(destFolder: string) {
+    const paths = selectedFiles
+      .filter((f) => !f.is_dir)
+      .map((f) => f.relative_path);
+    if (paths.length === 0) return;
+
+    try {
+      await moveFilesAction(paths, destFolder);
+      toast.success(`Moved ${paths.length} file(s)`);
+    } catch (err) {
+      toast.error("Failed to move files");
+    }
+  }
+
+  async function handleDeleteFiles() {
+    for (const file of selectedFiles) {
+      await deleteFileAction(file.relative_path);
+    }
+    toast.success(`Deleted ${selectedFiles.length} item(s)`);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4 bg-white p-4 rounded-xl border shadow-sm">
@@ -93,7 +123,38 @@ export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFil
         <StandaloneUploadButton onSuccess={handleUploadSuccess} />
       </div>
 
-      <SandboxTable files={combinedRows} onFileDeleted={handleFileDeleted} />
+      <SandboxTable
+        files={combinedRows}
+        onFileDeleted={handleFileDeleted}
+        renderFloatingBar={(table) => {
+          const selected = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
+          // Sync to local state so we can pass to callbacks
+          if (JSON.stringify(selected.map((f) => f.relative_path)) !== JSON.stringify(selectedFiles.map((f) => f.relative_path))) {
+            setSelectedFiles(selected);
+          }
+          return (
+            <FileBulkActionBar
+              selectedFiles={selected}
+              onClear={() => {
+                table.resetRowSelection();
+                setSelectedFiles([]);
+              }}
+              onMove={() => setShowFolderPicker(true)}
+              onDelete={handleDeleteFiles}
+            />
+          );
+        }}
+      />
+
+      <FolderPickerDialog
+        open={showFolderPicker}
+        onOpenChange={setShowFolderPicker}
+        onSelectFolder={(destFolder) => {
+          setShowFolderPicker(false);
+          handleMoveFiles(destFolder).then(() => router.refresh());
+        }}
+        currentFolder={folder}
+      />
     </div>
   );
 }
