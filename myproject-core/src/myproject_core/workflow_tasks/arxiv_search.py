@@ -2,7 +2,7 @@ import asyncio
 from pathlib import Path
 
 # Use the improved tool function
-from myproject_tools.arxiv import search_papers_with_downloads
+from myproject_tools.arxiv import search_papers
 
 from ..agent_registry import AgentRegistry
 from ..schemas import JobContext
@@ -38,7 +38,7 @@ class ArxivSearchTask(BaseTask[ArxivSearchTaskParams, ArxivSearchTaskOutput]):
         # Run the improved tool in a single thread
         # This handles search, download, and path resolution sequentially
         papers = await asyncio.to_thread(
-            search_papers_with_downloads,
+            search_papers,
             query=query,
             max_results=args.max_results,
             download_dir=download_directory,
