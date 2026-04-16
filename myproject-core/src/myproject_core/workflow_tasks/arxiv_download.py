@@ -4,7 +4,7 @@ from pathlib import Path
 
 from myproject_tools.arxiv import get_paper_details
 
-from ..agent_registry import AgentRegistry
+from ..agent.agent_registry import AgentRegistry
 from ..schemas import JobContext
 from .base_task import BaseTask, TaskOutput, TaskParams
 
@@ -59,7 +59,9 @@ class ArxivDownloadTask(BaseTask[ArxivDownloadTaskParams, ArxivDownloadTaskOutpu
                     def _do_blocking_download(pid: str):
                         # get_paper_details likely hits the API + the PDF download link
                         details = get_paper_details(
-                            paper_id=pid, download_dir=download_directory, download_pdf=True,
+                            paper_id=pid,
+                            download_dir=download_directory,
+                            download_pdf=True,
                         )
                         if not details:
                             raise ValueError(f"Cannot find paper: {pid}")

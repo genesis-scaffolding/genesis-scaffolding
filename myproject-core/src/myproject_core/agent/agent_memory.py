@@ -3,13 +3,13 @@ from pathlib import Path
 from typing import Any, Literal, cast
 from zoneinfo import ZoneInfo
 
+from myproject_core.productivity.models import Task
 from sqlmodel import Session
 
-from myproject_core.productivity.models import Task
-
-from .memory import service as memory_service
-from .productivity import service as prod_service
-from .schemas import AgentClipboard
+from ..llm import count_tokens
+from ..persistent_memory import service as memory_service
+from ..productivity import service as prod_service
+from .clipboard import AgentClipboard
 
 
 class AgentMemory:
@@ -189,20 +189,15 @@ class AgentMemory:
         user_profile_content to None — the clipboard will render the onboarding nudge
         instead.
         """
-        from .memory import service as memory_service
-
         profile = memory_service.get_user_profile(session)
         self.agent_clipboard.user_profile_content = profile.content if profile else None
 
     def count_history_tokens(self, model: str) -> int:
         """Count tokens in the stored message history using the LLM client's token counter."""
-        from .llm import count_tokens
-
         return count_tokens(self.messages, model)
 
     def count_clipboard_tokens(self, model: str) -> int:
         """Count tokens in the clipboard as rendered for the LLM."""
-        from .llm import count_tokens
 
         clipboard_text = self.agent_clipboard.render_to_markdown()
         return count_tokens([{"role": "system", "content": clipboard_text}], model)

@@ -34,4 +34,4 @@ When workflows execute, each job gets its own isolated workspace within the user
 ## Related Modules
 
 - `myproject_core.config` — Working directory path resolution via config layers
-- `myproject_core.workspace` — Workspace path management and sandboxing utilities
+- `myproject_core.workflow.workflow_workspace` — Workspace path management and sandboxing utilities

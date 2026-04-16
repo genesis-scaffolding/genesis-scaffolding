@@ -1,9 +1,9 @@
 import jinja2
 
-from .configs import Config, get_config
-from .schemas import WorkflowManifest
-from .utils import resolve_placeholders
-from .workflow_tasks.registry import TASK_LIBRARY
+from ..configs import Config, get_config
+from ..schemas import WorkflowManifest
+from ..utils import resolve_placeholders
+from ..workflow_tasks.registry import TASK_LIBRARY
 
 
 class WorkflowRegistry:

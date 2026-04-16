@@ -1,9 +1,9 @@
 from datetime import datetime
 from pathlib import Path
 
-from .configs import Config, get_config
-from .schemas import JobContext
-from .utils import slugify
+from ..configs import Config, get_config
+from ..schemas import JobContext
+from ..utils import slugify
 
 
 class WorkspaceManager:
@@ -13,8 +13,7 @@ class WorkspaceManager:
         self.settings.path.workspace_directory.mkdir(parents=True, exist_ok=True)
 
     def _generate_unique_path(self, name: str) -> Path:
-        """Combines slug, timestamp, and collision checks.
-        """
+        """Combines slug, timestamp, and collision checks."""
         slug = slugify(name)
 
         # Handle Windows reserved names

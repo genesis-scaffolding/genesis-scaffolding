@@ -4,12 +4,11 @@ from pathlib import Path
 from typing import Any
 
 import frontmatter
+from myproject_core.agent.agent import Agent
 
-from myproject_core.agent import Agent
-
+from ..configs import Config, get_config
+from ..schemas import AgentConfig, LLMModelConfig, LLMProvider
 from .agent_memory import AgentMemory
-from .configs import Config, get_config
-from .schemas import AgentConfig, LLMModelConfig, LLMProvider
 
 
 class AgentRegistry:
@@ -36,27 +35,6 @@ class AgentRegistry:
                     [raw_data["llm_config"], raw_data["provider_config"]] = self._get_llm_model_config(
                         llm_model_name,
                     )
-                    # if llm_model_name == "":
-                    #     # If there is no llm_model_name in the config, default to default model.
-                    #     # We ignore the existing llm_config and provider_config object in the YAML frontmatter
-                    #     [raw_data["llm_config"], raw_data["provider_config"]] = self._get_llm_model_config()
-                    #     raw_data["model_name"] = self.settings.default_model
-                    # else:
-                    #     # Else, try to load LLM config and provider config of the corresponding model
-                    #     llm_config = self.settings.models.get(llm_model_name, None)
-                    #     if not llm_config:
-                    #         raise ValueError(f"Cannot find the requested llm model: {llm_model_name}")
-                    #
-                    #     provider_name = llm_config.provider
-                    #     provider_config = self.settings.providers.get(provider_name, None)
-                    #     if not provider_config:
-                    #         raise ValueError(
-                    #             f"Cannot find the requested provider {provider_name} of the llm model {llm_model_name}"
-                    #         )
-                    #
-                    #     raw_data["llm_config"] = llm_config
-                    #     raw_data["provider_config"] = provider_config
-                    #
                     config = AgentConfig.model_validate(raw_data)
                     # Store the name from the file stem or manifest
                     self.blueprints[md_file.stem] = config

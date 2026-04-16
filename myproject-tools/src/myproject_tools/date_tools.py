@@ -67,6 +67,8 @@ def _compute_date_range(period: str, offset: int, today: date) -> str:
         return _compute_quarter_range(offset, today)
     elif period == "year":
         return _compute_year_range(offset, today)
+    else:
+        return f"Unknown period type: {period}"
 
 
 def _compute_day_range(offset: int, today: date) -> str:
@@ -110,7 +112,6 @@ def _compute_quarter_range(offset: int, today: date) -> str:
 
     # Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec
     quarter_start_month = adjusted_quarter * 3 + 1
-    quarter_start_month + 2
 
     target_first = date(target_year, quarter_start_month, 1)
     next_quarter_first = target_first + relativedelta(months=3)

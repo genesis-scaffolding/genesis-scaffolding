@@ -92,5 +92,5 @@ Pinned entities render differently based on resolution:
 
 ## Related Modules
 
-- `myproject_core.schemas` — Data models (`ClipboardState`, `TrackedEntity`, `ToolResult`)
-- `myproject_core.agent_memory` — Clipboard implementation (`ClipboardManager`, `forget()`, TTL decay, entity pin/unpin)
+- `myproject_core.agent.clipboard` — Data models (`AgentClipboard`, `AgentClipboardFile`, `AgentClipboardToolResult`, `AgentClipboardTodoItem`, `AgentClipboardPinnedEntity`)
+- `myproject_core.agent.agent_memory` — Clipboard integration (`AgentMemory` wraps `AgentClipboard`, provides `forget()`, TTL decay, entity pin/unpin, live-sync)

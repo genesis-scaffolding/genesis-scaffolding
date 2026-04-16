@@ -108,5 +108,5 @@ Tool result messages include:
 ## Related Modules
 
 - `myproject_core.agent` — Agent loop implementation (`step()`, turn management, loop flow)
-- `myproject_core.agent_memory` — Clipboard (`ClipboardState`, TTL decay via `forget()`, entity pinning)
-- `myproject_core.schemas` — Data models (`ToolResult`, `TrackedEntity`, `ClipboardState`)
+- `myproject_core.agent.agent_memory` — Agent memory and clipboard integration (TTL decay via `forget()`, entity pinning)
+- `myproject_core.agent.clipboard` — Clipboard data models (`AgentClipboard`, `AgentClipboardFile`, `AgentClipboardPinnedEntity`, `AgentClipboardToolResult`)

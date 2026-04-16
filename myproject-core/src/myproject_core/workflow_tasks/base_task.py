@@ -8,7 +8,7 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from ..agent_registry import AgentRegistry
+from ..agent.agent_registry import AgentRegistry
 from ..schemas import JobContext
 
 
@@ -131,8 +131,7 @@ class BaseTask(ABC, Generic[TParams, TOutput]):
         pass
 
     def resolve_input_file_paths(self, input_file_paths: list[Path], context: JobContext) -> list[Path]:
-        """Resolve and dedup the input file paths provided to the workflow task
-        """
+        """Resolve and dedup the input file paths provided to the workflow task"""
         resolved_files: list[Path] = []
         for path_str in input_file_paths:
             raw_path = Path(path_str)

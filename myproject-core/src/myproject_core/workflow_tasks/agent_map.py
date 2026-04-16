@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ..agent_registry import AgentRegistry
+from ..agent.agent_registry import AgentRegistry
 from ..schemas import JobContext
 from .base_task import BaseTask, TaskOutput, TaskParams
 
@@ -24,7 +24,10 @@ class AgentMapTask(BaseTask[AgentMapTaskParams, AgentMapTaskOutput]):
     output_model = AgentMapTaskOutput
 
     async def run(
-        self, context: JobContext, agent_registry: AgentRegistry, params: dict,
+        self,
+        context: JobContext,
+        agent_registry: AgentRegistry,
+        params: dict,
     ) -> AgentMapTaskOutput:
         args = self.params_model.model_validate(params)
 

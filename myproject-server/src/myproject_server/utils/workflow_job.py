@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import Any
 
 from myproject_core.schemas import WorkflowCallback, WorkflowInputType, WorkflowManifest
-from myproject_core.workflow_engine import WorkflowEngine
-from myproject_core.workflow_registry import WorkflowRegistry
+from myproject_core.workflow.workflow_engine import WorkflowEngine
+from myproject_core.workflow.workflow_registry import WorkflowRegistry
 from sqlmodel import Session
 
 from ..database import engine as db_engine
@@ -63,8 +63,7 @@ async def run_workflow_job(
     inputs: dict[str, Any] | None = None,
     workflow_callbacks: list[WorkflowCallback] | None = None,
 ) -> WorkflowJob | None:
-    """Run a registered workflow job
-    """
+    """Run a registered workflow job"""
     with Session(db_engine) as session:
         job = session.get(WorkflowJob, job_id)
         if not job:

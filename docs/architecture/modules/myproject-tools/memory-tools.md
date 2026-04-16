@@ -38,5 +38,5 @@ Tags are the agent's structured index of its own experience:
 
 ## Related Modules
 
-- `myproject_core.memory` — Memory database models, service layer, FTS5 search
+- `myproject_core.persistent_memory` — Memory database models, service layer, FTS5 search
 - `myproject_core.tools.memory_tools` — All memory tool implementations

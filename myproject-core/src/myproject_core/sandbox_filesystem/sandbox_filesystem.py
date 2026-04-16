@@ -16,7 +16,7 @@ from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .schemas import SandboxFileInfo
+from ..schemas import SandboxFileInfo
 
 
 class SandboxFilesystem(ABC):

@@ -1,7 +1,7 @@
 import asyncio
 from pathlib import Path
 
-from ..agent_registry import AgentRegistry
+from ..agent.agent_registry import AgentRegistry
 from ..schemas import JobContext
 from .base_task import BaseTask, TaskOutput, TaskParams
 

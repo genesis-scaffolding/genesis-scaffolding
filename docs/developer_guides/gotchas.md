@@ -228,7 +228,7 @@ def reset_memory(self):
     self.agent_clipboard = AgentClipboard(timezone=self.timezone)  # Preserves timezone
 ```
 
-**`myproject-core/src/myproject_core/schemas.py`** — Add `timezone` field to `AgentClipboard`:
+**`myproject-core/src/myproject_core/agent/clipboard.py`** — Add `timezone` field to `AgentClipboard`:
 ```python
 class AgentClipboard(BaseModel):
     timezone: str = "UTC"  # Added

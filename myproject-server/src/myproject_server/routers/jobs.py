@@ -6,8 +6,8 @@ from typing import Annotated, Any, cast
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
 from myproject_core.schemas import WorkflowCallback, WorkflowEvent, WorkflowEventType
-from myproject_core.workflow_engine import WorkflowEngine
-from myproject_core.workflow_registry import WorkflowRegistry
+from myproject_core.workflow.workflow_engine import WorkflowEngine
+from myproject_core.workflow.workflow_registry import WorkflowRegistry
 from sqlmodel import Session, desc, select
 from sse_starlette.sse import EventSourceResponse
 
@@ -41,16 +41,14 @@ def create_job_queue(user_id: int, job_id: int) -> asyncio.Queue:
 
 
 class ServerSSERenderer:
-    """Implements the WorkflowCallback interface to push events to SSE.
-    """
+    """Implements the WorkflowCallback interface to push events to SSE."""
 
     def __init__(self, user_id: int, job_id: int):
         self.user_id = user_id
         self.job_id = job_id
 
     async def __call__(self, event: WorkflowEvent) -> None:
-        """The actual callback matching WorkflowCallback type.
-        """
+        """The actual callback matching WorkflowCallback type."""
         queue = get_job_queue(self.user_id, self.job_id)
         if queue:
             # Explicitly serialize to JSON string here
@@ -71,8 +69,7 @@ class ServerSSERenderer:
 
 
 class ConsoleRenderer:
-    """Implements the WorkflowCallback interface to write output to terminal for debugging
-    """
+    """Implements the WorkflowCallback interface to write output to terminal for debugging"""
 
     def __init__(self, user_id: int, job_id: int):
         self.user_id = user_id
@@ -87,8 +84,7 @@ class ConsoleRenderer:
 
 
 class DatabaseProgressRenderer:
-    """Implements the WorkflowCallback interface to update the status of workflow steps in the database
-    """
+    """Implements the WorkflowCallback interface to update the status of workflow steps in the database"""
 
     def __init__(self, job_id: int):
         self.job_id = job_id
@@ -226,8 +222,7 @@ async def list_jobs(
     limit: int = 20,
     schedule_id: int | None = None,
 ):
-    """Get all jobs for the current user, ordered by newest first.
-    """
+    """Get all jobs for the current user, ordered by newest first."""
     statement = (
         select(WorkflowJob)
         .where(WorkflowJob.user_id == user.id)

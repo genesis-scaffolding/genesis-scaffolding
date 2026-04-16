@@ -5,12 +5,13 @@ import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
-from myproject_core.agent_registry import AgentRegistry
+from myproject_core.agent.agent_registry import AgentRegistry
 from myproject_core.configs import Config, get_config, settings
+from myproject_core.persistent_memory.db import get_memory_engine
 from myproject_core.productivity.db import get_user_session
-from myproject_core.workflow_engine import WorkflowEngine
-from myproject_core.workflow_registry import WorkflowRegistry
-from myproject_core.workspace import WorkspaceManager
+from myproject_core.workflow.workflow_engine import WorkflowEngine
+from myproject_core.workflow.workflow_registry import WorkflowRegistry
+from myproject_core.workflow.workflow_workspace import WorkspaceManager
 from sqlmodel import Session, select
 
 from .database import get_session
@@ -127,24 +128,21 @@ def get_productivity_session(
 
 
 async def get_agent_registry(user_config: Annotated[Config, Depends(get_user_config)]) -> AgentRegistry:
-    """Returns an AgentRegistry scoped to the current user's paths and settings.
-    """
+    """Returns an AgentRegistry scoped to the current user's paths and settings."""
     return AgentRegistry(user_config)
 
 
 async def get_workflow_registry(
     user_config: Annotated[Config, Depends(get_user_config)],
 ) -> WorkflowRegistry:
-    """Returns a WorkflowRegistry scoped to the current user's paths and settings.
-    """
+    """Returns a WorkflowRegistry scoped to the current user's paths and settings."""
     return WorkflowRegistry(user_config)
 
 
 async def get_workspace_manager(
     user_config: Annotated[Config, Depends(get_user_config)],
 ) -> WorkspaceManager:
-    """Returns a WorkspaceManager pointing to the user's private workspace directory.
-    """
+    """Returns a WorkspaceManager pointing to the user's private workspace directory."""
     return WorkspaceManager(user_config)
 
 
@@ -153,8 +151,7 @@ async def get_workflow_engine(
     agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
     user_workdir: Annotated[Path, Depends(get_user_workdir)],
 ) -> WorkflowEngine:
-    """Returns a WorkflowEngine initialized with the user's specific workspace and agents.
-    """
+    """Returns a WorkflowEngine initialized with the user's specific workspace and agents."""
     return WorkflowEngine(wm, agent_reg, user_workdir)
 
 
@@ -183,7 +180,6 @@ async def get_memory_session(
     user_config: Annotated[Config, Depends(get_user_config)],
 ):
     """Returns a session for the user's private memory database."""
-    from myproject_core.memory.db import get_memory_engine
     engine = get_memory_engine(config=user_config)
     session = Session(engine)
     try:

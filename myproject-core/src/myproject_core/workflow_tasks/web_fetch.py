@@ -4,7 +4,7 @@ from pathlib import Path
 # Import the existing tool
 from myproject_tools.web_fetch import fetch_page
 
-from ..agent_registry import AgentRegistry
+from ..agent.agent_registry import AgentRegistry
 from ..schemas import JobContext
 from .base_task import BaseTask, TaskOutput, TaskParams
 

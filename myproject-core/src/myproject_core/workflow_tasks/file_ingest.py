@@ -5,7 +5,7 @@ from pathlib import Path
 # Assuming the utility is located here based on your description
 from myproject_tools.pdf import convert_pdf_to_markdown
 
-from ..agent_registry import AgentRegistry
+from ..agent.agent_registry import AgentRegistry
 from ..schemas import JobContext
 from .base_task import BaseTask, TaskOutput, TaskParams
 
@@ -19,8 +19,7 @@ class IngestTaskParams(TaskParams):
 
 
 class IngestTaskOutput(TaskOutput):
-    """Extended output to differentiate between raw files and text-based files.
-    """
+    """Extended output to differentiate between raw files and text-based files."""
 
     # content: list[str] (Inherited)
     # file_paths: list[Path] (Inherited - contains ALL ingested files)
@@ -32,7 +31,10 @@ class IngestTask(BaseTask[IngestTaskParams, IngestTaskOutput]):
     output_model = IngestTaskOutput
 
     async def run(
-        self, context: JobContext, agent_registry: AgentRegistry, params: dict,
+        self,
+        context: JobContext,
+        agent_registry: AgentRegistry,
+        params: dict,
     ) -> IngestTaskOutput:
         args = self.params_model.model_validate(params)
 
@@ -44,7 +46,8 @@ class IngestTask(BaseTask[IngestTaskParams, IngestTaskOutput]):
 
         # 2. Resolve Input Paths
         files_to_process = self.resolve_input_file_paths(
-            context=context, input_file_paths=args.files_to_read,
+            context=context,
+            input_file_paths=args.files_to_read,
         )
 
         all_ingested_paths: list[Path] = []

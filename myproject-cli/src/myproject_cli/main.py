@@ -4,11 +4,11 @@ from typing import Annotated, Any
 
 import typer
 import uvicorn
-from myproject_core.agent_registry import AgentRegistry
+from myproject_core.agent.agent_registry import AgentRegistry
 from myproject_core.configs import Config
-from myproject_core.workflow_engine import WorkflowEngine
-from myproject_core.workflow_registry import WorkflowRegistry
-from myproject_core.workspace import WorkspaceManager
+from myproject_core.workflow.workflow_engine import WorkflowEngine
+from myproject_core.workflow.workflow_registry import WorkflowRegistry
+from myproject_core.workflow.workflow_workspace import WorkspaceManager
 from myproject_server.main import app as web_app
 from rich import box, print
 from rich.console import Console
@@ -46,13 +46,16 @@ class GenesisCLI:
         def run(
             ctx: typer.Context,
             list_workflows: Annotated[
-                bool, typer.Option("--list", help="List all available workflows", is_eager=True),
+                bool,
+                typer.Option("--list", help="List all available workflows", is_eager=True),
             ] = False,
             workflow_id: Annotated[
-                str | None, typer.Argument(help="The ID of the workflow to execute"),
+                str | None,
+                typer.Argument(help="The ID of the workflow to execute"),
             ] = None,
             help: Annotated[
-                bool, typer.Option("--help", help="Show help for the command or a specific workflow"),
+                bool,
+                typer.Option("--help", help="Show help for the command or a specific workflow"),
             ] = False,
         ):
             # Handle Global Help (no workflow_id provided)
@@ -152,7 +155,8 @@ class GenesisCLI:
             reset: bool = typer.Option(False, "--reset"),
         ):
             agent = self.agent_registry.create_agent(
-                agent_id, working_directory=self.settings.path.working_directory,
+                agent_id,
+                working_directory=self.settings.path.working_directory,
             )
 
             if not agent:

@@ -3,12 +3,12 @@ from datetime import UTC, datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from myproject_core.agent_registry import AgentRegistry
+from myproject_core.agent.agent_registry import AgentRegistry
 from myproject_core.configs import get_config
 from myproject_core.configs import settings as server_settings
-from myproject_core.workflow_engine import WorkflowEngine
-from myproject_core.workflow_registry import WorkflowRegistry
-from myproject_core.workspace import WorkspaceManager
+from myproject_core.workflow.workflow_engine import WorkflowEngine
+from myproject_core.workflow.workflow_registry import WorkflowRegistry
+from myproject_core.workflow.workflow_workspace import WorkspaceManager
 from sqlmodel import Session, select
 
 from .database import engine as db_engine
@@ -105,5 +105,7 @@ class SchedulerManager:
 
                 # 4. Run the job using the USER-SPECIFIC engine and registry
                 await run_workflow_job(
-                    job_id=job.id, engine_instance=user_engine, registry_instance=user_registry,
+                    job_id=job.id,
+                    engine_instance=user_engine,
+                    registry_instance=user_registry,
                 )

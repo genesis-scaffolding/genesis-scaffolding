@@ -101,7 +101,7 @@ The shared Python library where the main logic of agents, LLM, productivity subs
 - **Productivity** — Tasks, Projects, Journals: models and service layer
 - **Workflow** — Blackboard-pattern pipeline orchestration
 - **Sandbox Filesystem** — User-facing sandboxed file operations (upload, browse, preview, delete). Used by the frontend file browser and agent tools. Provides path traversal prevention and symlink handling.
-- **Workspace** — Workflow job directory management (`jobs/{job_id}/input|internal|output/`). Handles isolated workspaces for workflow execution.
+- **Workflow Workspace** (`workflow/workflow_workspace`) — Workflow job directory management (`jobs/{job_id}/input|internal|output/`). Handles isolated workspaces for workflow execution.
 
 **Start here for:** building agentic features, understanding how the agent works, configuring the system.
 

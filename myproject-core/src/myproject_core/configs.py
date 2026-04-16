@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .schemas import LLMModelConfig, LLMProvider
 
-PACKAGE_ROOT = Path(__file__).parent.resolve()
+PACKAGE_ROOT = Path(__file__).parent.resolve()  # Find the myproject_core directory in source
 
 
 class PathConfigs(BaseModel):
@@ -27,12 +27,12 @@ class PathConfigs(BaseModel):
     @computed_field
     @property
     def agent_search_paths(self) -> list[Path]:
-        return [PACKAGE_ROOT / "agents", self.internal_state_dir / "agents"]
+        return [PACKAGE_ROOT / "agents" / "builtin_agents", self.internal_state_dir / "agents"]
 
     @computed_field
     @property
     def workflow_search_paths(self) -> list[Path]:
-        return [PACKAGE_ROOT / "workflows", self.internal_state_dir / "workflows"]
+        return [PACKAGE_ROOT / "workflows" / "builtin_workflows", self.internal_state_dir / "workflows"]
 
     @computed_field
     @property

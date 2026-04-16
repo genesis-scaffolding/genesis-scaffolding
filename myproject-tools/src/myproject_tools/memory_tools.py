@@ -3,15 +3,17 @@
 from datetime import UTC, datetime
 from typing import Any, Literal, cast
 
-from myproject_core.memory import service as memory_service
-from myproject_core.memory.db import get_memory_session
-from myproject_core.memory.models import EventLog, MemorySource, TopicalMemory
+from myproject_core.persistent_memory import service as memory_service
+from myproject_core.persistent_memory.db import get_memory_session
+from myproject_core.persistent_memory.models import EventLog, MemorySource, TopicalMemory
 
 from .base import BaseTool
 from .schema import ToolResult, TrackedEntity
 
 
-def _memory_to_dict(memory: EventLog | TopicalMemory, memory_type: Literal["event", "topic"]) -> dict[str, Any]:
+def _memory_to_dict(
+    memory: EventLog | TopicalMemory, memory_type: Literal["event", "topic"]
+) -> dict[str, Any]:
     """Convert a memory model to a dictionary for clipboard tracking."""
     return {
         "id": memory.id,
@@ -26,7 +28,9 @@ def _memory_to_dict(memory: EventLog | TopicalMemory, memory_type: Literal["even
     }
 
 
-def _format_memory_for_response(memory: EventLog | TopicalMemory, memory_type: Literal["event", "topic"]) -> str:
+def _format_memory_for_response(
+    memory: EventLog | TopicalMemory, memory_type: Literal["event", "topic"]
+) -> str:
     """Format a memory for the tool response text."""
     type_label = "Event" if memory_type == "event" else "Topic"
     subject_line = memory.subject if memory.subject else f"Untitled {type_label}"
@@ -40,7 +44,9 @@ def _format_memory_for_response(memory: EventLog | TopicalMemory, memory_type: L
     if memory.tags:
         response += f"Tags: {', '.join(memory.tags)}\n"
     response += f"Importance: {memory.importance}/5\n"
-    response += f"Source: {memory.source.value if isinstance(memory.source, MemorySource) else memory.source}\n"
+    response += (
+        f"Source: {memory.source.value if isinstance(memory.source, MemorySource) else memory.source}\n"
+    )
     if isinstance(memory, TopicalMemory) and memory.superseded_by_id:
         response += f"Superseded by: ID {memory.superseded_by_id}\n"
     if isinstance(memory, TopicalMemory) and memory.supersedes_ids:
@@ -127,7 +133,9 @@ class RememberThisTool(BaseTool):
         if memory_type == "event":
             event_time_str = kwargs.get("event_time")
             if not event_time_str:
-                return ToolResult(status="error", tool_response="event_time is required for memory_type='event'.")
+                return ToolResult(
+                    status="error", tool_response="event_time is required for memory_type='event'."
+                )
             try:
                 # Try parsing ISO format first
                 if "T" in event_time_str:
@@ -135,10 +143,14 @@ class RememberThisTool(BaseTool):
                 else:
                     # Try date format YYYY-MM-DD
                     from datetime import date
+
                     d = date.fromisoformat(event_time_str)
                     event_time = datetime.combine(d, datetime.min.time()).replace(tzinfo=UTC)
             except ValueError:
-                return ToolResult(status="error", tool_response=f"Invalid event_time format: {event_time_str}. Use ISO8601 or YYYY-MM-DD.")
+                return ToolResult(
+                    status="error",
+                    tool_response=f"Invalid event_time format: {event_time_str}. Use ISO8601 or YYYY-MM-DD.",
+                )
 
         try:
             for session in get_memory_session(memory_db_url=memory_db_url):
@@ -219,7 +231,9 @@ class SearchMemoriesTool(BaseTool):
                 topic_results = results["topics"]
 
                 if not event_results and not topic_results:
-                    return ToolResult(status="success", tool_response=f"No memories found matching '{query}'.")
+                    return ToolResult(
+                        status="success", tool_response=f"No memories found matching '{query}'."
+                    )
 
                 entities: list[TrackedEntity] = []
                 for m in event_results:
@@ -274,7 +288,11 @@ class ListMemoriesTool(BaseTool):
                 "enum": ["created_at", "updated_at", "event_time", "importance"],
                 "description": "Sort field. Default varies by type.",
             },
-            "order": {"type": "string", "enum": ["asc", "desc"], "description": "Sort order. Default is 'desc'."},
+            "order": {
+                "type": "string",
+                "enum": ["asc", "desc"],
+                "description": "Sort order. Default is 'desc'.",
+            },
             "limit": {"type": "integer", "description": "Max results. Default is 50."},
             "offset": {"type": "integer", "description": "Pagination offset. Default is 0."},
         },
@@ -304,21 +322,40 @@ class ListMemoriesTool(BaseTool):
                 if memory_type in ("all", "event"):
                     actual_sort_by = cast(Literal["event_time", "created_at", "importance"], sort_by)
                     actual_order = cast(Literal["asc", "desc"], order)
-                    events = list(memory_service.list_event_logs(
-                        session, tag=tag, importance=importance, source=source,
-                        sort_by=actual_sort_by, order=actual_order, limit=limit, offset=offset,
-                    ))
+                    events = list(
+                        memory_service.list_event_logs(
+                            session,
+                            tag=tag,
+                            importance=importance,
+                            source=source,
+                            sort_by=actual_sort_by,
+                            order=actual_order,
+                            limit=limit,
+                            offset=offset,
+                        )
+                    )
 
                 if memory_type in ("all", "topic"):
                     actual_sort_by = cast(Literal["created_at", "updated_at", "importance"], sort_by)
                     actual_order = cast(Literal["asc", "desc"], order)
-                    topics = list(memory_service.list_topical_memories(
-                        session, superseded=include_superseded, tag=tag, importance=importance,
-                        source=source, sort_by=actual_sort_by, order=actual_order, limit=limit, offset=offset,
-                    ))
+                    topics = list(
+                        memory_service.list_topical_memories(
+                            session,
+                            superseded=include_superseded,
+                            tag=tag,
+                            importance=importance,
+                            source=source,
+                            sort_by=actual_sort_by,
+                            order=actual_order,
+                            limit=limit,
+                            offset=offset,
+                        )
+                    )
 
                 if not events and not topics:
-                    return ToolResult(status="success", tool_response="No memories found matching the criteria.")
+                    return ToolResult(
+                        status="success", tool_response="No memories found matching the criteria."
+                    )
 
                 entities: list[TrackedEntity] = []
 
@@ -344,7 +381,11 @@ class ListMemoriesTool(BaseTool):
                 )
         except Exception as e:
             import traceback
-            return ToolResult(status="error", tool_response=f"Failed to list memories: {type(e).__name__}: {e}\n{traceback.format_exc()}")
+
+            return ToolResult(
+                status="error",
+                tool_response=f"Failed to list memories: {type(e).__name__}: {e}\n{traceback.format_exc()}",
+            )
 
         return ToolResult(status="error", tool_response="Memory session unavailable.")
 
@@ -392,7 +433,9 @@ class GetMemoryTool(BaseTool):
                     entry = memory_service.get_topical_memory(session, memory_id)
 
                 if not entry:
-                    return ToolResult(status="error", tool_response=f"Memory {memory_type} with ID {memory_id} not found.")
+                    return ToolResult(
+                        status="error", tool_response=f"Memory {memory_type} with ID {memory_id} not found."
+                    )
 
                 # For topics, get revision chain info for the notification
                 chain_info = ""
@@ -405,7 +448,9 @@ class GetMemoryTool(BaseTool):
                 if entry_id is None:
                     return ToolResult(status="error", tool_response="Memory has no ID.")
 
-                entity_type: Literal["memory_event", "memory_topic"] = "memory_event" if memory_type == "event" else "memory_topic"
+                entity_type: Literal["memory_event", "memory_topic"] = (
+                    "memory_event" if memory_type == "event" else "memory_topic"
+                )
 
                 return ToolResult(
                     status="success",
@@ -466,7 +511,9 @@ class UpdateMemoryTool(BaseTool):
                 # Check if already superseded
                 existing = memory_service.get_topical_memory(session, memory_id)
                 if not existing:
-                    return ToolResult(status="error", tool_response=f"Topic memory with ID {memory_id} not found.")
+                    return ToolResult(
+                        status="error", tool_response=f"Topic memory with ID {memory_id} not found."
+                    )
                 if existing.superseded_by_id is not None:
                     return ToolResult(
                         status="error",
@@ -474,8 +521,11 @@ class UpdateMemoryTool(BaseTool):
                     )
 
                 new_entry = memory_service.supersede_topical_memory(
-                    session, memory_id, new_content=content,
-                    new_subject=subject, new_tags=tags,
+                    session,
+                    memory_id,
+                    new_content=content,
+                    new_subject=subject,
+                    new_tags=tags,
                 )
 
                 if not new_entry:
@@ -542,7 +592,9 @@ class DeleteMemoryTool(BaseTool):
                     deleted = memory_service.delete_topical_memory(session, memory_id)
 
                 if not deleted:
-                    return ToolResult(status="error", tool_response=f"Memory {memory_type} with ID {memory_id} not found.")
+                    return ToolResult(
+                        status="error", tool_response=f"Memory {memory_type} with ID {memory_id} not found."
+                    )
 
                 return ToolResult(
                     status="success",
@@ -562,7 +614,9 @@ class RebuildFtsIndexTool(BaseTool):
     """
 
     name = "rebuild_fts_index"
-    description = "Rebuild the full-text search index. Use this if searches are not finding existing memories."
+    description = (
+        "Rebuild the full-text search index. Use this if searches are not finding existing memories."
+    )
     parameters = {"type": "object", "properties": {}, "required": []}
 
     async def run(self, memory_db_url: str | None = None, **kwargs: Any) -> ToolResult:

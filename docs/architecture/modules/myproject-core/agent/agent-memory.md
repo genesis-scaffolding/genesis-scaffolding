@@ -166,6 +166,6 @@ The counts are updated by the `Agent` at the end of each `step()` turn via `Agen
 
 ## Related Modules
 
-- `myproject_core.memory` — Memory database models, service layer, and FTS5 search implementation
+- `myproject_core.persistent_memory` — Memory database models, service layer, and FTS5 search implementation
 - `myproject_core.prompts` — Memory-related prompt fragments (e.g., `FRAGMENT_MEMORY`)
 - `myproject_core.llm.token_utils` — Token counting implementation

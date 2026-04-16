@@ -1,8 +1,8 @@
 from typing import Literal
 
 from fastapi import APIRouter, Body, HTTPException, status
-from myproject_core.memory.models import EventLog, TopicalMemory
-from myproject_core.memory.service import (
+from myproject_core.persistent_memory.models import EventLog, TopicalMemory
+from myproject_core.persistent_memory.service import (
     create_event_log,
     create_topical_memory,
     delete_event_log,

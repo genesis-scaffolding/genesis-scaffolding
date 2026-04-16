@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from myproject_core.agent_registry import AgentRegistry
+from myproject_core.agent.agent_registry import AgentRegistry
 from myproject_core.configs import Config
 
 from ..dependencies import get_agent_registry, get_user_config
@@ -12,8 +12,7 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 
 @router.get("/", response_model=list[AgentRead])
 async def list_agents(agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)]):
-    """Returns a list of all available agents blueprints.
-    """
+    """Returns a list of all available agents blueprints."""
     results = []
     for id, blueprint in agent_reg.blueprints.items():
         results.append(
@@ -39,8 +38,7 @@ async def create_agent(
     agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
     user_settings: Annotated[Config, Depends(get_user_config)],
 ):
-    """Creates a new custom agent by saving a markdown file to the user's directory.
-    """
+    """Creates a new custom agent by saving a markdown file to the user's directory."""
     # Prepare data for the registry
     agent_dict = payload.model_dump()
     llm_model_name = payload.model_name
@@ -55,7 +53,8 @@ async def create_agent(
     llm_config = user_settings.models.get(llm_model_name, None)
     if not llm_config:
         raise HTTPException(
-            status_code=400, detail=f"Cannot find the requested llm model: {llm_model_name}",
+            status_code=400,
+            detail=f"Cannot find the requested llm model: {llm_model_name}",
         )
 
     provider_name = llm_config.provider
@@ -92,9 +91,10 @@ async def create_agent(
 
 
 @router.get("/{agent_id}", response_model=AgentRead)
-async def get_agent_details(agent_id: str, agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)]):
-    """Returns the full metadata for a specific agent.
-    """
+async def get_agent_details(
+    agent_id: str, agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)]
+):
+    """Returns the full metadata for a specific agent."""
     blueprint = agent_reg.blueprints.get(agent_id)
     if not blueprint:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found in registry.")

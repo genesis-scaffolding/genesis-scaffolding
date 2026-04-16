@@ -156,8 +156,8 @@ This catches broken references at declaration time, not at runtime.
 
 ## Related Modules
 
-- `myproject_core.workflow.engine` — `WorkflowEngine` and `JobContext`
-- `myproject_core.workflow.publisher` — `OutputPublisher` for copying outputs to working directory
-- `myproject_core.workflow.registry` — `WorkflowRegistry`, manifest discovery and validation
-- `myproject_core.workflow.manifest` — `WorkflowManifest` Pydantic schema
-- `myproject_core.workflow.tasks` — Built-in task implementations
+- `myproject_core.workflow.workflow_engine` — `WorkflowEngine` and `JobContext`
+- `myproject_core.workflow.workflow_publisher` — `OutputPublisher` for copying outputs to working directory
+- `myproject_core.workflow.workflow_registry` — `WorkflowRegistry`, manifest discovery and validation
+- `myproject_core.workflow.workflow_workspace` — Job directory management (`jobs/{job_id}/input|internal|output/`)
+- `myproject_core.workflow_tasks` — Built-in task implementations

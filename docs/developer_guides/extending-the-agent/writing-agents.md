@@ -148,7 +148,7 @@ When reviewing:
 Use the CLI or Python to spawn and test your agent:
 
 ```python
-from myproject_core.agent_registry import AgentRegistry
+from myproject_core.agent.agent_registry import AgentRegistry
 from myproject_core.configs import get_config
 
 settings = get_config()

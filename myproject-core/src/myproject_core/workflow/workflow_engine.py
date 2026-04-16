@@ -3,9 +3,9 @@ import inspect
 from pathlib import Path
 from typing import Any
 
-from .agent_registry import AgentRegistry
-from .configs import get_config
-from .schemas import (
+from ..agent.agent_registry import AgentRegistry
+from ..configs import get_config
+from ..schemas import (
     JobContext,
     WorkflowCallback,
     WorkflowEvent,
@@ -13,14 +13,16 @@ from .schemas import (
     WorkflowManifest,
     WorkflowOutput,
 )
-from .utils import evaluate_condition, resolve_placeholders
+from ..utils import evaluate_condition, resolve_placeholders
+from ..workflow_tasks.registry import TASK_LIBRARY
 from .workflow_registry import WorkflowRegistry
-from .workflow_tasks.registry import TASK_LIBRARY
-from .workspace import WorkspaceManager
+from .workflow_workspace import WorkspaceManager
 
 
 class WorkflowEngine:
-    def __init__(self, workspace_manager: WorkspaceManager, agent_registry: AgentRegistry, working_directory: Path):
+    def __init__(
+        self, workspace_manager: WorkspaceManager, agent_registry: AgentRegistry, working_directory: Path
+    ):
         self.workspace_manager = workspace_manager
         self.agent_registry = agent_registry
         self.working_directory = working_directory
@@ -76,7 +78,10 @@ class WorkflowEngine:
                     # It is a standard 'def' (Synchronous).
                     # We automatically offload it to a thread to prevent blocking the caller.
                     output = await asyncio.to_thread(
-                        task_instance.run, job_context, self.agent_registry, resolved_params,
+                        task_instance.run,
+                        job_context,
+                        self.agent_registry,
+                        resolved_params,
                     )
             except Exception as e:
                 if step_callbacks:
@@ -118,6 +123,7 @@ class WorkflowEngine:
 
         # Publish output files to the user's working directory
         from .workflow_publisher import OutputPublisher
+
         publisher = OutputPublisher(self.working_directory)
         await publisher.publish(manifest.outputs, workflow_output, resolved_destinations, job_context)
 

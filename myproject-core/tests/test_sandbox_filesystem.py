@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from myproject_core.sandbox_filesystem import LocalSandboxFilesystem
+from myproject_core.sandbox_filesystem.sandbox_filesystem import LocalSandboxFilesystem
 from myproject_core.schemas import SandboxFileInfo
 
 
@@ -367,9 +367,7 @@ class TestSymlinkBehavior:
         """Create a LocalSandboxFilesystem instance with symlinks restricted."""
         return LocalSandboxFilesystem(temp_sandbox, allow_symlinks_outside=False)
 
-    def test_resolve_does_not_follow_symlinks_within_sandbox(
-        self, fs, temp_sandbox
-    ):
+    def test_resolve_does_not_follow_symlinks_within_sandbox(self, fs, temp_sandbox):
         """When a symlink is inside sandbox, _resolve returns the symlink path, not resolved target."""
         # Create a symlink inside sandbox pointing to a file inside sandbox
         target = temp_sandbox / "actual_dir" / "actual_file.txt"
@@ -386,9 +384,7 @@ class TestSymlinkBehavior:
         # And it should NOT be the resolved external path
         assert result != target
 
-    def test_resolve_preserves_symlink_for_external_targets(
-        self, fs, temp_sandbox
-    ):
+    def test_resolve_preserves_symlink_for_external_targets(self, fs, temp_sandbox):
         """When a symlink points outside sandbox, _resolve still returns symlink path when it's within sandbox."""
         # Create an external directory (outside sandbox)
         with tempfile.TemporaryDirectory() as external_dir:
@@ -406,9 +402,7 @@ class TestSymlinkBehavior:
             # The external path should not appear in result
             assert str(external_target) not in str(result)
 
-    def test_resolve_allow_symlinks_outside_returns_resolved_external(
-        self, fs, temp_sandbox
-    ):
+    def test_resolve_allow_symlinks_outside_returns_resolved_external(self, fs, temp_sandbox):
         """When allow_symlinks_outside=True, resolve_path exposes the real external path for reading."""
         with tempfile.TemporaryDirectory() as external_dir:
             external_file = Path(external_dir) / "secret.txt"
@@ -425,9 +419,7 @@ class TestSymlinkBehavior:
             content = fs.read_file("secret_link")
             assert content == b"secret content"
 
-    def test_resolve_rejects_symlinks_outside_when_disabled(
-        self, fs_no_symlinks_outside, temp_sandbox
-    ):
+    def test_resolve_rejects_symlinks_outside_when_disabled(self, fs_no_symlinks_outside, temp_sandbox):
         """When allow_symlinks_outside=False, symlinks pointing outside sandbox raise ValueError."""
         with tempfile.TemporaryDirectory() as external_dir:
             external_file = Path(external_dir) / "secret.txt"
@@ -439,9 +431,7 @@ class TestSymlinkBehavior:
             with pytest.raises(ValueError, match="Traversal attempt detected"):
                 fs_no_symlinks_outside.resolve_path("secret_link")
 
-    def test_get_subdirectories_works_with_symlinked_dir(
-        self, fs, temp_sandbox
-    ):
+    def test_get_subdirectories_works_with_symlinked_dir(self, fs, temp_sandbox):
         """get_subdirectories returns correct relative paths when inside a symlinked directory."""
         # Create external directory with subdirectories
         with tempfile.TemporaryDirectory() as external_dir:
@@ -460,9 +450,7 @@ class TestSymlinkBehavior:
             # Should return subdirectory names relative to sandbox root
             assert set(subs) == {"knowledge-base/docs", "knowledge-base/notes"}
 
-    def test_list_directory_works_with_symlinked_dir(
-        self, fs, temp_sandbox
-    ):
+    def test_list_directory_works_with_symlinked_dir(self, fs, temp_sandbox):
         """list_directory returns correct relative paths when listing a symlinked directory."""
         with tempfile.TemporaryDirectory() as external_dir:
             (Path(external_dir) / "file1.txt").write_text("content1")

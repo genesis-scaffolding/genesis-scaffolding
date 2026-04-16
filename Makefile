@@ -1,7 +1,7 @@
 .PHONY: setup backend-lint backend-format backend-test type-check check-all check-all-backend help
 
 # Target directories for Python logic
-BACKEND_DIRS := myproject-cli myproject-core myproject-server myproject-tui src
+BACKEND_DIRS := myproject-cli myproject-core myproject-server myproject-tui myproject-tools src
 FASTAPI_MAIN := myproject-server/src/myproject_server/main.py
 FASTAPI_DIR := myproject-server/src/myproject_server/
 

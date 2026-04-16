@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
+from myproject_core.sandbox_filesystem.sandbox_filesystem import LocalSandboxFilesystem
 
 from ..dependencies import get_current_active_user, get_user_workdir
 from ..models.user import User
@@ -34,7 +35,6 @@ def _decode_file_id(encoded: str) -> str:
 
 def _get_sandbox_filesystem(user_workdir: Path):
     """Create a sandbox filesystem instance for the given user workdir."""
-    from myproject_core.sandbox_filesystem import LocalSandboxFilesystem
 
     return LocalSandboxFilesystem(user_workdir)
 

@@ -1,14 +1,13 @@
 from myproject_cli.main import GenesisCLI
-from myproject_core.agent_registry import AgentRegistry
+from myproject_core.agent.agent_registry import AgentRegistry
 from myproject_core.configs import settings
-from myproject_core.workflow_engine import WorkflowEngine
-from myproject_core.workflow_registry import WorkflowRegistry
-from myproject_core.workspace import WorkspaceManager
+from myproject_core.workflow.workflow_engine import WorkflowEngine
+from myproject_core.workflow.workflow_registry import WorkflowRegistry
+from myproject_core.workflow.workflow_workspace import WorkspaceManager
 
 
 def start():
-    """Logic for starting the code
-    """
+    """Logic for starting the code"""
     wm = WorkspaceManager(settings)
     registry = WorkflowRegistry(settings)
     agent_registry = AgentRegistry(settings)

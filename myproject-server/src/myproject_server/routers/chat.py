@@ -5,9 +5,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from myproject_core.agent_memory import AgentMemory
-from myproject_core.agent_registry import AgentRegistry
-from myproject_core.schemas import AgentClipboard
+from myproject_core.agent.agent_memory import AgentMemory
+from myproject_core.agent.agent_registry import AgentRegistry
+from myproject_core.agent.clipboard import AgentClipboard
 from sqlmodel import Session, col, select
 
 from ..chat_manager import ChatManager
@@ -115,7 +115,9 @@ async def get_chat_history(
     # Reconstruct memory to get token counts via agent's public interface
     memory_list = [m.payload for m in messages]
     clipboard = AgentClipboard.model_validate(session.clipboard_state) if session.clipboard_state else None
-    memory = AgentMemory(messages=memory_list, agent_clipboard=clipboard) if (memory_list or clipboard) else None
+    memory = (
+        AgentMemory(messages=memory_list, agent_clipboard=clipboard) if (memory_list or clipboard) else None
+    )
 
     # Create agent to access its token counting interface
     agent = agent_reg.create_agent(session.agent_id, working_directory=working_dir, memory=memory)

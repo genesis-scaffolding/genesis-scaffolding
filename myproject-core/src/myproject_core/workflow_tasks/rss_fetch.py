@@ -5,7 +5,7 @@ from typing import Any
 
 from myproject_tools.rss_utils import fetch_single_rss
 
-from ..agent_registry import AgentRegistry
+from ..agent.agent_registry import AgentRegistry
 from ..schemas import JobContext
 from .base_task import BaseTask, TaskOutput, TaskParams
 
@@ -28,7 +28,8 @@ class RSSFetchTask(BaseTask[RSSFetchTaskParams, TaskOutput]):
         fetch_tasks = [asyncio.to_thread(fetch_single_rss, url, args.since_days) for url in args.feed_urls]
 
         results: list[list[dict[str, Any]] | BaseException] = await asyncio.gather(
-            *fetch_tasks, return_exceptions=True,
+            *fetch_tasks,
+            return_exceptions=True,
         )
 
         all_entries: list[dict[str, Any]] = []

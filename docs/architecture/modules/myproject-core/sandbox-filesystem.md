@@ -104,7 +104,7 @@ class SandboxFileInfo:
 
 ## Relationship to Workspace
 
-The workspace module (`myproject_core.workspace`) handles workflow job directories — creating isolated workspaces per job with `input/`, `internal/`, and `output/` subdirectories. The sandbox filesystem handles user-facing file operations in their persistent sandbox.
+The workflow workspace module (`myproject_core.workflow.workflow_workspace`) handles workflow job directories — creating isolated workspaces per job with `input/`, `internal/`, and `output/` subdirectories. The sandbox filesystem handles user-facing file operations in their persistent sandbox.
 
 Future refactoring could have workspace use `SandboxFilesystem` internally instead of its own path logic, but for now they remain separate modules.
 

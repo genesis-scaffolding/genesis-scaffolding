@@ -340,9 +340,9 @@ Fetches and parses RSS/Atom feeds.
 
 ```python
 from pathlib import Path
-from myproject_core.workflow_engine import WorkflowEngine
-from myproject_core.workflow_registry import WorkflowRegistry
-from myproject_core.workspace import WorkspaceManager
+from myproject_core.workflow.workflow_engine import WorkflowEngine
+from myproject_core.workflow.workflow_registry import WorkflowRegistry
+from myproject_core.workflow.workflow_workspace import WorkspaceManager
 
 wm = WorkspaceManager(settings)
 reg = WorkflowRegistry(settings)

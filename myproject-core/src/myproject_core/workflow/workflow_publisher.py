@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from .schemas import JobContext, OutputDefinition
+from ..schemas import JobContext, OutputDefinition
 
 
 class OutputPublisher:
