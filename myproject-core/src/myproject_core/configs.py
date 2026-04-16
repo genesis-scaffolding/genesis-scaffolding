@@ -32,7 +32,7 @@ class PathConfigs(BaseModel):
     @computed_field
     @property
     def workflow_search_paths(self) -> list[Path]:
-        return [PACKAGE_ROOT / "workflows" / "builtin_workflows", self.internal_state_dir / "workflows"]
+        return [PACKAGE_ROOT / "workflow" / "builtin_workflows", self.internal_state_dir / "workflows"]
 
     @computed_field
     @property
