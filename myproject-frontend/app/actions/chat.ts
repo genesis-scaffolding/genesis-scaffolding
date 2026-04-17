@@ -11,10 +11,17 @@ export async function getChatHistoryAction(sessionId: number) {
   return res.json();
 }
 
-export async function sendChatMessageAction(sessionId: number, userInput: string) {
-  const params = new URLSearchParams({ user_input: userInput });
+export async function sendChatMessageAction(sessionId: number, userInput: string, inputIndex?: number) {
+  const params = new URLSearchParams();
+  if (inputIndex !== undefined) {
+    params.set('input_index', String(inputIndex));
+  }
   const res = await apiFetch(`/chats/${sessionId}/message?${params.toString()}`, {
-    method: 'POST'
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ user_input: userInput }),
   });
   if (!res.ok) throw new Error("Failed to send message");
   return res.json();

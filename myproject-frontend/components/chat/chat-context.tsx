@@ -7,7 +7,7 @@ import { getChatHistoryAction, sendChatMessageAction } from '@/app/actions/chat'
 interface ChatContextType {
   session: ChatSession;
   messages: ChatMessage[];
-  sendMessage: (input: string) => Promise<void>;
+  sendMessage: (input: string, inputIndex?: number) => Promise<void>;
   isRunning: boolean;
   tokenUsage: TokenUsage | null
   clipboardMd: string | null;
@@ -159,23 +159,39 @@ export const ChatProvider = ({
     return () => { eventSource.close(); console.groupEnd(); }
   }, [isRunning, session.id, refreshHistory]);
 
-  const sendMessage = async (input: string) => {
+  const sendMessage = async (input: string, inputIndex?: number) => {
     if (isRunning) return;
 
     console.group(`🚀 [Message Flow] User Prompt: ${input.substring(0, 20)}...`);
 
-    activeRunRef.current = [{ role: 'user', content: input }];
-    setDisplayActiveMessages([...activeRunRef.current]);
+    // When editing (inputIndex is negative), optimistically truncate historicalMessages
+    if (inputIndex !== undefined && inputIndex < 0) {
+      const userIndices: number[] = [];
+      historicalMessages.forEach((msg, i) => {
+        if (msg.role === 'user') userIndices.push(i);
+      });
+      const targetIdx = userIndices[inputIndex]; // inputIndex is negative, indexing into userIndices
+      const truncated = historicalMessages.slice(0, targetIdx + 1);
+      setHistoricalMessages(truncated);
+      activeRunRef.current = [{ role: 'user', content: input }];
+      setDisplayActiveMessages([...activeRunRef.current]);
+    } else {
+      // Default behavior: append new message
+      activeRunRef.current = [{ role: 'user', content: input }];
+      setDisplayActiveMessages([...activeRunRef.current]);
+    }
     console.log("1. Optimistic UI updated");
 
     try {
       console.log("2. Sending POST request...");
-      await sendChatMessageAction(session.id, input);
+      await sendChatMessageAction(session.id, input, inputIndex);
       console.log("3. POST successful, run created on backend");
       setIsRunning(true);
     } catch (error) {
       console.error("❌ [Message Flow] Failed at step 2", error);
       setIsRunning(false);
+      // Rollback: restore full history from server
+      refreshHistory();
       console.groupEnd();
     }
   };

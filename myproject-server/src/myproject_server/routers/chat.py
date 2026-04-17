@@ -3,12 +3,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from myproject_core.agent.agent_memory import AgentMemory
 from myproject_core.agent.agent_registry import AgentRegistry
 from myproject_core.agent.clipboard import AgentClipboard
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 
 from ..chat_manager import ChatManager
 from ..database import get_session, get_session_context
@@ -132,14 +132,20 @@ async def get_chat_history(
 @router.post("/{session_id}/message")
 async def send_message(
     session_id: int,
-    user_input: str,
     background_tasks: BackgroundTasks,
     request: Request,
     working_dir: Annotated[Path, Depends(get_user_inbox_path)],
     db: Annotated[Session, Depends(get_session)],
     user: Annotated[User, Depends(get_current_active_user)],
     agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
+    input_index: int | None = None,
+    user_input: str = Body(..., embed=True),
 ):
+    print(f"[DEBUG]: input_index: {input_index}")
+    # validate input_index
+    if input_index is not None and input_index > 0:
+        raise HTTPException(status_code=400, detail="input_index must be negative or zero")
+
     # 1. Fetch Session
     chat_session = db.get(ChatSession, session_id)
     if not chat_session or chat_session.user_id != user.id:
@@ -154,8 +160,35 @@ async def send_message(
         select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(col(ChatMessage.id).asc()),
     ).all()
 
-    memory_list = [m.payload for m in past_messages]
+    messages_list = [m.payload for m in past_messages]
+    # If editing an existing user message (input_index < 0), truncate history
+    if input_index is not None and input_index < 0:
+        # Build list of (index, record) pairs for user messages only
+        user_messages_with_records = [
+            (i, record) for i, record in enumerate(past_messages) if record.payload.get("role") == "user"
+        ]
+        user_indices = [i for i, _ in user_messages_with_records]
 
+        try:
+            target_idx = user_indices[input_index]
+        except IndexError:
+            raise HTTPException(status_code=400, detail="Cannot edit: message index out of range") from None
+
+        target_record = past_messages[target_idx]
+
+        # Remove everything upto and including the user message to be edited
+        messages_list = messages_list[:target_idx]
+
+        # Delete ChatMessage records after the target in the SAME transaction
+        db.exec(
+            delete(ChatMessage)
+            .where(ChatMessage.session_id == session_id)  # type:ignore
+            .where(ChatMessage.id >= target_record.id)  # type:ignore
+        )
+        db.flush()  # Ensure deletes are executed before continuing
+        db.commit()
+
+    # Inject the clipboard
     clipboard = (
         AgentClipboard.model_validate(chat_session.clipboard_state)
         if chat_session.clipboard_state
@@ -163,11 +196,12 @@ async def send_message(
     )
     # This is crucial to fix a bug where the agent is initialized with empty messages list
     # Thus losing the system prompt
-    if memory_list and clipboard:
-        memory = AgentMemory(messages=memory_list, agent_clipboard=clipboard)
+    if messages_list and clipboard:
+        memory = AgentMemory(messages=messages_list, agent_clipboard=clipboard)
     else:
         memory = None
 
+    # raise HTTPException(status_code=500, detail="Stopping for debug.")
     # 4. Get Agent & Initialize Run
     agent = agent_reg.create_agent(chat_session.agent_id, working_directory=working_dir, memory=memory)
 
@@ -205,6 +239,12 @@ async def send_message(
             with get_session_context() as bg_db:  # Assuming you have a context manager for DB
                 session_to_update = bg_db.get(ChatSession, session_id)
                 if session_to_update:
+                    past_messages = bg_db.exec(
+                        select(ChatMessage)
+                        .where(ChatMessage.session_id == session_id)
+                        .order_by(col(ChatMessage.id).asc()),
+                    ).all()
+
                     # Save new messages
                     for msg in new_messages:
                         db_msg = ChatMessage(session_id=session_id, payload=msg)
