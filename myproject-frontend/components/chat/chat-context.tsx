@@ -166,12 +166,17 @@ export const ChatProvider = ({
 
     // When editing (inputIndex is negative), optimistically truncate historicalMessages
     if (inputIndex !== undefined && inputIndex < 0) {
+      console.log("debug", "Attempting to truncate historicalMessages")
+      console.log("debug", "inputIndex: ", inputIndex)
       const userIndices: number[] = [];
       historicalMessages.forEach((msg, i) => {
         if (msg.role === 'user') userIndices.push(i);
       });
-      const targetIdx = userIndices[inputIndex]; // inputIndex is negative, indexing into userIndices
-      const truncated = historicalMessages.slice(0, targetIdx + 1);
+      console.log("debug", "userIndices", userIndices)
+      const targetIdx = userIndices[userIndices.length + inputIndex]; // inputIndex is negative, indexing into userIndices
+      console.log("debug", "Index of the user message being edited", targetIdx)
+      const truncated = historicalMessages.slice(0, targetIdx);
+      console.log("debug", "Truncated history", truncated)
       setHistoricalMessages(truncated);
       activeRunRef.current = [{ role: 'user', content: input }];
       setDisplayActiveMessages([...activeRunRef.current]);
