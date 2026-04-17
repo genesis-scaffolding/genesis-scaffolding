@@ -2,7 +2,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from myproject_core.configs import settings
+from myproject_core.configs import get_config, settings
+from myproject_core.logging_config import setup_logging
 
 from .chat_manager import ChatManager
 from .database import init_db
@@ -24,6 +25,9 @@ from .scheduler import SchedulerManager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    config = get_config()
+    setup_logging(config.log_level)
+
     # 1. Initialize Database (Creates tables and Admin user)
     init_db()
 
@@ -56,6 +60,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Include Routers
 app.include_router(auth.router)
