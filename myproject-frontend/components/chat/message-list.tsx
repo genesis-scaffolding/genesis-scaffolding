@@ -13,9 +13,23 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
   const lastMessageCountRef = useRef(messages.length);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [hoveredMessageIndex, setHoveredMessageIndex] = useState<number | null>(null);
+  const [tappedMessageIndex, setTappedMessageIndex] = useState<number | null>(null);
   const { sendMessage, isRunning } = useChat();
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      const inputIndex = getInputIndex(editingIndex!, messages);
+      setEditingIndex(null);
+      sendMessage(editText, inputIndex);
+    }
+    if (e.key === 'Escape') {
+      setEditingIndex(null);
+      setEditText('');
+    }
+  };
 
   const getInputIndex = (msgIndex: number, messages: ChatMessage[]): number => {
     const userIndices: number[] = [];
@@ -86,15 +100,26 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
             )}
             onMouseEnter={() => setHoveredMessageIndex(i)}
             onMouseLeave={() => setHoveredMessageIndex(null)}
+            onClick={() => {
+              if (hoveredMessageIndex !== i && tappedMessageIndex !== i) {
+                setTappedMessageIndex(i);
+              }
+            }}
           >
             {editingIndex === i ? (
               <div className="flex flex-col gap-2 w-full">
                 <textarea
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
+                  onKeyDown={handleEditKeyDown}
                   className="w-full min-h-[80px] px-3 py-2 text-sm border rounded-md bg-background resize-y"
                   autoFocus
                 />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>Ctrl+Enter to confirm</span>
+                  <span className="text-muted-foreground/40">|</span>
+                  <span>Esc to cancel</span>
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
@@ -124,8 +149,14 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
             )}
             {/* Copy button - appears on hover, positioned at top-right of message */}
             <button
-              onClick={() => handleCopyMarkdown(msg, i)}
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 px-2 py-1.5 text-xs bg-background border rounded-md shadow-sm text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopyMarkdown(msg, i);
+              }}
+              className={cn(
+                "absolute top-2 right-2 transition-opacity flex items-center gap-1.5 px-2 py-1.5 text-xs bg-background border rounded-md shadow-sm text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                (hoveredMessageIndex === i || tappedMessageIndex === i) ? 'opacity-100' : 'opacity-0'
+              )}
               title="Copy as Markdown"
             >
               {copiedIndex === i ? (
@@ -142,11 +173,15 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
             </button>
             {msg.role === 'user' && !isRunning && (
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setEditingIndex(i);
                   setEditText(typeof msg.content === 'string' ? msg.content : '');
                 }}
-                className="absolute top-2 right-16 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 px-2 py-1.5 text-xs bg-background border rounded-md shadow-sm text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                className={cn(
+                  "absolute top-2 right-24 transition-opacity flex items-center gap-1.5 px-2 py-1.5 text-xs bg-background border rounded-md shadow-sm text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                  (hoveredMessageIndex === i || tappedMessageIndex === i) ? 'opacity-100' : 'opacity-0'
+                )}
                 title="Edit message"
               >
                 <Pencil className="w-3.5 h-3.5" />
