@@ -262,6 +262,7 @@ Other topics covered in this developer guideline
 
 ### Maintaining
 
+- [Logging](logging.md) — How to add logs to your code and configure log levels
 - [Testing](maintaining/testing.md) — Testing conventions and patterns
 - [Documentation](maintaining/documentation.md) — How to write and maintain documentation
 

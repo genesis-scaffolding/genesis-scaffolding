@@ -62,6 +62,7 @@ All configuration lives under the `Config` model. Environment variables use the 
 
 | Variable | Type | Default | Description |
 |---|---|---|---|
+| `log_level` | `str` | `"WARNING"` | Log level for the application (DEBUG, INFO, WARNING, ERROR, CRITICAL). Case-insensitive; invalid values default to WARNING. Auto-set to DEBUG when running with uvicorn `--reload`. |
 | `timezone` | `str` | `"Australia/Adelaide"` | Timezone for datetime operations |
 | `providers` | `dict[str, LLMProvider]` | `{}` | LLM provider definitions (see `LLMProvider` below) |
 | `models` | `dict[str, LLMModelConfig]` | `{}` | Model definitions keyed by nickname (see `LLMModelConfig` below) |
@@ -142,6 +143,7 @@ All configuration lives under the `Config` model. Environment variables use the 
 # Top-level
 myproject__timezone=UTC
 myproject__default_model=claude-3-5-sonnet
+myproject__log_level=DEBUG  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 # Server
 myproject__server__host=127.0.0.1
