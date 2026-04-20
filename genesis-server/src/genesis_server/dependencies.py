@@ -5,7 +5,6 @@ from typing import Annotated
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
-from jwt.exceptions import InvalidTokenError
 from genesis_core.agent.agent_registry import AgentRegistry
 from genesis_core.configs import Config, get_config, settings
 from genesis_core.persistent_memory.db import get_memory_engine
@@ -13,6 +12,7 @@ from genesis_core.productivity.db import get_user_session
 from genesis_core.workflow.workflow_engine import WorkflowEngine
 from genesis_core.workflow.workflow_registry import WorkflowRegistry
 from genesis_core.workflow.workflow_workspace import WorkspaceManager
+from jwt.exceptions import InvalidTokenError
 from sqlmodel import Session, select
 
 from .database import get_session
