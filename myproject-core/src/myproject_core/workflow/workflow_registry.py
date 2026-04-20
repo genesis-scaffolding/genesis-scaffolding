@@ -1,9 +1,13 @@
+import logging
+
 import jinja2
 
 from ..configs import Config, get_config
 from ..schemas import WorkflowManifest
 from ..utils import resolve_placeholders
 from ..workflow_tasks.registry import TASK_LIBRARY
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowRegistry:
@@ -14,8 +18,10 @@ class WorkflowRegistry:
 
     def load_all(self):
         """Scans the directory and populates the registry."""
+        logger.info("Loading workflows from paths: %s", self.workflow_search_paths)
         for workflow_dir in self.workflow_search_paths:
             if not workflow_dir.exists():
+                logger.debug("Skipping non-existent workflow directory: %s", workflow_dir)
                 continue  # Ignore non-existent search path to avoid breaking workflow loading
 
             for yaml_file in workflow_dir.glob("*.yaml"):
@@ -28,10 +34,13 @@ class WorkflowRegistry:
 
                     # 3. Register using the filename (stem) as the ID
                     self.workflows[yaml_file.stem] = manifest
+                    logger.debug("Loaded workflow: %s from %s", yaml_file.stem, yaml_file)
 
                 except Exception as e:
-                    print(f"Error loading workflow '{yaml_file.name}': {e}")
+                    logger.error("Error loading workflow '%s': %s", yaml_file.name, e, exc_info=True)
                     continue  # Ignore non-compliant workflows to avoid breaking the system
+
+        logger.info("Workflow registry loaded: %d workflows found", len(self.workflows))
 
     def _verify_logic(self, manifest: WorkflowManifest):
         """Dry-run Jinja2 templates using dummy data from Task models."""

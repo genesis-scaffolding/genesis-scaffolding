@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,8 @@ from ..workflow_tasks.registry import TASK_LIBRARY
 from .workflow_registry import WorkflowRegistry
 from .workflow_workspace import WorkspaceManager
 
+logger = logging.getLogger(__name__)
+
 
 class WorkflowEngine:
     def __init__(
@@ -34,19 +37,23 @@ class WorkflowEngine:
         step_callbacks: list[WorkflowCallback] | None = None,
     ) -> WorkflowOutput:
         """Executes a validated workflow manifest."""
+        logger.info("Workflow '%s' started with %d inputs", manifest.name, len(user_inputs))
+
         # Validate runtime input from user. Throw if validation fails
         validated_inputs = manifest.validate_runtime_inputs(user_inputs)
 
         # Initialize Workspace/Job
         job_context = self.workspace_manager.create_job(manifest.name)
+        logger.debug("Workflow job created at: %s", job_context.root)
 
         # Initialize the "Blackboard" State
         state = {"inputs": validated_inputs, "steps": {}}
 
         # Iterate through steps
-        for step_def in manifest.steps:
+        for idx, step_def in enumerate(manifest.steps):
             # Check condition if present
             if step_def.condition and not evaluate_condition(step_def.condition, state):
+                logger.debug("Step '%s' skipped due to condition evaluate to false", step_def.id)
                 continue
 
             # Resolve placeholders in params using current state
@@ -57,6 +64,7 @@ class WorkflowEngine:
             task_instance = task_class()
 
             # Use callback to communicate step starting
+            logger.info("Executing step %d/%d: '%s' (type: %s)", idx + 1, len(manifest.steps), step_def.id, step_def.type)
             if step_callbacks:
                 event = WorkflowEvent(
                     event_type=WorkflowEventType.STEP_START,
@@ -84,6 +92,7 @@ class WorkflowEngine:
                         resolved_params,
                     )
             except Exception as e:
+                logger.error("Step '%s' failed: %s", step_def.id, e, exc_info=True)
                 if step_callbacks:
                     event = WorkflowEvent(
                         event_type=WorkflowEventType.STEP_FAILED,
@@ -127,6 +136,7 @@ class WorkflowEngine:
         publisher = OutputPublisher(self.working_directory)
         await publisher.publish(manifest.outputs, workflow_output, resolved_destinations, job_context)
 
+        logger.info("Workflow '%s' completed successfully", manifest.name)
         return WorkflowOutput(workflow_result=workflow_output, workspace_directory=job_context.root)
 
     def _checkpoint(self, context: JobContext, state: dict[str, Any]):

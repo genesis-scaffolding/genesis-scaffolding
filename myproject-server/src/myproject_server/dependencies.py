@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Annotated
 
@@ -19,6 +20,8 @@ from .models.user import User
 from .scheduler import SchedulerManager
 from .schemas.auth import TokenData
 
+logger = logging.getLogger(__name__)
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
@@ -39,16 +42,14 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        print(token)
-        print(settings.server.jwt_secret_key)
-        print(settings.server.algorithm)
+        logger.debug("Attempting to decode JWT token")
         payload = jwt.decode(token, settings.server.jwt_secret_key, algorithms=[settings.server.algorithm])
         if not payload.get("sub"):
             raise credentials_exception
         username: str = str(payload.get("sub"))
         token_data = TokenData(username=username)
     except InvalidTokenError as exc:
-        print("InvalidTokenError encountered")
+        logger.warning("InvalidTokenError encountered during JWT decode: %s", exc)
         raise credentials_exception from exc
 
     # Query the actual database

@@ -1,9 +1,12 @@
+import logging
 from datetime import datetime
 from pathlib import Path
 
 from ..configs import Config, get_config
 from ..schemas import JobContext
 from ..utils import slugify
+
+logger = logging.getLogger(__name__)
 
 
 class WorkspaceManager:
@@ -32,6 +35,7 @@ class WorkspaceManager:
         and returns the JobContext.
         """
         job_path = self._generate_unique_path(name)
+        logger.info("Creating job workspace: %s", job_path)
 
         # Create the 'Russian Doll' structure
         job_path.mkdir(parents=True, exist_ok=False)
@@ -43,6 +47,7 @@ class WorkspaceManager:
         with open(job_path / "internal" / "meta.txt", "w") as f:
             f.write(f"Original Name: {name}\nCreated: {datetime.now().isoformat()}")
 
+        logger.debug("Job workspace created: %s", job_path)
         return JobContext(job_path)
 
 

@@ -1,3 +1,4 @@
+import logging
 import secrets
 from pathlib import Path
 
@@ -6,6 +7,8 @@ from pydantic import BaseModel, Field, computed_field, field_validator, model_va
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .schemas import LLMModelConfig, LLMProvider
+
+logger = logging.getLogger(__name__)
 
 PACKAGE_ROOT = Path(__file__).parent.resolve()  # Find the myproject_core directory in source
 
@@ -120,9 +123,7 @@ class Config(BaseSettings):
     # user-specific database
     user_db: DatabaseConfig = Field(default_factory=lambda: DatabaseConfig(db_name="user_private.db"))
     # user-specific memory database
-    memory_db: DatabaseConfig = Field(
-        default_factory=lambda: DatabaseConfig(db_name="memory/user_memory.db")
-    )
+    memory_db: DatabaseConfig = Field(default_factory=lambda: DatabaseConfig(db_name="user_memory.db"))
 
     # Agent configurations
     agent_loop_config: AgentLoopConfig = Field(default_factory=AgentLoopConfig)
@@ -182,20 +183,28 @@ def deep_merge(base: dict, update: dict) -> dict:
 def get_config(user_workdir: Path | None = None, override_yaml: Path | None = None) -> Config:
     # 1. Initialize from Environment Variables / .env
     # Pydantic BaseSettings automatically populates this
+    logger.debug("Loading configuration, env vars and .env file")
     conf_dict = Config().model_dump()
 
     # 2. Apply YAML Overrides (Merging instead of overwriting)
     if override_yaml and override_yaml.exists():
+        logger.info("Loading config override from YAML: %s", override_yaml)
         with open(override_yaml) as f:
             yaml_data = yaml.safe_load(f)
             if yaml_data:
                 conf_dict = deep_merge(conf_dict, yaml_data)
+    else:
+        if override_yaml:
+            logger.debug("Override YAML path specified but file does not exist: %s", override_yaml)
+        else:
+            logger.debug("No override YAML specified, using defaults from env and .env")
 
     # Re-validate the merged dictionary into the Config model
     conf = Config(**conf_dict)
 
     # 3. Apply User Workspace Isolation
     if user_workdir:
+        logger.debug("Applying user workspace isolation, working_directory: %s", user_workdir)
         conf.path.working_directory = user_workdir.resolve()
 
     # --- DATABASE PATH LOGIC ---
@@ -206,22 +215,33 @@ def get_config(user_workdir: Path | None = None, override_yaml: Path | None = No
     if not conf.db.dsn:
         # If not provided by user, ensure it stays in the global database dir
         conf.db.db_directory = conf.path.server_root_directory / ".myproject" / "database"
+        logger.debug("System DB DSN not provided, using path: %s", conf.db.db_directory)
 
     # User DB: Should always be inside the internal_state_dir (.myproject)
     # whether in CLI mode (current dir) or Server mode (user sandbox).
     if not conf.user_db.dsn:
         conf.user_db.db_directory = conf.path.internal_state_dir
+        logger.debug("User DB DSN not provided, using path: %s", conf.user_db.db_directory)
 
-    # Memory DB: Same as user_db — inside internal_state_dir/memory/
+    # Memory DB: Same as user_db — inside internal_state_dir
     if not conf.memory_db.dsn:
-        conf.memory_db.db_directory = conf.path.internal_state_dir / "memory"
+        conf.memory_db.db_directory = conf.path.internal_state_dir
         conf.memory_db.db_name = "user_memory.db"
+        logger.debug("Memory DB DSN not provided, using path: %s", conf.memory_db.db_directory)
 
     # Ensure runtime directories exist
+    logger.debug("Ensuring runtime directories exist")
     conf.path.ensure_dirs()
     conf.db.db_directory.mkdir(parents=True, exist_ok=True)
     conf.user_db.db_directory.mkdir(parents=True, exist_ok=True)
     conf.memory_db.db_directory.mkdir(parents=True, exist_ok=True)
+
+    logger.info(
+        "Config initialized: system_db=%s, user_db=%s, memory_db=%s",
+        conf.db.connection_string,
+        conf.user_db.connection_string,
+        conf.memory_db.connection_string,
+    )
 
     return conf
 

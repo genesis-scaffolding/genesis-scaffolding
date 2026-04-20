@@ -1,5 +1,8 @@
 import asyncio
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class ActiveRun:
@@ -91,10 +94,14 @@ class ChatManager:
 
     def __init__(self):
         self.active_runs: dict[int, ActiveRun] = {}
+        logger.debug("ChatManager initialized with empty active_runs")
 
     def get_or_create_run(self, session_id: int, user_input: str) -> ActiveRun:
         if session_id not in self.active_runs:
+            logger.info("Creating new ActiveRun for session_id=%d", session_id)
             self.active_runs[session_id] = ActiveRun(session_id, user_input=user_input)
+        else:
+            logger.debug("Reusing existing ActiveRun for session_id=%d", session_id)
         return self.active_runs[session_id]
 
     def clear_run(self, session_id: int):
@@ -103,4 +110,7 @@ class ChatManager:
             run = self.active_runs[session_id]
             for q in run.clients:
                 q.put_nowait(None)
+            logger.info("Cleared ActiveRun for session_id=%d", session_id)
             del self.active_runs[session_id]
+        else:
+            logger.debug("clear_run called with session_id=%d but no active run exists", session_id)

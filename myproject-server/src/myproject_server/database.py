@@ -1,9 +1,12 @@
+import logging
 from contextlib import contextmanager
 
 from myproject_core.configs import get_config
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from .models.user import User
+
+logger = logging.getLogger(__name__)
 
 # We can use this settings object because it is the server-wide config
 settings = get_config()
@@ -30,7 +33,7 @@ def seed_admin_user(session: Session):
     existing_admin = session.exec(statement).first()
 
     if not existing_admin:
-        print(f"Creating initial admin account: {admin_username}...")
+        logger.info("Creating initial admin account: %s", admin_username)
 
         # Import here to avoid top-level circular dependency
         from myproject_server.auth.security import get_password_hash
@@ -43,7 +46,7 @@ def seed_admin_user(session: Session):
         )
         session.add(new_admin)
         session.commit()
-        print("Admin account created successfully.")
+        logger.info("Admin account created successfully.")
     else:
         # Account exists, do nothing
         pass
@@ -65,9 +68,9 @@ def init_db():
         with Session(engine) as session:
             seed_admin_user(session)
 
-        print("Database initialized successfully.")
+        logger.info("Database initialized successfully at: %s", settings.db.connection_string)
     except Exception as e:
-        print(f"Database initialization failed: {e}")
+        logger.error("Database initialization failed: %s", e, exc_info=True)
         raise e
 
 

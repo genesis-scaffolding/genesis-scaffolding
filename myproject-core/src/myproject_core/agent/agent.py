@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +19,8 @@ from ..prompts import BuildPromptConfig, build_system_prompt
 from ..schemas import AgentConfig, StreamCallback, ToolCallback
 from ..utils import streamcallback_simple_print
 from .agent_memory import AgentMemory
+
+logger = logging.getLogger(__name__)
 
 
 class Agent:
@@ -90,7 +93,7 @@ class Agent:
                     self.tools.append(tool)
                 else:
                     # Silently ignore or log that a tool wasn't found
-                    print(f"Warning: Tool '{tool_name}' not found in registry.")
+                    logger.warning("Tool '%s' not found in registry", tool_name)
 
         except ImportError:
             # If myproject_tools is not available, agent simply has no tools
@@ -245,6 +248,8 @@ class Agent:
         Then, clipboard is removed so that it does not inflate the message history
         The agent would loop until max number of turn of until no more tool calls are detected.
         """
+        logger.info("Agent '%s' step started, input length: %d", self.agent_config.name, len(input))
+
         # Fail fast if there is no working directory
         current_working_directory = self._get_current_working_directory(working_directory)
 
@@ -269,6 +274,7 @@ class Agent:
         # Start the tool call loop
         # Significantly reduce the number of turn for testing
         for turn in range(max_turns):
+            logger.debug("Turn %d/%d started for agent '%s'", turn + 1, max_turns, self.agent_config.name)
             # Sync the productivity pinned entities
             if self.user_db_url and self.memory.agent_clipboard.pinned_entities:
                 # get_user_session is a generator, so we iterate to get the session
@@ -344,6 +350,7 @@ class Agent:
             # 5. Check if we need to call tools
             if not llm_response.tool_calls:
                 # No more tools? Return the final text
+                logger.info("Agent '%s' completed without tool calls", self.agent_config.name)
                 self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
                 self.update_context_tokens()
                 return llm_response.content
@@ -363,6 +370,7 @@ class Agent:
                 )
                 if repeat_count >= max_repetitions:
                     # Naive solution: just stop the agent loop for now. We will find a more elegant handling in the future
+                    logger.warning("Agent '%s' loop detected: %s repeated %d times", self.agent_config.name, llm_response.tool_calls[0].function_name, repeat_count)
                     self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
                     self.update_context_tokens()
                     return f"Agent terminated: Detected a loop in tool calls ({llm_response.tool_calls[0].function_name})."
@@ -370,6 +378,8 @@ class Agent:
             tool_call_history.append(current_calls_signature)
 
             # 6. Execute Tools in Parallel
+            tool_names = [tc.function_name for tc in llm_response.tool_calls]
+            logger.info("Executing %d tool(s): %s", len(llm_response.tool_calls), tool_names)
             tool_tasks = []
             for tc in llm_response.tool_calls:
                 args = json.loads(tc.arguments)
@@ -397,6 +407,7 @@ class Agent:
 
         self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
         self.update_context_tokens()
+        logger.warning("Agent '%s' reached maximum %d turns", self.agent_config.name, max_turns)
         return "Agent reached maximum allowed turns without reaching a conclusion."
 
     async def add_file(self, file_path: Path, working_directory: Path | None = None):
@@ -404,8 +415,7 @@ class Agent:
         # 1. Path Validation
         current_working_directory = self._get_current_working_directory(working_directory)
         logical_path = Path(os.path.normpath(current_working_directory / file_path))
-        print(f"CURRENT WORKING DIRECTORY {current_working_directory}")
-        print(f"RESOLVED PATH {logical_path}")
+        logger.debug("add_file: current_working_directory=%s, resolved_path=%s", current_working_directory, logical_path)
 
         if not logical_path.is_relative_to(current_working_directory.resolve()):
             raise ValueError(f"Security Alert: Path {file_path} is outside of {current_working_directory}")
