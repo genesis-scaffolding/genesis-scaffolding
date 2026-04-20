@@ -10,8 +10,8 @@ This playbook is additive on top of the base web app. Apply [core-web-app.md](ht
 
 ### Backend
 - Everything from the base web app, plus:
-- `myproject-core/src/myproject_core/productivity/` — models, service, DB
-- `myproject-server/src/myproject_server/routers/productivity.py`
+- `genesis-core/src/genesis_core/productivity/` — models, service, DB
+- `genesis-server/src/genesis_server/routers/productivity.py`
 
 ### Frontend
 - Everything from the base web app, plus:
@@ -19,16 +19,16 @@ This playbook is additive on top of the base web app. Apply [core-web-app.md](ht
 - Dashboard page with pinned productivity items
 
 ### Remove
-- `myproject-core/src/myproject_core/agent.py` and `agent_registry.py`
-- `myproject-core/src/myproject_core/memory/`
-- `myproject-core/src/myproject_core/workflow_engine.py` and `myproject-core/src/myproject_core/workflow_registry.py`
-- `myproject-core/src/myproject_core/workflow_tasks/`
-- `myproject-core/src/myproject_core/workspace.py`
-- `myproject-server/src/myproject_server/routers/agent.py`
-- `myproject-server/src/myproject_server/routers/workflow.py`
-- `myproject-server/src/myproject_server/sse/chatmanager.py`
-- `myproject-tools/`
-- `myproject-core/src/myproject_core/agents/`
+- `genesis-core/src/genesis_core/agent.py` and `agent_registry.py`
+- `genesis-core/src/genesis_core/memory/`
+- `genesis-core/src/genesis_core/workflow_engine.py` and `genesis-core/src/genesis_core/workflow_registry.py`
+- `genesis-core/src/genesis_core/workflow_tasks/`
+- `genesis-core/src/genesis_core/workspace.py`
+- `genesis-server/src/genesis_server/routers/agent.py`
+- `genesis-server/src/genesis_server/routers/workflow.py`
+- `genesis-server/src/genesis_server/sse/chatmanager.py`
+- `genesis-tools/`
+- `genesis-core/src/genesis_core/agents/`
 
 ### Frontend — Remove
 - Chat UI components and pages related to agents
@@ -39,14 +39,14 @@ This playbook is additive on top of the base web app. Apply [core-web-app.md](ht
 ## Where to Add Code
 
 ### New Productivity Entity
-Add models to `myproject-core/src/myproject_core/productivity/models.py`.
+Add models to `genesis-core/src/genesis_core/productivity/models.py`.
 
-Add service methods to `myproject-core/src/myproject_core/productivity/service.py`.
+Add service methods to `genesis-core/src/genesis_core/productivity/service.py`.
 
-Add router endpoints to `myproject-server/src/myproject_server/routers/productivity.py`.
+Add router endpoints to `genesis-server/src/genesis_server/routers/productivity.py`.
 
 ### Extend the Productivity Frontend
-Add components to the appropriate feature directory in `myproject-frontend/components/`.
+Add components to the appropriate feature directory in `genesis-frontend/components/`.
 
 ---
 
@@ -63,5 +63,5 @@ Add components to the appropriate feature directory in `myproject-frontend/compo
 After adaptation:
 ```bash
 uv run pyright .
-cd myproject-frontend && pnpm build
+cd genesis-frontend && pnpm build
 ```

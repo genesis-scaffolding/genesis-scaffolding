@@ -16,8 +16,8 @@ Place a new `.md` file in one of the configured agent search paths. The file nam
 
 Agent search paths are configured in your settings. Typically:
 
-- **Bundled agents** (read-only): `myproject-core/src/myproject_core/agents/`
-- **User agents** (editable): `user_directories/{user_id}/.myproject/agents/`
+- **Bundled agents** (read-only): `genesis-core/src/genesis_core/agents/`
+- **User agents** (editable): `user_directories/{user_id}/.genesis/agents/`
 
 ## Step 2: Define the Frontmatter
 
@@ -81,7 +81,7 @@ Keep responses concise and focused on the user's question.
 
 ## Tools Reference
 
-Tools extend what the agent can do. Available tools are registered in `myproject_tools/registry.py`.
+Tools extend what the agent can do. Available tools are registered in `genesis_tools/registry.py`.
 
 To grant an agent access to a tool, add it to `allowed_tools`:
 
@@ -148,8 +148,8 @@ When reviewing:
 Use the CLI or Python to spawn and test your agent:
 
 ```python
-from myproject_core.agent.agent_registry import AgentRegistry
-from myproject_core.configs import get_config
+from genesis_core.agent.agent_registry import AgentRegistry
+from genesis_core.configs import get_config
 
 settings = get_config()
 registry = AgentRegistry(settings=settings)
@@ -184,5 +184,5 @@ The agent loop writes debug logs to `debug_messages.json` in the current directo
 
 | Agent Type | Location | Editable? |
 |------------|----------|------------|
-| Bundled agents | `myproject-core/src/myproject_core/agents/` | No (if `read_only: true`) |
-| User agents | `user_directories/{id}/.myproject/agents/` | Yes |
+| Bundled agents | `genesis-core/src/genesis_core/agents/` | No (if `read_only: true`) |
+| User agents | `user_directories/{id}/.genesis/agents/` | Yes |

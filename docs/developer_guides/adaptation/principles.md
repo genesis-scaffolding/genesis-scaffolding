@@ -8,9 +8,9 @@ These principles apply whenever you are building on or modifying the Genesis Sca
 
 Add code to the existing package that makes the most sense. Create a new package only when you genuinely need isolation — a separate deployment, a distinct team ownership boundary, or a clearly scoped subsystem that stands alone.
 
-**Wrong:** Creating `myproject-inventory/` to hold inventory models, then importing them into `myproject-server/`.
+**Wrong:** Creating `genesis-inventory/` to hold inventory models, then importing them into `genesis-server/`.
 
-**Right:** Adding inventory models to `myproject-core/src/myproject_core/schemas.py` or a new module there, and adding inventory routers to `myproject-server/src/myproject_server/routers/`.
+**Right:** Adding inventory models to `genesis-core/src/genesis_core/schemas.py` or a new module there, and adding inventory routers to `genesis-server/src/genesis_server/routers/`.
 
 ---
 

@@ -18,7 +18,7 @@ make test-backend
 uv run pytest
 
 # Run tests for a specific package
-uv run pytest myproject-core/tests/
+uv run pytest genesis-core/tests/
 
 # List tests without running
 uv run pytest --collect-only
@@ -29,14 +29,14 @@ uv run pytest --collect-only
 Each Python package has a `tests/` directory co-located with the source:
 
 ```
-myproject-core/tests/
+genesis-core/tests/
 ├── __init__.py
 └── example.test.py   # replace with real tests
 
-myproject-server/tests/
-myproject-tools/tests/
-myproject-cli/tests/
-myproject-tui/tests/
+genesis-server/tests/
+genesis-tools/tests/
+genesis-cli/tests/
+genesis-tui/tests/
 src/tests/
 ```
 
@@ -58,7 +58,7 @@ The frontend uses **Vitest** and **React Testing Library** for component tests.
 # Via Makefile — the CI-compatible way
 make test-frontend
 
-# Direct (from myproject-frontend directory)
+# Direct (from genesis-frontend directory)
 pnpm test          # watch mode
 pnpm test:run     # single run
 ```
@@ -66,7 +66,7 @@ pnpm test:run     # single run
 ### Test Structure
 
 ```
-myproject-frontend/
+genesis-frontend/
 ├── vitest.config.ts   # Vitest configuration
 └── tests/
     └── example.test.ts  # replace with real tests

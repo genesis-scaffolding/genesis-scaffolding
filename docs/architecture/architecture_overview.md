@@ -91,7 +91,7 @@ The platform splits into:
 
 Each sub-repo is documented in its own directory under `docs/architecture/modules/`. 
 
-### `myproject-core/`
+### `genesis-core/`
 
 The shared Python library where the main logic of agents, LLM, productivity subsystem, workflows, and workspaces are stored. Core schemas are also stored here:
 
@@ -105,9 +105,9 @@ The shared Python library where the main logic of agents, LLM, productivity subs
 
 **Start here for:** building agentic features, understanding how the agent works, configuring the system.
 
-### `myproject-server/`
+### `genesis-server/`
 
-FastAPI REST API. Depends on `myproject-core`.
+FastAPI REST API. Depends on `genesis-core`.
 
 - **Routers** — All REST endpoints organized by domain
 - **Auth** — JWT-based authentication
@@ -116,16 +116,16 @@ FastAPI REST API. Depends on `myproject-core`.
 
 **Start here for:** adding new API endpoints, understanding auth, understanding how background jobs work.
 
-### `myproject-tools/`
+### `genesis-tools/`
 
-Tool implementations that extend the agent's capabilities. Depends on `myproject-core`.
+Tool implementations that extend the agent's capabilities. Depends on `genesis-core`.
 
 - **BaseTool ABC** — The contract all tools implement
 - **Tool categories** — File operations, web, productivity, memory, utilities
 
 **Start here for:** building new tools for the agent to call.
 
-### `myproject-frontend/`
+### `genesis-frontend/`
 
 NextJS web frontend. Separate repository structure from the Python packages.
 
@@ -135,10 +135,10 @@ NextJS web frontend. Separate repository structure from the Python packages.
 
 **Start here for:** building frontend features, understanding how the frontend communicates with the backend.
 
-### `myproject-cli/`
+### `genesis-cli/`
 
 Typer-based CLI for single-user mode. Bypasses the FastAPI server entirely — talks directly to Python packages.
 
-### `myproject-tui/`
+### `genesis-tui/`
 
 Textual-based terminal UI. Currently a stub.

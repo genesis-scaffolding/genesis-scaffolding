@@ -1,0 +1,25 @@
+[project]
+name = "genesis-tui"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "nguyentran0212", email = "gen.tran.1991@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "genesis-core",
+    "textual>=7.5.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.27,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+genesis-core = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "textual-dev>=1.8.0",
+]

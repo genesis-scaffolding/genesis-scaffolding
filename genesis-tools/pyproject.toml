@@ -1,0 +1,21 @@
+[project]
+name = "genesis-tools"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "nguyentran0212", email = "gen.tran.1991@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "arxiv>=2.4.0",
+    "ddgs>=9.10.0",
+    "feedparser>=6.0.12",
+    "pymupdf-layout>=1.26.6",
+    "pymupdf4llm>=0.2.9",
+    "trafilatura>=2.0.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.27,<0.10.0"]
+build-backend = "uv_build"

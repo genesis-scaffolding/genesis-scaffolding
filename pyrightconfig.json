@@ -3,11 +3,11 @@
   "venv": ".venv",
   "include": [
     "src",
-    "myproject-core/src",
-    "myproject-server/src",
-    "myproject-tools/src",
-    "myproject-cli/src",
-    "myproject-tui/src"
+    "genesis-core/src",
+    "genesis-server/src",
+    "genesis-tools/src",
+    "genesis-cli/src",
+    "genesis-tui/src"
   ],
   "exclude": [
     "**/__pycache__",

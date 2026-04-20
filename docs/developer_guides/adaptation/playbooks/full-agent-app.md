@@ -23,15 +23,15 @@ Add to the existing structure following [Adding Entities](https://github.com/sea
 ### New Tool
 Follow the [Implementing Tools](https://github.com/search?q=repo%3Aanthropics%2Fclaude-code%20path%3Adocs%2Fdeveloper_guides%2Fextending-the-agent%2Fimplementing-tools.md&type=code) guide.
 
-Register in `myproject-tools/registry.py`.
+Register in `genesis-tools/registry.py`.
 
 ### New Agent
 Follow the [Writing Agents](https://github.com/search?q=repo%3Aanthropics%2Fclaude-code%20path%3Adocs%2Fdeveloper_guides%2Fextending-the-agent%2Fwriting-agents.md&type=code) guide.
 
-Add a new `.md` file to `myproject-core/src/myproject_core/agents/`.
+Add a new `.md` file to `genesis-core/src/genesis_core/agents/`.
 
 ### New Workflow Task Type
-Create in `myproject-core/src/myproject_core/workflow_tasks/`.
+Create in `genesis-core/src/genesis_core/workflow_tasks/`.
 
 Follow existing task patterns and register in `registry.py`.
 
@@ -51,5 +51,5 @@ Follow existing task patterns and register in `registry.py`.
 After adaptation:
 ```bash
 uv run pyright .
-cd myproject-frontend && pnpm build
+cd genesis-frontend && pnpm build
 ```

@@ -9,12 +9,12 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "myproject",
-    "myproject-cli",
-    "myproject-core",
-    "myproject-server",
-    "myproject-tools",
-    "myproject-tui",
+    "genesis",
+    "genesis-cli",
+    "genesis-core",
+    "genesis-server",
+    "genesis-tools",
+    "genesis-tui",
 ]
 
 [[package]]
@@ -1001,6 +1001,146 @@ wheels = [
 ]
 
 [[package]]
+name = "genesis"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "genesis-cli" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pyright" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "genesis-cli", editable = "genesis-cli" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pyright", specifier = ">=1.1.408" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "ruff", specifier = ">=0.15.0" },
+]
+
+[[package]]
+name = "genesis-cli"
+version = "0.1.0"
+source = { editable = "genesis-cli" }
+dependencies = [
+    { name = "genesis-core" },
+    { name = "genesis-server" },
+    { name = "pathspec" },
+    { name = "prompt-toolkit" },
+    { name = "typer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genesis-core", editable = "genesis-core" },
+    { name = "genesis-server", editable = "genesis-server" },
+    { name = "pathspec", specifier = ">=1.0.4" },
+    { name = "prompt-toolkit", specifier = ">=3.0.52" },
+    { name = "typer", specifier = ">=0.21.1" },
+]
+
+[[package]]
+name = "genesis-core"
+version = "0.1.0"
+source = { editable = "genesis-core" }
+dependencies = [
+    { name = "anthropic" },
+    { name = "genesis-tools" },
+    { name = "litellm" },
+    { name = "pydantic-settings" },
+    { name = "python-frontmatter" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anthropic", specifier = ">=0.86.0" },
+    { name = "genesis-tools", editable = "genesis-tools" },
+    { name = "litellm", specifier = "==1.82.6" },
+    { name = "pydantic-settings", specifier = ">=2.12.0" },
+    { name = "python-frontmatter", specifier = ">=1.1.0" },
+]
+
+[[package]]
+name = "genesis-server"
+version = "0.1.0"
+source = { editable = "genesis-server" }
+dependencies = [
+    { name = "alembic" },
+    { name = "apscheduler" },
+    { name = "fastapi", extra = ["standard"] },
+    { name = "genesis-core" },
+    { name = "pwdlib", extra = ["argon2"] },
+    { name = "pyjwt" },
+    { name = "sqlmodel" },
+    { name = "sse-starlette" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.18.4" },
+    { name = "apscheduler", specifier = ">=3.11.2" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.128.0" },
+    { name = "genesis-core", editable = "genesis-core" },
+    { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.0" },
+    { name = "pyjwt", specifier = ">=2.11.0" },
+    { name = "sqlmodel", specifier = ">=0.0.33" },
+    { name = "sse-starlette", specifier = ">=3.2.0" },
+]
+
+[[package]]
+name = "genesis-tools"
+version = "0.1.0"
+source = { editable = "genesis-tools" }
+dependencies = [
+    { name = "arxiv" },
+    { name = "ddgs" },
+    { name = "feedparser" },
+    { name = "pymupdf-layout" },
+    { name = "pymupdf4llm" },
+    { name = "trafilatura" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "arxiv", specifier = ">=2.4.0" },
+    { name = "ddgs", specifier = ">=9.10.0" },
+    { name = "feedparser", specifier = ">=6.0.12" },
+    { name = "pymupdf-layout", specifier = ">=1.26.6" },
+    { name = "pymupdf4llm", specifier = ">=0.2.9" },
+    { name = "trafilatura", specifier = ">=2.0.0" },
+]
+
+[[package]]
+name = "genesis-tui"
+version = "0.1.0"
+source = { editable = "genesis-tui" }
+dependencies = [
+    { name = "genesis-core" },
+    { name = "textual" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "textual-dev" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genesis-core", editable = "genesis-core" },
+    { name = "textual", specifier = ">=7.5.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "textual-dev", specifier = ">=1.8.0" }]
+
+[[package]]
 name = "greenlet"
 version = "3.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1851,146 +1991,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/4c/81/4629d0aa32302ef7b2ec65c75a728cc5ff4fa410c50096174c1632e70b3e/multidict-6.7.1-cp314-cp314t-win_arm64.whl", hash = "sha256:2bbd113e0d4af5db41d5ebfe9ccaff89de2120578164f86a5d17d5a576d1e5b2", size = 44719, upload-time = "2026-01-26T02:46:11.146Z" },
     { url = "https://files.pythonhosted.org/packages/81/08/7036c080d7117f28a4af526d794aab6a84463126db031b007717c1a6676e/multidict-6.7.1-py3-none-any.whl", hash = "sha256:55d97cc6dae627efa6a6e548885712d4864b81110ac76fa4e534c03819fa4a56", size = 12319, upload-time = "2026-01-26T02:46:44.004Z" },
 ]
-
-[[package]]
-name = "myproject"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "myproject-cli" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pyright" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "myproject-cli", editable = "myproject-cli" }]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pyright", specifier = ">=1.1.408" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "ruff", specifier = ">=0.15.0" },
-]
-
-[[package]]
-name = "myproject-cli"
-version = "0.1.0"
-source = { editable = "myproject-cli" }
-dependencies = [
-    { name = "myproject-core" },
-    { name = "myproject-server" },
-    { name = "pathspec" },
-    { name = "prompt-toolkit" },
-    { name = "typer" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "myproject-core", editable = "myproject-core" },
-    { name = "myproject-server", editable = "myproject-server" },
-    { name = "pathspec", specifier = ">=1.0.4" },
-    { name = "prompt-toolkit", specifier = ">=3.0.52" },
-    { name = "typer", specifier = ">=0.21.1" },
-]
-
-[[package]]
-name = "myproject-core"
-version = "0.1.0"
-source = { editable = "myproject-core" }
-dependencies = [
-    { name = "anthropic" },
-    { name = "litellm" },
-    { name = "myproject-tools" },
-    { name = "pydantic-settings" },
-    { name = "python-frontmatter" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "anthropic", specifier = ">=0.86.0" },
-    { name = "litellm", specifier = "==1.82.6" },
-    { name = "myproject-tools", editable = "myproject-tools" },
-    { name = "pydantic-settings", specifier = ">=2.12.0" },
-    { name = "python-frontmatter", specifier = ">=1.1.0" },
-]
-
-[[package]]
-name = "myproject-server"
-version = "0.1.0"
-source = { editable = "myproject-server" }
-dependencies = [
-    { name = "alembic" },
-    { name = "apscheduler" },
-    { name = "fastapi", extra = ["standard"] },
-    { name = "myproject-core" },
-    { name = "pwdlib", extra = ["argon2"] },
-    { name = "pyjwt" },
-    { name = "sqlmodel" },
-    { name = "sse-starlette" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "alembic", specifier = ">=1.18.4" },
-    { name = "apscheduler", specifier = ">=3.11.2" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.128.0" },
-    { name = "myproject-core", editable = "myproject-core" },
-    { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.0" },
-    { name = "pyjwt", specifier = ">=2.11.0" },
-    { name = "sqlmodel", specifier = ">=0.0.33" },
-    { name = "sse-starlette", specifier = ">=3.2.0" },
-]
-
-[[package]]
-name = "myproject-tools"
-version = "0.1.0"
-source = { editable = "myproject-tools" }
-dependencies = [
-    { name = "arxiv" },
-    { name = "ddgs" },
-    { name = "feedparser" },
-    { name = "pymupdf-layout" },
-    { name = "pymupdf4llm" },
-    { name = "trafilatura" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "arxiv", specifier = ">=2.4.0" },
-    { name = "ddgs", specifier = ">=9.10.0" },
-    { name = "feedparser", specifier = ">=6.0.12" },
-    { name = "pymupdf-layout", specifier = ">=1.26.6" },
-    { name = "pymupdf4llm", specifier = ">=0.2.9" },
-    { name = "trafilatura", specifier = ">=2.0.0" },
-]
-
-[[package]]
-name = "myproject-tui"
-version = "0.1.0"
-source = { editable = "myproject-tui" }
-dependencies = [
-    { name = "myproject-core" },
-    { name = "textual" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "textual-dev" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "myproject-core", editable = "myproject-core" },
-    { name = "textual", specifier = ">=7.5.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "textual-dev", specifier = ">=1.8.0" }]
 
 [[package]]
 name = "networkx"

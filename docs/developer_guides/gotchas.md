@@ -206,7 +206,7 @@ When `chat.py` called `agent.memory.agent_clipboard.render_to_markdown()`, the c
 
 Three files were modified:
 
-**`myproject-core/src/myproject_core/agent.py`** — Pass `timezone` to `AgentMemory` constructor:
+**`genesis-core/src/genesis_core/agent.py`** — Pass `timezone` to `AgentMemory` constructor:
 ```python
 self.memory = memory or AgentMemory(
     messages=[self._create_llm_message(role="system", content=system_prompt)],
@@ -214,7 +214,7 @@ self.memory = memory or AgentMemory(
 )
 ```
 
-**`myproject-core/src/myproject_core/agent_memory.py`** — Accept and forward `timezone` to `AgentClipboard`:
+**`genesis-core/src/genesis_core/agent_memory.py`** — Accept and forward `timezone` to `AgentClipboard`:
 ```python
 def __init__(self, messages=None, agent_clipboard=None, timezone: str = "UTC") -> None:
     self.agent_clipboard = agent_clipboard or AgentClipboard(timezone=timezone)
@@ -228,7 +228,7 @@ def reset_memory(self):
     self.agent_clipboard = AgentClipboard(timezone=self.timezone)  # Preserves timezone
 ```
 
-**`myproject-core/src/myproject_core/agent/clipboard.py`** — Add `timezone` field to `AgentClipboard`:
+**`genesis-core/src/genesis_core/agent/clipboard.py`** — Add `timezone` field to `AgentClipboard`:
 ```python
 class AgentClipboard(BaseModel):
     timezone: str = "UTC"  # Added

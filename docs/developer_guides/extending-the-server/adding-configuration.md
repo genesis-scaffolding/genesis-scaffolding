@@ -1,6 +1,6 @@
 # Adding Configuration Options
 
-This guide explains how to add new configuration options to the system. For a full understanding of the configuration architecture, read [the configuration architecture doc](../../architecture/myproject-core/configuration.md) first.
+This guide explains how to add new configuration options to the system. For a full understanding of the configuration architecture, read [the configuration architecture doc](../../architecture/genesis-core/configuration.md) first.
 
 ---
 
@@ -14,7 +14,7 @@ The system uses a layered config loading mechanism. When you add a new capabilit
 
 | Layer | Source | Overrideable per user? |
 |-------|--------|------------------------|
-| Environment variables | `myproject__*` env vars | No |
+| Environment variables | `genesis__*` env vars | No |
 | YAML override file | `config.yaml` at server root | No |
 | User-level overrides | User's YAML file | Yes |
 
@@ -36,11 +36,11 @@ Ask: does this config option need to be overridable per user, or is it a site-wi
 
 ## Step 2: Add the Config Field
 
-Config fields are defined in Pydantic settings models in `myproject-core`. The exact module depends on what the config controls:
+Config fields are defined in Pydantic settings models in `genesis-core`. The exact module depends on what the config controls:
 
-- `myproject_core.config` — core system config (paths, databases, auth)
-- `myproject_core.llm_config` — LLM provider settings
-- `myproject_core.agent_config` — agent loop settings
+- `genesis_core.config` — core system config (paths, databases, auth)
+- `genesis_core.llm_config` — LLM provider settings
+- `genesis_core.agent_config` — agent loop settings
 
 Add a new field to the appropriate model using Pydantic's `Field` with a docstring:
 
@@ -58,7 +58,7 @@ class LLMConfig(BaseSettings):
 
 If the new config field affects the server or a specific subsystem, ensure it is passed through dependency injection:
 
-1. **Server-level config** — Add the field to `myproject_core.config.Settings` so it is available via `get_user_config()` dependency.
+1. **Server-level config** — Add the field to `genesis_core.config.Settings` so it is available via `get_user_config()` dependency.
 2. **Tool config** — If a tool needs the config, access it via the tool's `__init__` or `execute` method.
 3. **Workflow config** — Workflow manifests can reference config values via `${config:field_name}` syntax.
 
@@ -66,10 +66,10 @@ If the new config field affects the server or a specific subsystem, ensure it is
 
 ## Step 4: Document the New Option
 
-Add the new config option to the [configuration architecture doc](../../architecture/myproject-core/configuration.md) under the relevant section. Include:
+Add the new config option to the [configuration architecture doc](../../architecture/genesis-core/configuration.md) under the relevant section. Include:
 
 - The full config key path (e.g., `llm.custom_setting`)
-- The environment variable name (e.g., `myproject__llm__custom_setting`)
+- The environment variable name (e.g., `genesis__llm__custom_setting`)
 - The default value
 - Whether it can be overridden per user
 
@@ -80,7 +80,7 @@ Add the new config option to the [configuration architecture doc](../../architec
 After adding a new config option, verify it loads correctly:
 
 ```python
-from myproject_core.config import get_config
+from genesis_core.config import get_config
 config = get_config()
 print(config.llm.custom_setting)  # should print the value or default
 ```
@@ -96,7 +96,7 @@ class AppConfig(BaseSettings):
     new_feature_enabled: bool = Field(default=False, description="Enable the new feature")
 ```
 
-Set via environment: `myproject__app__new_feature_enabled=true`
+Set via environment: `genesis__app__new_feature_enabled=true`
 
 ### Adding a per-user path override
 

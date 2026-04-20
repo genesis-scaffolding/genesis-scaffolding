@@ -30,18 +30,18 @@ In this configuration, you need to define an LLM provider and define a default L
 
 ``` bash
 # Define the provider (openrouter)
-myproject__providers__openrouter__name="openrouter"
-myproject__providers__openrouter__base_url="https://openrouter.ai/api/v1"
-myproject__providers__openrouter__api_key="sk1234"
+genesis__providers__openrouter__name="openrouter"
+genesis__providers__openrouter__base_url="https://openrouter.ai/api/v1"
+genesis__providers__openrouter__api_key="sk1234"
 
 # Define the model (let's name the key "default")
-myproject__models__default__provider="openrouter"
-myproject__models__default__model="nvidia/nemotron-3-nano-30b-a3b:free"
+genesis__models__default__provider="openrouter"
+genesis__models__default__model="nvidia/nemotron-3-nano-30b-a3b:free"
 # Optional: add extra params
-# myproject__models__default__params__temperature=0.5
+# genesis__models__default__params__temperature=0.5
 ```
 
-For more details about configuration, see the docs [here](../architecture/modules/myproject-core/configuration.md)
+For more details about configuration, see the docs [here](../architecture/modules/genesis-core/configuration.md)
 
 ### Commands
 

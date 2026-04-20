@@ -6,11 +6,11 @@ ENV UV_COMPILE_BYTECODE=1
 # Copy only the files needed for installing dependencies to cache them
 COPY pyproject.toml uv.lock ./
 COPY src ./src
-COPY myproject-cli ./myproject-cli
-COPY myproject-core ./myproject-core
-COPY myproject-server ./myproject-server
-COPY myproject-tui ./myproject-tui
-COPY myproject-tools ./myproject-tools
+COPY genesis-cli ./genesis-cli
+COPY genesis-core ./genesis-core
+COPY genesis-server ./genesis-server
+COPY genesis-tui ./genesis-tui
+COPY genesis-tools ./genesis-tools
 # Install dependencies
 RUN uv sync --frozen --no-dev --no-install-workspace
 
@@ -20,9 +20,9 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 # Copy frontend files
-COPY myproject-frontend/package.json myproject-frontend/pnpm-lock.yaml ./
+COPY genesis-frontend/package.json genesis-frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
-COPY myproject-frontend ./
+COPY genesis-frontend ./
 # Build the Next.js app
 RUN pnpm build
 
@@ -42,9 +42,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Copy backend from builder
 COPY --from=backend-builder /app /app
 # Copy frontend from builder
-COPY --from=frontend-builder /app/ /app/myproject-frontend/
+COPY --from=frontend-builder /app/ /app/genesis-frontend/
 
-# Copy README to ensure the myproject package has all declared components
+# Copy README to ensure the genesis package has all declared components
 COPY README.md /app/README.md
 
 # Copy agents and workflow declarations
@@ -73,7 +73,7 @@ _term() {\n\
 trap _term SIGTERM SIGINT\n\
 \n\
 # Track process health\necho "Starting Backend..."\n\
-uv run myproject serve &\n\
+uv run genesis serve &\n\
 backend_pid=$!\n\
 \n\
 # Wait briefly to check backend started\n\
@@ -84,7 +84,7 @@ if ! kill -0 "$backend_pid" 2>/dev/null; then\n\
 fi\n\
 \n\
 echo "Starting Frontend..."\n\
-cd /app/myproject-frontend && npm run start -- -p 3000 &\n\
+cd /app/genesis-frontend && npm run start -- -p 3000 &\n\
 frontend_pid=$!\n\
 \n\
 # Wait briefly to check frontend started\n\
@@ -105,7 +105,7 @@ _term' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Healthcheck - verify both processes are still running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD ps aux | grep -q "[u]v run myproject serve" && ps aux | grep -q "[n]ext start"
+  CMD ps aux | grep -q "[u]v run genesis serve" && ps aux | grep -q "[n]ext start"
 
 # Expose ports: Backend (usually 8000) and Frontend (3000)
 EXPOSE 8000

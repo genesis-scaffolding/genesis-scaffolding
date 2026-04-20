@@ -1,5 +1,5 @@
 [project]
-name = "myproject"
+name = "genesis"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "myproject-cli",
+    "genesis-cli",
 ]
 
 [dependency-groups]
@@ -19,7 +19,7 @@ dev = [
 ]
 
 [project.scripts]
-myproject = "myproject.main:start"
+genesis = "genesis.main:start"
 
 [build-system]
 requires = ["uv_build>=0.9.27,<0.10.0"]
@@ -27,15 +27,15 @@ build-backend = "uv_build"
 
 [tool.uv.workspace]
 members = [
-    "myproject-core",
-    "myproject-cli",
-    "myproject-tui",
-    "myproject-server",
-    "myproject-tools",
+    "genesis-core",
+    "genesis-cli",
+    "genesis-tui",
+    "genesis-server",
+    "genesis-tools",
 ]
 
 [tool.uv.sources]
-myproject-cli = { workspace = true }
+genesis-cli = { workspace = true }
 
 [tool.ruff]
 line-length = 108
@@ -56,11 +56,11 @@ ignore = [
 
 [tool.pytest.ini_options]
 testpaths = [
-    "myproject-core/tests",
-    "myproject-server/tests",
-    "myproject-tools/tests",
-    "myproject-cli/tests",
-    "myproject-tui/tests",
+    "genesis-core/tests",
+    "genesis-server/tests",
+    "genesis-tools/tests",
+    "genesis-cli/tests",
+    "genesis-tui/tests",
     "src/tests",
 ]
 python_files = ["test_*.py"]

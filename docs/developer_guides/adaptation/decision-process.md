@@ -75,12 +75,12 @@ After completing the adaptation, run the smoke test:
 
 **Backend:**
 ```bash
-cd /path/to/myproject && uv run pyright .
+cd /path/to/genesis && uv run pyright .
 ```
 
 **Frontend:**
 ```bash
-cd myproject-frontend && pnpm build
+cd genesis-frontend && pnpm build
 ```
 
 Both must pass with no errors. Fix any issues before declaring the adaptation complete.

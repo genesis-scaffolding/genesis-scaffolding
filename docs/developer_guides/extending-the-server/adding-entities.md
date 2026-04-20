@@ -6,8 +6,8 @@ This guide outlines how to add new database entities and endpoints to the FastAP
 
 The backend implementation spans two Python packages:
 
-- **`myproject-server`** — FastAPI, user management, server databases. Uses `myproject_core` internally.
-- **`myproject-core`** — Configuration, agent, workflow engine, registries. No multi-user concept; used directly by the CLI.
+- **`genesis-server`** — FastAPI, user management, server databases. Uses `genesis_core` internally.
+- **`genesis-core`** — Configuration, agent, workflow engine, registries. No multi-user concept; used directly by the CLI.
 
 ## Step 1: Categorize the Entity
 
@@ -23,18 +23,18 @@ Before coding, determine the ownership model to decide where data is stored:
 
 ### Database Models
 
-Define models in `myproject_server.models` using `sqlmodel`. These define the database table structure. Key patterns:
+Define models in `genesis_server.models` using `sqlmodel`. These define the database table structure. Key patterns:
 - Use `Field(index=True)` for frequently queried columns
 - Use `UniqueConstraint` for composite uniqueness constraints
 - Include `Relationship` for foreign key associations
 
 ### Pydantic Schemas
 
-Define schemas in `myproject_server.schemas` to control API input/output. Schemas are often subsets or extensions of models — use `ConfigDict(from_attributes=True)` to allow reading from ORM objects.
+Define schemas in `genesis_server.schemas` to control API input/output. Schemas are often subsets or extensions of models — use `ConfigDict(from_attributes=True)` to allow reading from ORM objects.
 
 ## Step 3: Use Dependency Injections
 
-Use `myproject_server.dependencies` to access context at runtime:
+Use `genesis_server.dependencies` to access context at runtime:
 
 | Dependency | Returns | Purpose |
 |---|---|---|
@@ -48,7 +48,7 @@ Use `myproject_server.dependencies` to access context at runtime:
 
 ## Step 4: Write FastAPI Routers
 
-Create a new module in `myproject_server.routers`. Adhere to RESTful principles:
+Create a new module in `genesis_server.routers`. Adhere to RESTful principles:
 
 | Path Pattern | Methods | Purpose |
 |---|---|---|
@@ -59,7 +59,7 @@ Avoid procedural paths like `/submit-data`; use standard HTTP verbs against reso
 
 ## Step 5: Integrate
 
-1. Import your router into `myproject_server.main`
+1. Import your router into `genesis_server.main`
 2. Include it in the main FastAPI app: `app.include_router(your_router)`
 3. Verify the implementation via SwaggerUI at `http://localhost:8000/docs`
 

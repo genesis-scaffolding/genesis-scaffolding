@@ -2,7 +2,7 @@
 
 ## Overview
 
-The application uses Python's standard `logging` module. Configuration is centralized in `myproject_core/logging_config.py` and controlled via the `Config` system, making it the single source of truth for all log levels.
+The application uses Python's standard `logging` module. Configuration is centralized in `genesis_core/logging_config.py` and controlled via the `Config` system, making it the single source of truth for all log levels.
 
 ## Architecture
 
@@ -16,7 +16,7 @@ The application uses Python's standard `logging` module. Configuration is centra
                         │
                         ▼
 ┌─────────────────────────────────────────────────────┐
-│ myproject_core/logging_config.py                    │
+│ genesis_core/logging_config.py                    │
 │  setup_logging() → sets root logger level           │
 └─────────────────────────────────────────────────────┘
                         │
@@ -43,7 +43,7 @@ import logging
 logger = logging.getLogger(__name__)
 ```
 
-Using `__name__` gives you automatic hierarchy. For example, in `myproject_server/routers/chat.py`, the logger name is `myproject_server.routers.chat`.
+Using `__name__` gives you automatic hierarchy. For example, in `genesis_server/routers/chat.py`, the logger name is `genesis_server.routers.chat`.
 
 ### 2. Use the right log level
 
@@ -98,16 +98,16 @@ def load_agents():
 
 ### Via Environment Variable
 
-Set `MYPROJECT__LOG_LEVEL` in your `.env` file or shell environment:
+Set `GENESIS__LOG_LEVEL` in your `.env` file or shell environment:
 
 ```bash
 # .env
-myproject__log_level=DEBUG
+genesis__log_level=DEBUG
 ```
 
 Or inline when running:
 ```bash
-MYPROJECT__LOG_LEVEL=DEBUG uv run uvicorn ...
+GENESIS__LOG_LEVEL=DEBUG uv run uvicorn ...
 ```
 
 Valid values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` (case-insensitive). Invalid values default to `WARNING`.
@@ -120,7 +120,7 @@ When running with `uvicorn --reload`, the log level is automatically set to `DEB
 
 ```makefile
 dev-backend:
-    MYPROJECT__LOG_LEVEL=INFO $(UV) fastapi dev $(FASTAPI_MAIN) --reload-dir $(FASTAPI_DIR)
+    GENESIS__LOG_LEVEL=INFO $(UV) fastapi dev $(FASTAPI_MAIN) --reload-dir $(FASTAPI_DIR)
 ```
 
 Note: No `&&` needed when setting env vars inline before a command.
@@ -142,7 +142,7 @@ The default format is: `[%(name)s] %(levelname)s: %(message)s`
 
 Example output:
 ```
-[myproject_core.agent.agent_registry] INFO: Loaded 3 agents
+[genesis_core.agent.agent_registry] INFO: Loaded 3 agents
 [uvicorn.error] INFO: Application startup complete.
 ```
 

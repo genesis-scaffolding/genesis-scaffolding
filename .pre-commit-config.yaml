@@ -40,9 +40,9 @@ repos:
   #   hooks:
   #     - id: eslint
   #       name: eslint (Frontend)
-  #       entry: cd myproject-frontend && pnpm run lint
+  #       entry: cd genesis-frontend && pnpm run lint
   #       language: system
-  #       files: ^myproject-frontend/
+  #       files: ^genesis-frontend/
   #       types: [typescript, javascript]
 
   # TypeScript: type check (Frontend)
@@ -50,7 +50,7 @@ repos:
     hooks:
       - id: next-build
         name: next build type check (Frontend)
-        entry: cd myproject-frontend && pnpm run build
+        entry: cd genesis-frontend && pnpm run build
         language: system
-        files: ^myproject-frontend/
+        files: ^genesis-frontend/
         stages: [push]  # Only run on push, not on every commit (too slow)

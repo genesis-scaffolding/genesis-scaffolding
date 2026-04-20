@@ -89,7 +89,7 @@ For more information, see [Radix UI Dialog documentation](https://radix-ui.com/p
 
 Architecture references for specific components:
 
-- [Chat UI](../architecture/modules/myproject-frontend/chat-ui-components.md) — ChatProvider, message list, SSE streaming, inline edit in chat
-- [Page Layout System](../architecture/modules/myproject-frontend/page-layout-system.md) — PageContainer, PageBody, dashboard layout, scroll rules
-- [Markdown Rendering](../architecture/modules/myproject-frontend/markdown-rendering.md) — MarkdownText component with LaTeX support
-- [Inline Edit Form](../architecture/modules/myproject-frontend/inline-edit-form.md) — Reusable inline editing component pattern
+- [Chat UI](../architecture/modules/genesis-frontend/chat-ui-components.md) — ChatProvider, message list, SSE streaming, inline edit in chat
+- [Page Layout System](../architecture/modules/genesis-frontend/page-layout-system.md) — PageContainer, PageBody, dashboard layout, scroll rules
+- [Markdown Rendering](../architecture/modules/genesis-frontend/markdown-rendering.md) — MarkdownText component with LaTeX support
+- [Inline Edit Form](../architecture/modules/genesis-frontend/inline-edit-form.md) — Reusable inline editing component pattern

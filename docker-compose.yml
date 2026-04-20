@@ -1,10 +1,10 @@
 services:
-  myproject-aio:
+  genesis-aio:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: myproject-aio
-    image: myproject/myproject-aio:latest
+    container_name: genesis-aio
+    image: genesis/genesis-aio:latest
     pull_policy: build
     # Load your API keys and secrets from the root .env file
     env_file:

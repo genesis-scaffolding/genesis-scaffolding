@@ -24,8 +24,8 @@ inbox/
 # Ignore the database directory
 database/
 
-# Ignore the temp state used by myproject
-.myproject/
+# Ignore the temp state used by genesis
+.genesis/
 
 # Ignore user directories
 user_directories/

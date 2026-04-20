@@ -35,7 +35,7 @@ Key rules:
 
 ## Step 4: Register the Tool
 
-In `myproject_tools/registry.py`, import the tool class and register it with the registry by name.
+In `genesis_tools/registry.py`, import the tool class and register it with the registry by name.
 
 ## Path Validation Reference
 

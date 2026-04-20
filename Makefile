@@ -1,12 +1,12 @@
 .PHONY: setup backend-lint backend-format backend-test type-check check-all check-all-backend help
 
 # Target directories for Python logic
-BACKEND_DIRS := myproject-cli myproject-core myproject-server myproject-tui myproject-tools src
-FASTAPI_MAIN := myproject-server/src/myproject_server/main.py
-FASTAPI_DIR := myproject-server/src/myproject_server/
+BACKEND_DIRS := genesis-cli genesis-core genesis-server genesis-tui genesis-tools src
+FASTAPI_MAIN := genesis-server/src/genesis_server/main.py
+FASTAPI_DIR := genesis-server/src/genesis_server/
 
 # Directory for frontend
-FRONTEND_DIR := myproject-frontend
+FRONTEND_DIR := genesis-frontend
 
 # Shortcut for tools
 UV := uv run
@@ -98,7 +98,7 @@ build: build-backend build-frontend ## Full production build validation
 ### Run project in dev mode (bare metal)
 
 dev-backend: ### Run FastAPI backend in dev mode
-	MYPROJECT__LOG_LEVEL=DEBUG $(UV) fastapi dev $(FASTAPI_MAIN) --reload-dir $(FASTAPI_DIR)
+	GENESIS__LOG_LEVEL=DEBUG $(UV) fastapi dev $(FASTAPI_MAIN) --reload-dir $(FASTAPI_DIR)
 
 dev-frontend: ### Run frontend in dev mode
 	$(PNPM) dev
@@ -109,7 +109,7 @@ dev: ### Run both backend and frontend in parallel in dev mode
 ### Run project in prod mode (bare metal)
 
 run-backend: ### Run backend on bare metal
-	$(UV) myproject serve
+	$(UV) genesis serve
 
 run-frontend: ### Run frontend on bare metal (build must be done first)
 	$(PNPM) start
@@ -140,7 +140,7 @@ container/logs: ## Tail logs from the container
 	docker compose logs -f
 
 container/shell: ## Access the running container shell for debugging
-	docker compose exec myproject-aio /bin/bash
+	docker compose exec genesis-aio /bin/bash
 
 container/rebuild: container/down container/build container/up ## Rebuild and restart containers
 

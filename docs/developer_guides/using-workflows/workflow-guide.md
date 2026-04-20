@@ -340,9 +340,9 @@ Fetches and parses RSS/Atom feeds.
 
 ```python
 from pathlib import Path
-from myproject_core.workflow.workflow_engine import WorkflowEngine
-from myproject_core.workflow.workflow_registry import WorkflowRegistry
-from myproject_core.workflow.workflow_workspace import WorkspaceManager
+from genesis_core.workflow.workflow_engine import WorkflowEngine
+from genesis_core.workflow.workflow_registry import WorkflowRegistry
+from genesis_core.workflow.workflow_workspace import WorkspaceManager
 
 wm = WorkspaceManager(settings)
 reg = WorkflowRegistry(settings)
@@ -375,10 +375,10 @@ The workflow engine has three validation layers:
 
 ## Developing New Workflow Step Types
 
-Each task type requires three components defined in `myproject_core.workflow_tasks`:
+Each task type requires three components defined in `genesis_core.workflow_tasks`:
 
 1. **TaskParams**: A Pydantic model defining the task's allowed input parameters
 2. **TaskOutput**: A Pydantic model defining the data the task will write back to the blackboard
 3. **TaskClass**: A subclass of `BaseTask[TParams, TOutput]` implementing the `run()` logic
 
-See `myproject-core/src/myproject_core/workflow_tasks/base_task.py` for the abstract base class.
+See `genesis-core/src/genesis_core/workflow_tasks/base_task.py` for the abstract base class.
