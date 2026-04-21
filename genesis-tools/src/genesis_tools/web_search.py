@@ -20,28 +20,26 @@ class SearchResult(BaseModel):
     source: str | None = None
 
 
+def _ddgs_search(query: str, max_results: int) -> list[dict]:
+    with DDGS() as ddgs:
+        return list(ddgs.text(query, region="wt-wt", safesearch="moderate", max_results=max_results))
+
+
 async def search_web(query: str, max_results: int = 5, fetch_full: bool = False) -> list[SearchResult]:
     results = []
     try:
-        with DDGS() as ddgs:
-            search_results = ddgs.text(
-                query,
-                region="wt-wt",
-                safesearch="moderate",
-                max_results=max_results,
+        search_results = await asyncio.to_thread(_ddgs_search, query, max_results)
+
+        for r in search_results:
+            item = SearchResult(
+                title=r.get("title", ""), url=r.get("href", ""), snippet=r.get("body", ""),
             )
 
-            for r in search_results:
-                # Instantiate the class directly
-                item = SearchResult(
-                    title=r.get("title", ""), url=r.get("href", ""), snippet=r.get("body", ""),
-                )
+            if fetch_full:
+                full_data = await fetch_page(item.url)
+                item.full_content = full_data.get("content", "")
 
-                if fetch_full:
-                    full_data = await fetch_page(item.url)
-                    item.full_content = full_data.get("content", "")
-
-                results.append(item)
+            results.append(item)
 
         return results
     except Exception as e:
@@ -49,27 +47,30 @@ async def search_web(query: str, max_results: int = 5, fetch_full: bool = False)
         return []
 
 
+def _ddgs_news(query: str, max_results: int) -> list[dict]:
+    with DDGS() as ddgs:
+        return list(ddgs.news(query, max_results=max_results))
+
+
 async def search_news(query: str, max_results: int = 5, fetch_full: bool = False) -> list[SearchResult]:
     results = []
     try:
-        with DDGS() as ddgs:
-            # await the async call
-            news_results = ddgs.news(query, max_results=max_results)
+        news_results = await asyncio.to_thread(_ddgs_news, query, max_results)
 
-            for r in news_results:
-                item = SearchResult(
-                    title=r.get("title", ""),
-                    url=r.get("url", ""),  # News results use 'url' instead of 'href'
-                    snippet=r.get("body", ""),
-                    date=r.get("date"),
-                    source=r.get("source"),
-                )
+        for r in news_results:
+            item = SearchResult(
+                title=r.get("title", ""),
+                url=r.get("url", ""),
+                snippet=r.get("body", ""),
+                date=r.get("date"),
+                source=r.get("source"),
+            )
 
-                if fetch_full:
-                    full_data = await fetch_page(item.url)
-                    item.full_content = full_data.get("content", "")
+            if fetch_full:
+                full_data = await fetch_page(item.url)
+                item.full_content = full_data.get("content", "")
 
-                results.append(item)
+            results.append(item)
         return results
     except Exception as e:
         print(f"DDGS News Error: {e}")

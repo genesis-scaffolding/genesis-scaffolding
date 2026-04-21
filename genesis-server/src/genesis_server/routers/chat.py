@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from datetime import UTC, datetime
@@ -125,7 +126,7 @@ async def get_chat_history(
     agent = agent_reg.create_agent(session.agent_id, working_directory=working_dir, memory=memory)
 
     # Trigger token count update via agent's public method
-    agent.update_context_tokens()
+    await asyncio.to_thread(agent.update_context_tokens)
     context_tokens = agent.get_context_info()
 
     return {"session": session, "messages": messages, "context_tokens": context_tokens}

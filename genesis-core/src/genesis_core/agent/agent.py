@@ -352,7 +352,7 @@ class Agent:
                 # No more tools? Return the final text
                 logger.info("Agent '%s' completed without tool calls", self.agent_config.name)
                 self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
-                self.update_context_tokens()
+                await asyncio.to_thread(self.update_context_tokens)
                 return llm_response.content
 
             # --- LOOP DETECTION LOGIC ---
@@ -372,7 +372,7 @@ class Agent:
                     # Naive solution: just stop the agent loop for now. We will find a more elegant handling in the future
                     logger.warning("Agent '%s' loop detected: %s repeated %d times", self.agent_config.name, llm_response.tool_calls[0].function_name, repeat_count)
                     self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
-                    self.update_context_tokens()
+                    await asyncio.to_thread(self.update_context_tokens)
                     return f"Agent terminated: Detected a loop in tool calls ({llm_response.tool_calls[0].function_name})."
 
             tool_call_history.append(current_calls_signature)
@@ -406,7 +406,7 @@ class Agent:
                     await asyncio.gather(*tool_start_cb)
 
         self.memory.agent_clipboard.last_turn_at = datetime.now(ZoneInfo("UTC"))
-        self.update_context_tokens()
+        await asyncio.to_thread(self.update_context_tokens)
         logger.warning("Agent '%s' reached maximum %d turns", self.agent_config.name, max_turns)
         return "Agent reached maximum allowed turns without reaching a conclusion."
 
