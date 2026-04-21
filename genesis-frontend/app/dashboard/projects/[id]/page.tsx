@@ -1,4 +1,4 @@
-import { getProjectAction, getProjectsAction, getTasksAction } from "@/app/actions/productivity";
+import { getProjectAction, getProjectsAction, getTasksAction, getJournalsAction } from "@/app/actions/productivity";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { QuickAddTask } from "@/components/dashboard/tasks/quick-add-task";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { TaskTable } from "@/components/dashboard/tasks/task-table";
+import { JournalTable } from "@/components/dashboard/journals/journal-table";
 
 export default async function ProjectDetailPage({
   params
@@ -17,10 +18,11 @@ export default async function ProjectDetailPage({
 }) {
   const { id } = await params;
 
-  const [project, tasks, projects] = await Promise.all([
+  const [project, tasks, projects, journals] = await Promise.all([
     getProjectAction(id),
     getTasksAction({ project_id: id, include_completed: true }),
-    getProjectsAction()
+    getProjectsAction(),
+    getJournalsAction({ project_id: id }),
   ]);
   const completedTasks = tasks.filter(t => t.status?.toLowerCase().trim() === 'completed').length;
   const progress = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
@@ -88,8 +90,19 @@ export default async function ProjectDetailPage({
             tasks={tasks}
             projects={projects}
             variant="list"
+            pagination={true}
             floatingOffset={true}
           />
+        </div>
+
+        <Separator className="my-8" />
+
+        <div className="space-y-4 pb-24">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Project Journal</h2>
+          </div>
+
+          <JournalTable entries={journals} projects={projects} hiddenColumns={{ project: false, entry_type: false }} />
         </div>
         <div className="fixed bottom-6 left-0 right-0 px-4 md:left-[240px] z-50 pointer-events-none">
           <div className="max-w-4xl mx-auto pointer-events-auto">

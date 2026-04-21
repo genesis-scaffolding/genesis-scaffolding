@@ -317,6 +317,7 @@ def list_journals(
     session: ProdSessionDep,
     entry_type: JournalType | None = None,
     reference_date: date | None = None,
+    project_id: int | None = None,
     sort_by: Literal["reference_date", "created_at", "updated_at"] = "reference_date",
     order: Literal["asc", "desc"] = "desc",  # Journals default to newest first
 ):
@@ -325,6 +326,8 @@ def list_journals(
         statement = statement.where(JournalEntry.entry_type == entry_type)
     if reference_date:
         statement = statement.where(JournalEntry.reference_date == reference_date)
+    if project_id:
+        statement = statement.where(JournalEntry.project_id == project_id)
 
     statement = apply_sorting(statement, JournalEntry, sort_by, order)
     return session.exec(statement).all()

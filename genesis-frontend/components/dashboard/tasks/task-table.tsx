@@ -13,6 +13,7 @@ interface TaskTableProps {
   projects: Project[];
   variant?: "table" | "list" | "dashboard";
   floatingOffset?: boolean;
+  pagination?: boolean;
 }
 
 export function TaskTable({
@@ -20,9 +21,9 @@ export function TaskTable({
   projects,
   variant = "table",
   floatingOffset = false,
+  pagination,
 }: TaskTableProps) {
-  // Enable pagination for "table" variant, disable for "dashboard" and "list"
-  const enablePagination = variant === "table";
+  const enablePagination = pagination ?? variant === "table";
 
   const columns = React.useMemo(() => getTaskColumns(projects, variant), [projects, variant]);
 

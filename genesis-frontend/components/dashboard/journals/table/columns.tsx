@@ -91,7 +91,7 @@ export const getJournalColumns = (
     cell: ({ row }) => {
       const entry = row.original;
       return (
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Link href={`/dashboard/journals/${entry.id}/edit`}>
             <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
           </Link>
