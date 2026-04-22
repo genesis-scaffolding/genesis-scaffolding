@@ -61,10 +61,12 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
 
   const handleCopyMarkdown = async (msg: ChatMessage, index: number) => {
     const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2);
+    // Set copied state synchronously before async op — ensures "Copied!" feedback
+    // renders even if activeMessageIndex changes while awaiting clipboard
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
     try {
       await navigator.clipboard.writeText(content);
-      setCopiedIndex(index);
-      setTimeout(() => setCopiedIndex(null), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
