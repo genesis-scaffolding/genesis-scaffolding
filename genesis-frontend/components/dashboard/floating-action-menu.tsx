@@ -92,7 +92,7 @@ export function FloatingActionMenu({
                 </Button>
               </div>
               <div className="bg-muted/30 rounded-xl p-1">
-                <QuickAddTask defaultProjectId={defaultProjectId} showToast={true} />
+                <QuickAddTask defaultProjectId={defaultProjectId} showToast={true} popupDirection="above" />
               </div>
             </div>
 

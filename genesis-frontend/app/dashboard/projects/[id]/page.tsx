@@ -107,7 +107,7 @@ export default async function ProjectDetailPage({
         <div className="fixed bottom-6 left-0 right-0 px-4 md:left-[240px] z-50 pointer-events-none">
           <div className="max-w-4xl mx-auto pointer-events-auto">
             <div className="bg-background/80 backdrop-blur-md border rounded-xl shadow-2xl p-2 border-primary/20">
-              <QuickAddTask defaultProjectId={Number(project.id)} />
+              <QuickAddTask defaultProjectId={Number(project.id)} popupDirection="above" />
             </div>
           </div>
         </div>

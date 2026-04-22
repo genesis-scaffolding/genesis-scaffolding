@@ -11,7 +11,7 @@ import { parseTaskInput } from "@/lib/task-parser";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
-export function QuickAddTask({ defaultProjectId, showToast = false }: { defaultProjectId?: number; showToast?: boolean }) {
+export function QuickAddTask({ defaultProjectId, showToast = false, popupDirection = "below" }: { defaultProjectId?: number; showToast?: boolean; popupDirection?: "above" | "below" }) {
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -189,7 +189,10 @@ export function QuickAddTask({ defaultProjectId, showToast = false }: { defaultP
 
       {/* Suggestion Popover */}
       {showSuggestions && filteredProjects.length > 0 && (
-        <div className="absolute z-50 mt-2 w-full max-w-[300px] bg-popover border rounded-lg shadow-xl p-1 animate-in fade-in zoom-in-95 duration-100">
+        <div className={cn(
+          "absolute z-50 w-full max-w-[300px] bg-popover border rounded-lg shadow-xl p-1 animate-in fade-in zoom-in-95 duration-100",
+          popupDirection === "above" ? "mb-2 bottom-full" : "mt-2"
+        )}>
           <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             Matching Projects
           </div>
