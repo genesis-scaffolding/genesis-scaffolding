@@ -66,7 +66,19 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 2000);
     try {
-      await navigator.clipboard.writeText(content);
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(content);
+      } else {
+        // Fallback for insecure contexts (HTTP / IP access) where Clipboard API unavailable
+        const textarea = document.createElement('textarea');
+        textarea.value = content;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
     } catch (err) {
       console.error('Failed to copy:', err);
     }
