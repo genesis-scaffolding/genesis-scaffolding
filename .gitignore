@@ -36,6 +36,8 @@ debug_messages.json
 # Ignore other working artefacts of superpowers skill
 docs/superpowers/**
 .superpowers/**
+agent_working_dir/
 
 # Git worktrees for sandbox feature development
 .worktrees/
+

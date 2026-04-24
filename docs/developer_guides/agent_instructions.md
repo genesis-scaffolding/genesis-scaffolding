@@ -95,3 +95,17 @@ Write your commit message simple and clear. Do not add "co-author by" or anythin
 DO NOT commit when are you in the middle of iterative code fixing or refinement with user, so that you do not commit the solutions that do not work. Only commit when you finally fix the issue. 
 
 When a spec has been finished, merge the branch back to master. Run the test on master branch again, and when everything works properly, you can delete the feature branch.
+
+
+## How to store working artefacts
+
+Artefacts that you need to store within a work session include your specs and your plans documents.
+
+Store these files within the following directories:
+
+- `agent_working_dir/specs`
+- `agent_working_dir/plans`
+
+Directories might not exist. You might need to create them. They are gitignored by default.
+
+Name your artefacts with yyyy-mm-dd prefix and descriptive phrase (e.g., `2026-04-24-add-ability-to-pin-agents-plan.md`)
