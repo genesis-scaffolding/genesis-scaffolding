@@ -42,8 +42,13 @@ export default async function DashboardPage() {
     return isAssignedCurrentOrPast || hasDeadlineThisWeek || isScheduledToday;
   }).slice(0, 20);
 
-  // Only show interactive agents for the dashboard chat quick-links
-  const interactiveAgents = allAgents.filter((agent) => agent.interactive);
+  // Only show interactive agents, sorted by: is_default first, then id ascending
+  const interactiveAgents = allAgents
+    .filter((agent) => agent.interactive)
+    .sort((a, b) => {
+      if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
+      return a.id.localeCompare(b.id);
+    });
 
   const activeProjects = projects.filter(p => p.status !== 'completed');
   const activeSchedules = schedules.filter(s => s.enabled).length;
