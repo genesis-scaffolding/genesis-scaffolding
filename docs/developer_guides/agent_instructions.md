@@ -48,7 +48,7 @@ A work session is considered completed when:
 
 Before engaging in discussion with developer or coding activity, you need to do **the following investigative activities**:
 
-- Read the docs. The architecture docs provide short cuts to understand the codebase. The developer guides provide instructions for commonly done tasks with the codebase.
+- **Explore the docs directories first**: Browse and read the markdown files under `docs/architecture/` and `docs/developer_guides/` thoroughly. These contain architecture diagrams, module descriptions, coding conventions, UI layout rules, and development practices. Only after reading these docs should you begin investigating the actual code.
 - Investigate the codebase related to the requests thoroughly before starting to respond. Always assume that the docs could be outdated, and therefore verify with the actual code first before starting to plan your implementation approach.
 
 
