@@ -4,10 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from genesis_core.configs import get_config, settings
+from genesis_core.core import GenesisCore
 from genesis_core.logging_config import setup_logging
 
-from .chat_manager import ChatManager
-from .database import init_db
 from .routers import (
     agents,
     auth,
@@ -21,7 +20,6 @@ from .routers import (
     users,
     workflows,
 )
-from .scheduler import SchedulerManager
 
 logger = logging.getLogger(__name__)
 
@@ -30,36 +28,32 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     config = get_config()
     setup_logging(config.log_level)
-    logger.info("Starting MyProject API server")
+    logger.info("Starting Genesis API server")
 
-    # 1. Initialize Database (Creates tables and Admin user)
-    init_db()
+    # 1. Create system-level GenesisCore for bootstrapping
+    #    This core has user_id=None and owns the system DB + scheduler
+    system_core = GenesisCore(user_id=None, server_root_directory=config.path.server_root_directory)
+    await system_core.init_system_db()
+    await system_core.sync_schedules()
+    system_core.scheduler.start()
 
-    # 2. Initialize the Global Scheduler Manager
-    sm = SchedulerManager()
-    logger.debug("SchedulerManager initialized")
+    # 2. Cache the system core at None key, initialize user cores dict
+    app.state.genesis_cores = {None: system_core}
 
-    # 3. Load all schedules from all users into the global scheduler
-    await sm.sync_schedules()
-    sm.start()
-    logger.info("Scheduler started with %d jobs loaded", len(sm.scheduler.get_jobs()))
-
-    # 4. Store in app state so routes can call sm.upsert_schedule/remove_schedule
-    app.state.scheduler = sm
-
-    # Initialize other global state
-    app.state.chat_manager = ChatManager()
-    logger.info("MyProject API server startup complete")
+    logger.info(
+        "Genesis API server startup complete (scheduler: %d jobs)",
+        len(system_core.scheduler.scheduler.get_jobs()),
+    )
 
     yield
 
-    # 5. Shutdown Logic
-    logger.info("Shutting down MyProject API server")
-    sm.stop()
-    logger.info("MyProject API server shutdown complete")
+    # 3. Shutdown Logic
+    logger.info("Shutting down Genesis API server")
+    system_core.scheduler.stop()
+    logger.info("Genesis API server shutdown complete")
 
 
-app = FastAPI(title="MyProject API", lifespan=lifespan)
+app = FastAPI(title="Genesis API", lifespan=lifespan)
 
 # Set up CORS using the safe list from our Config
 app.add_middleware(
@@ -88,3 +82,4 @@ app.include_router(memory.router)
 @app.get("/health")
 async def health_check():
     return {"status": "online"}
+

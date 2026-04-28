@@ -4,8 +4,10 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from genesis_core.events import CoreEvent, CoreEventType, EventBus
+from genesis_core.managers.workflow_job import WorkflowJobManager
+
 from ..agent.agent_registry import AgentRegistry
-from ..configs import get_config
 from ..schemas import (
     JobContext,
     WorkflowCallback,
@@ -24,13 +26,20 @@ logger = logging.getLogger(__name__)
 
 class WorkflowEngine:
     def __init__(
-        self, workspace_manager: WorkspaceManager, agent_registry: AgentRegistry, working_directory: Path
+        self,
+        workspace_manager: WorkspaceManager,
+        agent_registry: AgentRegistry,
+        working_directory: Path,
+        workflow_registry: WorkflowRegistry,
+        workflow_job_manager: WorkflowJobManager,
     ):
         self.workspace_manager = workspace_manager
         self.agent_registry = agent_registry
         self.working_directory = working_directory
+        self.workflow_registry = workflow_registry
+        self.workflow_job_manager = workflow_job_manager
 
-    async def run(
+    async def _run(
         self,
         manifest: WorkflowManifest,
         user_inputs: dict[str, Any],
@@ -64,7 +73,13 @@ class WorkflowEngine:
             task_instance = task_class()
 
             # Use callback to communicate step starting
-            logger.info("Executing step %d/%d: '%s' (type: %s)", idx + 1, len(manifest.steps), step_def.id, step_def.type)
+            logger.info(
+                "Executing step %d/%d: '%s' (type: %s)",
+                idx + 1,
+                len(manifest.steps),
+                step_def.id,
+                step_def.type,
+            )
             if step_callbacks:
                 event = WorkflowEvent(
                     event_type=WorkflowEventType.STEP_START,
@@ -148,33 +163,76 @@ class WorkflowEngine:
             # Note: You'll need a way to serialize complex objects if tasks return them
             json.dump(state, f, indent=2, default=str)
 
+    async def run_workflow(
+        self, user_id: int, workflow_id: str, inputs: dict[str, Any], event_bus: EventBus
+    ) -> Any:
+        """Run a workflow. Returns the completed job."""
+        # 1. Look up manifest
+        manifest = self.workflow_registry.get_workflow(workflow_id)
+        if not manifest:
+            raise ValueError(f"Workflow '{workflow_id}' not found")
 
-async def main():
-    settings = get_config()
-    # 1. Setup managers
-    wm = WorkspaceManager(settings)
-    reg = WorkflowRegistry(settings)
-    agent_reg = AgentRegistry(settings)
-    engine = WorkflowEngine(wm, agent_reg, settings.path.working_directory)
+        # 2. Create job record
+        job = self.workflow_job_manager.create_job(
+            user_id=user_id,
+            workflow_id=workflow_id,
+            inputs=inputs,
+        )
 
-    # 2. Pick the sample workflow
-    manifest = reg.get_workflow("sample_workflow_multi_agent")
-    if not manifest:
-        print("Error: sample_workflow.yaml not found in registry.")
-        return
+        # 3. Create event bus and wire callbacks
 
-    # 3. Simulate user input
-    user_data = {
-        "writing_topic": "An introduction to python monorepo, including concepts, benefits, and detailed guideline using uv",
-        "content_length": 2000,
-    }
-    # 4. RUN
-    print(f"Running workflow: {manifest.name}...")
-    workflow_output = await engine.run(manifest, user_data)
+        # 4. Run via engine (which handles step execution)
+        # Note: the existing engine.run() signature takes (manifest, user_inputs, step_callbacks)
+        # We adapt by wrapping step_callbacks to publish to event_bus
+        async def step_start_cb(event):
+            await event_bus.publish(
+                CoreEvent(
+                    event_type=CoreEventType.WORKFLOW_STEP_START,
+                    workflow_id=workflow_id,
+                    data={"step_id": event.step_id, "message": event.message},
+                )
+            )
 
-    print("Workflow Complete!")
-    print(f"{workflow_output}")
+        async def step_complete_cb(event):
+            await event_bus.publish(
+                CoreEvent(
+                    event_type=CoreEventType.WORKFLOW_STEP_COMPLETED,
+                    workflow_id=workflow_id,
+                    data={"step_id": event.step_id, "data": event.data},
+                )
+            )
 
+        async def step_failed_cb(event):
+            await event_bus.publish(
+                CoreEvent(
+                    event_type=CoreEventType.WORKFLOW_STEP_FAILED,
+                    workflow_id=workflow_id,
+                    data={"step_id": event.step_id, "message": event.message},
+                )
+            )
 
-if __name__ == "__main__":
-    asyncio.run(main())
+        callbacks = []
+
+        async def wrapped_cb(event):
+            if event.event_type == WorkflowEventType.STEP_START:
+                await step_start_cb(event)
+            elif event.event_type == WorkflowEventType.STEP_COMPLETED:
+                await step_complete_cb(event)
+            elif event.event_type == WorkflowEventType.STEP_FAILED:
+                await step_failed_cb(event)
+
+        callbacks.append(wrapped_cb)
+
+        try:
+            output = await self._run(manifest, inputs, step_callbacks=callbacks)
+            job_id = job.id
+            if job_id is None:
+                raise RuntimeError("Job id was not set after creation")
+            self.workflow_job_manager.mark_completed(job_id, user_id, output.model_dump())
+            return job
+        except Exception as e:
+            job_id = job.id
+            if job_id is None:
+                raise RuntimeError("Job id was not set after creation") from e
+            self.workflow_job_manager.mark_failed(job_id, user_id, str(e))
+            raise

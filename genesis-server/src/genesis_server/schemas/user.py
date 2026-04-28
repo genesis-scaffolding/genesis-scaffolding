@@ -1,6 +1,5 @@
+from genesis_core.database.models.user import UserBase
 from pydantic import BaseModel
-
-from ..models.user import UserBase
 
 
 class UserCreate(UserBase):
@@ -14,5 +13,5 @@ class UserRead(UserBase):
 class UserUpdate(BaseModel):
     full_name: str | None = None
     email: str | None = None
-    current_password: str | None = None  # Required to verify identity for sensitive changes
+    current_password: str | None = None
     new_password: str | None = None

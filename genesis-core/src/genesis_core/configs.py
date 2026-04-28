@@ -180,7 +180,11 @@ def deep_merge(base: dict, update: dict) -> dict:
 
 
 # @lru_cache()
-def get_config(user_workdir: Path | None = None, override_yaml: Path | None = None) -> Config:
+def get_config(
+    user_workdir: Path | None = None,
+    override_yaml: Path | None = None,
+    server_root_directory: Path | None = None,
+) -> Config:
     # 1. Initialize from Environment Variables / .env
     # Pydantic BaseSettings automatically populates this
     logger.debug("Loading configuration, env vars and .env file")
@@ -202,7 +206,12 @@ def get_config(user_workdir: Path | None = None, override_yaml: Path | None = No
     # Re-validate the merged dictionary into the Config model
     conf = Config(**conf_dict)
 
-    # 3. Apply User Workspace Isolation
+    # 3. Apply explicit server_root_directory override before path resolution
+    if server_root_directory is not None:
+        logger.debug("Applying explicit server_root_directory: %s", server_root_directory)
+        conf.path.server_root_directory = server_root_directory.resolve()
+
+    # 4. Apply User Workspace Isolation
     if user_workdir:
         logger.debug("Applying user workspace isolation, working_directory: %s", user_workdir)
         conf.path.working_directory = user_workdir.resolve()

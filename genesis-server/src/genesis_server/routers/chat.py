@@ -1,135 +1,85 @@
-import asyncio
+"""
+Chat router using EventBus for SSE streaming.
+
+All DB operations go through core.chat_manager.
+Agent execution goes through core.agent_engine.
+SSE streaming uses EventBus: router creates a bus per session,
+SSE clients subscribe to it.
+"""
 import json
 import logging
-from datetime import UTC, datetime
-from pathlib import Path
-from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from genesis_core.agent.agent_memory import AgentMemory
-from genesis_core.agent.agent_registry import AgentRegistry
-from genesis_core.agent.clipboard import AgentClipboard
-from sqlmodel import Session, col, delete, select
+from genesis_core.events import CoreEvent, CoreEventType, EventBus
 
-from ..chat_manager import ChatManager
-from ..database import get_session, get_session_context
-from ..dependencies import get_agent_registry, get_current_active_user, get_user_inbox_path
-from ..models.chat import ChatMessage, ChatSession
-from ..models.user import User
-from ..schemas.chat import ChatHistoryRead, ChatSessionCreate, ChatSessionRead
+from genesis_server.dependencies import CoreDep, InboxDep
+from genesis_server.schemas.chat import ChatSessionCreate
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 logger = logging.getLogger(__name__)
 
 
 # GET ALL CHAT SESSIONS
-@router.get("/", response_model=list[ChatSessionRead])
-async def list_sessions(
-    db: Annotated[Session, Depends(get_session)],
-    user: Annotated[User, Depends(get_current_active_user)],
-    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
-):
-    # 1. Get the IDs of all currently available agents from the registry
-    # agent_reg.get_all_agent_types() returns the keys (filenames) of existing agents
-    active_agent_ids = list(agent_reg.get_all_agent_types())
-
-    # 2. If no agents are registered, return an empty list immediately
-    # (prevents SQL errors or unnecessary queries)
-    if not active_agent_ids:
-        return []
-
-    # 3. Filter the query so it only returns sessions where the agent_id
-    # is still in the registry
-    return db.exec(
-        select(ChatSession)
-        .where(ChatSession.user_id == user.id, col(ChatSession.agent_id).in_(active_agent_ids))
-        .order_by(col(ChatSession.updated_at).desc()),
-    ).all()
+@router.get("/")
+async def list_sessions(core: CoreDep):
+    """List all chat sessions for the current user."""
+    return core.list_chat_sessions()
 
 
-# 2. CREATE NEW SESSION
-@router.post("/", response_model=ChatSessionRead)
+# CREATE NEW SESSION
+@router.post("/", response_model=dict)
 async def create_session(
-    config: ChatSessionCreate,
-    db: Annotated[Session, Depends(get_session)],
-    user: Annotated[User, Depends(get_current_active_user)],
-    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
-    working_dir: Annotated[Path, Depends(get_user_inbox_path)],
+    payload: ChatSessionCreate,
+    core: CoreDep,
+    inbox: InboxDep,
 ):
-    # 1. Validate agent exists
-    if config.agent_id not in agent_reg.get_all_agent_types():
+    """Create a new chat session with an agent."""
+    agent_id = payload.agent_id
+
+    # Validate agent exists
+    if agent_id not in core.agent_registry.get_all_agent_types():
         raise HTTPException(status_code=404, detail="Agent not found")
 
-    if not user.id:
-        raise HTTPException(status_code=400, detail="User not found")
+    user_id = core.user_id
+    if user_id is None:
+        raise HTTPException(status_code=400, detail="User has no ID")
 
-    # 2. Create the Session object
-    new_session = ChatSession(user_id=user.id, agent_id=config.agent_id, title=config.title or "New Chat")
+    # Get initial messages from agent (system prompt, greeting, etc.)
+    agent = core.agent_registry.create_agent(agent_id, working_directory=inbox)
+    initial_messages = agent.memory.get_messages() if hasattr(agent, 'memory') and agent.memory else []
 
-    db.add(new_session)
-    # Flush sends the 'INSERT' to the DB to generate the ID, but doesn't commit the transaction yet
-    db.flush()
-
-    if not new_session.id:
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to create session")
-
-    # 3. Initialize Agent to get starting messages (System prompts, greetings, etc.)
-    agent = agent_reg.create_agent(config.agent_id, working_directory=working_dir)
-    agent_messages = agent.memory.get_messages()
-
-    # 4. Add initial messages to the database
-    for msg in agent_messages:
-        db_msg = ChatMessage(
-            session_id=new_session.id,  # Use the ID generated during flush
-            payload=msg,
-        )
-        db.add(db_msg)
-
-    # 5. Commit all changes at once
-    try:
-        db.commit()
-        db.refresh(new_session)
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to create session: {e!s}") from e
-
-    return new_session
+    # Create session with initial messages
+    session = core.chat_manager.create_session(
+        user_id=user_id,
+        agent_id=agent_id,
+        title=payload.title or "New Chat",
+        initial_messages=[{"role": m.get("role"), "content": m.get("content")} for m in initial_messages] if initial_messages else None,
+    )
+    return session
 
 
-# 3. GET SESSION HISTORY
-@router.get("/{session_id}", response_model=ChatHistoryRead)
+# GET SESSION HISTORY
+@router.get("/{session_id}", response_model=dict)
 async def get_chat_history(
     session_id: int,
-    db: Annotated[Session, Depends(get_session)],
-    user: Annotated[User, Depends(get_current_active_user)],
-    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
-    working_dir: Annotated[Path, Depends(get_user_inbox_path)],
+    core: CoreDep,
 ):
-    session = db.get(ChatSession, session_id)
-    if not session or session.user_id != user.id:
-        raise HTTPException(status_code=404)
+    """Get session with messages and context info."""
+    user_id = core.user_id
+    if user_id is None:
+        raise HTTPException(status_code=400, detail="User has no ID")
 
-    messages = db.exec(
-        select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(col(ChatMessage.id).asc()),
-    ).all()
+    try:
+        session, messages = core.get_chat_session(session_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Session not found") from None
 
-    # Reconstruct memory to get token counts via agent's public interface
-    memory_list = [m.payload for m in messages]
-    clipboard = AgentClipboard.model_validate(session.clipboard_state) if session.clipboard_state else None
-    memory = (
-        AgentMemory(messages=memory_list, agent_clipboard=clipboard) if (memory_list or clipboard) else None
-    )
-
-    # Create agent to access its token counting interface
-    agent = agent_reg.create_agent(session.agent_id, working_directory=working_dir, memory=memory)
-
-    # Trigger token count update via agent's public method
-    await asyncio.to_thread(agent.update_context_tokens)
-    context_tokens = agent.get_context_info()
-
-    return {"session": session, "messages": messages, "context_tokens": context_tokens}
+    return {
+        "session": session,
+        "messages": messages,
+        "context_tokens": {},  # TODO: wire token counting via agent engine
+    }
 
 
 @router.post("/{session_id}/message")
@@ -137,182 +87,80 @@ async def send_message(
     session_id: int,
     background_tasks: BackgroundTasks,
     request: Request,
-    working_dir: Annotated[Path, Depends(get_user_inbox_path)],
-    db: Annotated[Session, Depends(get_session)],
-    user: Annotated[User, Depends(get_current_active_user)],
-    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
+    core: CoreDep,
     input_index: int | None = None,
     user_input: str = Body(..., embed=True),
 ):
+    """Run an agent turn on a chat session. Streams events via SSE."""
+    user_id = core.user_id
+    if user_id is None:
+        raise HTTPException(status_code=400, detail="User has no ID")
+
     logger.info(
         "(Chat Session %s) Received new message from user\n- user_input: %s\n- input_index: %s",
         session_id,
         user_input,
         input_index,
     )
-    # validate input_index
+
+    # Validate input_index
     if input_index is not None and input_index > 0:
         raise HTTPException(status_code=400, detail="input_index must be negative or zero")
 
-    # 1. Fetch Session
-    chat_session = db.get(ChatSession, session_id)
-    if not chat_session or chat_session.user_id != user.id:
+    # Load session to verify ownership
+    session_obj = core.chat_manager.get_session(session_id, user_id)
+    if not session_obj:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # 2. Concurrency Lock: Check if already running
-    if chat_session.is_running:
+    # Check concurrency lock
+    if session_obj.is_running:
         raise HTTPException(status_code=409, detail="Agent is currently processing a message.")
 
-    # 3. Reconstruct AgentMemory
-    past_messages = db.exec(
-        select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(col(ChatMessage.id).asc()),
-    ).all()
-
-    messages_list = [m.payload for m in past_messages]
-    # If editing an existing user message (input_index < 0), truncate history
+    # Handle message editing: truncate history to the target user message
     if input_index is not None and input_index < 0:
-        logger.debug(
-            "(Chat Session %s) Truncating message history to support editing.",
-            session_id,
-        )
-
-        # Build list of (index, record) pairs for user messages only
+        past_messages = core.chat_manager.get_messages(session_id, user_id)
         user_messages_with_records = [
-            (i, record) for i, record in enumerate(past_messages) if record.payload.get("role") == "user"
+            (i, record) for i, record in enumerate(past_messages)
+            if record.payload.get("role") == "user"
         ]
         user_indices = [i for i, _ in user_messages_with_records]
-
         try:
             target_idx = user_indices[input_index]
         except IndexError:
             raise HTTPException(status_code=400, detail="Cannot edit: message index out of range") from None
 
         target_record = past_messages[target_idx]
+        # Delete messages from target onwards
+        if target_record.id is not None:
+            core.chat_manager.delete_messages_after(session_id, user_id, target_record.id)
 
-        # Remove everything upto and including the user message to be edited
-        messages_list = messages_list[:target_idx]
+    # Lock session
+    core.chat_manager.update_session(session_id, user_id, is_running=True)
 
-        logger.debug(
-            "(Chat Session %s) message_list after removing messages for editing:\n%s",
-            session_id,
-            messages_list,
-        )
+    # Create EventBus for this run and store in app.state
+    event_bus = EventBus()
+    if not hasattr(request.app.state, 'chat_streams'):
+        request.app.state.chat_streams = {}
+    request.app.state.chat_streams[session_id] = event_bus
 
-        # Delete ChatMessage records after the target in the SAME transaction
-        db.exec(
-            delete(ChatMessage)
-            .where(ChatMessage.session_id == session_id)  # type:ignore
-            .where(ChatMessage.id >= target_record.id)  # type:ignore
-        )
-        db.flush()  # Ensure deletes are executed before continuing
-        db.commit()
-
-    # Inject the clipboard
-    clipboard = (
-        AgentClipboard.model_validate(chat_session.clipboard_state)
-        if chat_session.clipboard_state
-        else None
-    )
-    # This is crucial to fix a bug where the agent is initialized with empty messages list
-    # Thus losing the system prompt
-    if messages_list and clipboard:
-        memory = AgentMemory(messages=messages_list, agent_clipboard=clipboard)
-    else:
-        memory = None
-
-    # raise HTTPException(status_code=500, detail="Stopping for debug.")
-    # 4. Get Agent & Initialize Run
-    agent = agent_reg.create_agent(chat_session.agent_id, working_directory=working_dir, memory=memory)
-
-    chat_manager: ChatManager = (
-        request.app.state.chat_manager
-    )  # Assuming we add this to app.state in lifespan
-    active_run = chat_manager.get_or_create_run(session_id, user_input=user_input)
-
-    # 5. Define Background Execution
-    async def run_agent_task():
+    # Background task
+    async def run_agent():
         try:
-            # We record the length to know exactly which messages are "new"
-            initial_memory_length = len(agent.memory.messages)
-
-            await agent.step(
-                input=user_input,
-                stream=True,
-                content_chunk_callbacks=[active_run.handle_content],
-                reasoning_chunk_callbacks=[active_run.handle_reasoning],
-                tool_start_callback=[active_run.handle_tool_start],
-                tool_result_callback=[active_run.handle_tool_result],
-            )
-
-            # --- POST RUN PERSISTENCE ---
-            # Extract only the newly generated messages (user message + agent responses + tools)
-            new_messages = agent.memory.messages[initial_memory_length:]
-
-            # print("NEW MESSAGES TO WRITE TO DATABASE")
-            # print(new_messages)
-            logger.debug(
-                "(Chat Session %s) New messages to write to database:\n%s",
-                session_id,
-                new_messages,
-            )
-            # We need a fresh DB session for the background task
-            with get_session_context() as bg_db:  # Assuming you have a context manager for DB
-                session_to_update = bg_db.get(ChatSession, session_id)
-                if session_to_update:
-                    past_messages = bg_db.exec(
-                        select(ChatMessage)
-                        .where(ChatMessage.session_id == session_id)
-                        .order_by(col(ChatMessage.id).asc()),
-                    ).all()
-
-                    logger.debug(
-                        "(Chat Session %s) Existing messages in database before writing:\n%s",
-                        session_id,
-                        past_messages,
-                    )
-
-                    # Save new messages
-                    for msg in new_messages:
-                        db_msg = ChatMessage(session_id=session_id, payload=msg)
-                        bg_db.add(db_msg)
-
-                    # Save clipboard, update timestamp, and unlock
-                    session_to_update.clipboard_state = agent.memory.agent_clipboard.model_dump(mode="json")
-                    session_to_update.updated_at = datetime.now(UTC)
-                    session_to_update.is_running = False
-                    bg_db.commit()
-
-                    logger.debug(
-                        "(Chat Session %s) Wrote new message to database",
-                        session_id,
-                    )
-
+            await core.agent_engine.run(session_id, user_input, event_bus, edit_index=input_index)
         except Exception as e:
-            # Handle error, unlock DB
-            print(f"Agent Error: {e}")
-            with get_session_context() as bg_db:
-                session_to_update = bg_db.get(ChatSession, session_id)
-                if session_to_update:
-                    session_to_update.is_running = False
-                    bg_db.add(session_to_update)
-                    bg_db.commit()
+            logger.error("Agent error for session %s: %s", session_id, e)
+            await event_bus.publish(CoreEvent(
+                event_type=CoreEventType.AGENT_CONTENT,
+                session_id=session_id,
+                data={"chunk": f"[Error: {e!s}]"},
+            ))
         finally:
-            # Capture active_run reference before clearing
-            run = chat_manager.active_runs.get(session_id)
-            # Broadcast final state BEFORE clearing the run
-            # (clear_run terminates SSE queues, so broadcasts must happen first)
-            if run is not None:
-                await run.handle_token_usage(agent.get_context_info())
-                if agent.memory and agent.memory.agent_clipboard:
-                    clipboard_md = agent.memory.agent_clipboard.render_to_markdown()
-                    await run.handle_clipboard(clipboard_md)
-            chat_manager.clear_run(session_id)
+            event_bus.done()
+            # Clean up stream reference
+            if hasattr(request.app.state, 'chat_streams') and session_id in request.app.state.chat_streams:
+                del request.app.state.chat_streams[session_id]
 
-    # 6. Dispatch to background and return 202
-    background_tasks.add_task(run_agent_task)
-    # Lock it in DB
-    chat_session.is_running = True
-    db.commit()
+    background_tasks.add_task(run_agent)
     return {"status": "accepted", "message": "Agent is thinking..."}
 
 
@@ -320,39 +168,45 @@ async def send_message(
 async def stream_chat(
     session_id: int,
     request: Request,
-    db: Annotated[Session, Depends(get_session)],
-    user: Annotated[User, Depends(get_current_active_user)],
+    core: CoreDep,
 ):
-    # Standard validation
-    chat_session = db.get(ChatSession, session_id)
-    if not chat_session or chat_session.user_id != user.id:
+    """SSE stream for chat session events."""
+    user_id = core.user_id
+    if user_id is None:
+        raise HTTPException(status_code=400, detail="User has no ID")
+
+    # Verify session access
+    session_obj = core.chat_manager.get_session(session_id, user_id)
+    if not session_obj:
         raise HTTPException(status_code=404)
 
-    chat_manager: ChatManager = request.app.state.chat_manager
-    if session_id not in chat_manager.active_runs:
+    if not hasattr(request.app.state, 'chat_streams') or session_id not in request.app.state.chat_streams:
         return StreamingResponse(iter([]), media_type="text/event-stream")
 
-    active_run = chat_manager.active_runs[session_id]
-    client_queue = active_run.add_client()
+    event_bus = request.app.state.chat_streams[session_id]
 
     async def event_generator():
+        # Get catchup: current messages from the session
         try:
-            # 1. Send the CATCHUP payload
-            # This contains all messages (User, Assistant, Tool) produced in THIS step
-            yield f"event: catchup\ndata: {json.dumps({'interim_messages': active_run.messages})}\n\n"
+            _, messages = core.get_chat_session(session_id)
+            interim = [{"role": m.payload.get("role"), "content": m.payload.get("content")} for m in messages]
+            yield f"event: catchup\ndata: {json.dumps({'interim_messages': interim})}\n\n"
+        except ValueError:
+            pass
 
-            # 2. Live stream subsequent chunks
-            while True:
-                if await request.is_disconnected():
-                    break
-
-                item = await client_queue.get()
-                if item is None:
-                    break
-
-                payload = {"data": item["data"], "index": item.get("index")}
-                yield f"event: {item['event']}\ndata: {json.dumps(payload)}\n\n"
-        finally:
-            active_run.remove_client(client_queue)
+        # Stream events from EventBus
+        async for event in event_bus.subscribe():
+            if event.event_type == CoreEventType.AGENT_CONTENT:
+                yield f"event: content\ndata: {json.dumps({'chunk': event.data.get('chunk', '')})}\n\n"
+            elif event.event_type == CoreEventType.AGENT_REASONING:
+                yield f"event: reasoning\ndata: {json.dumps({'chunk': event.data.get('chunk', '')})}\n\n"
+            elif event.event_type == CoreEventType.AGENT_TOOL_START:
+                yield f"event: tool_start\ndata: {json.dumps({'name': event.data.get('name', ''), 'args': event.data.get('args', {})})}\n\n"
+            elif event.event_type == CoreEventType.AGENT_TOOL_RESULT:
+                yield f"event: tool_result\ndata: {json.dumps({'name': event.data.get('name', ''), 'result': event.data.get('result', '')})}\n\n"
+            elif event.event_type == CoreEventType.AGENT_TOKEN_USAGE:
+                yield f"event: token_usage\ndata: {json.dumps(event.data)}\n\n"
+            elif event.event_type == CoreEventType.AGENT_CLIPBOARD_SNAPSHOT:
+                yield f"event: clipboard\ndata: {json.dumps({'clipboard_md': event.data.get('clipboard_md', '')})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

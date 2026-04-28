@@ -124,7 +124,7 @@ class GenesisCLI:
             # Validation and TypeAdapter conversion happen inside engine.run()
             print(f"Starting workflow: {manifest.name}")
             try:
-                asyncio.run(self.engine.run(manifest, final_inputs, [renderer]))
+                asyncio.run(self.engine._run(manifest, final_inputs, [renderer]))
             except Exception as e:
                 print(f"Execution failed: {e}")
                 raise typer.Exit(1) from e

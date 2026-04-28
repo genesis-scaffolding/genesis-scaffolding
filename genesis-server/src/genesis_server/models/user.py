@@ -1,16 +1,5 @@
-from sqlmodel import Field, SQLModel
+# Re-export User from genesis_core so that imports like `from .models.user import User`
+# continue to work throughout the server without needing to know about genesis_core.
+from genesis_core.database.models import User
 
-
-class UserBase(SQLModel):
-    username: str = Field(index=True, unique=True)
-    full_name: str | None = None
-    email: str | None = Field(index=True, unique=True)
-    disabled: bool = Field(default=False)
-    working_directory: str | None = None
-
-
-class User(UserBase, table=True):
-    """The actual Database Table"""
-
-    id: int | None = Field(default=None, primary_key=True)
-    hashed_password: str
+__all__ = ["User"]

@@ -1,5 +1,16 @@
-# genesis_server/src/genesis_server/models/__init__.py
+# Re-export all models (now backed by genesis_core).
+from .chat import ChatMessage, ChatSession
+from .file_record import FileRecord
 from .user import User
+from .workflow_job import JobStatus, WorkflowJob
+from .workflow_schedule import WorkflowSchedule
 
-# This tells Ruff/Linters that these are exported and 'used'
-__all__ = ["User"]
+__all__ = [
+    "User",
+    "ChatSession",
+    "ChatMessage",
+    "WorkflowJob",
+    "WorkflowSchedule",
+    "JobStatus",
+    "FileRecord",
+]

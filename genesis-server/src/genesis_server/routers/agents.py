@@ -1,20 +1,19 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from genesis_core.agent.agent_registry import AgentRegistry
 from genesis_core.configs import Config
 
-from ..dependencies import get_agent_registry, get_user_config
-from ..schemas.agent import AgentCreate, AgentEdit, AgentRead
+from genesis_server.dependencies import CoreDep, get_server_settings
+from genesis_server.schemas.agent import AgentCreate, AgentEdit, AgentRead
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
 @router.get("/", response_model=list[AgentRead])
-async def list_agents(agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)]):
+async def list_agents(core: CoreDep):
     """Returns a list of all available agents blueprints."""
     results = []
-    for id, blueprint in agent_reg.blueprints.items():
+    for id, blueprint in core.agent_registry.blueprints.items():
         results.append(
             AgentRead(
                 id=id,
@@ -35,22 +34,21 @@ async def list_agents(agent_reg: Annotated[AgentRegistry, Depends(get_agent_regi
 @router.post("/", response_model=AgentRead, status_code=status.HTTP_201_CREATED)
 async def create_agent(
     payload: AgentCreate,
-    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
-    user_settings: Annotated[Config, Depends(get_user_config)],
+    core: CoreDep,
+    settings: Annotated[Config, Depends(get_server_settings)],
 ):
     """Creates a new custom agent by saving a markdown file to the user's directory."""
-    # Prepare data for the registry
     agent_dict = payload.model_dump()
     llm_model_name = payload.model_name
 
     # If user does not provide model name, use the default model of that user
     if not llm_model_name:
-        default_llm_model_name = user_settings.default_model
+        default_llm_model_name = settings.default_model
         agent_dict["model_name"] = default_llm_model_name
         llm_model_name = default_llm_model_name
 
     # If user does provide a model name, verify that it exists and its the provider exist
-    llm_config = user_settings.models.get(llm_model_name, None)
+    llm_config = settings.models.get(llm_model_name, None)
     if not llm_config:
         raise HTTPException(
             status_code=400,
@@ -58,7 +56,7 @@ async def create_agent(
         )
 
     provider_name = llm_config.provider
-    provider_config = user_settings.providers.get(provider_name, None)
+    provider_config = settings.providers.get(provider_name, None)
     if not provider_config:
         raise HTTPException(
             status_code=400,
@@ -67,10 +65,10 @@ async def create_agent(
 
     try:
         # Save to disk
-        agent_id = agent_reg.add_agent(agent_dict)
+        agent_id = core.agent_registry.add_agent(agent_dict)
 
         # Retrieve the newly created blueprint to return it
-        blueprint = agent_reg.blueprints.get(agent_id)
+        blueprint = core.agent_registry.blueprints.get(agent_id)
         if not blueprint:
             raise HTTPException(status_code=500, detail="Failed to reload agent after saving.")
 
@@ -92,10 +90,11 @@ async def create_agent(
 
 @router.get("/{agent_id}", response_model=AgentRead)
 async def get_agent_details(
-    agent_id: str, agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)]
+    agent_id: str,
+    core: CoreDep,
 ):
     """Returns the full metadata for a specific agent."""
-    blueprint = agent_reg.blueprints.get(agent_id)
+    blueprint = core.agent_registry.blueprints.get(agent_id)
     if not blueprint:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found in registry.")
 
@@ -124,20 +123,13 @@ async def get_agent_details(
 )
 async def delete_agent(
     agent_id: str,
-    agent_reg: Annotated["AgentRegistry", Depends(get_agent_registry)],  # type: ignore[name-defined]
+    core: CoreDep,
 ):
-    """Delete an agent from the registry.
-
-    - If the agent does not exist, a 404 is returned.
-    - If the agent exists but is marked ``read_only``, a 403 is returned.
-    - On successful deletion a 204 No Content is sent.
-    """
+    """Delete an agent from the registry."""
     try:
-        # The underlying registry method does the actual file removal.
-        agent_reg.delete_agent(agent_id)
+        core.agent_registry.delete_agent(agent_id)
 
     except ValueError as exc:
-        # The delete_agent implementation raises ValueError with a specific message.
         if "not found" in str(exc):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -148,13 +140,10 @@ async def delete_agent(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=str(exc),
             ) from exc
-        # Any other ValueError is unexpected – treat it as a server error.
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete agent.",
         ) from exc
-
-    # Returning ``None`` with the 204 status code tells FastAPI to send an empty body.
 
 
 @router.patch(
@@ -170,18 +159,11 @@ async def delete_agent(
 async def update_agent(
     agent_id: str,
     payload: AgentEdit,
-    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
+    core: CoreDep,
 ):
-    """Update an existing agent definition.
-
-    * The file is looked up in the **last** directory of ``settings.path.agent_search_paths``.
-    * ``system_prompt`` becomes the markdown **body**; all other fields are treated as metadata.
-    * If the agent does not exist → 404.
-    * If the agent is marked ``read_only`` → 403.
-    * On success the updated agent data is returned as ``AgentRead``.
-    """
+    """Update an existing agent definition."""
     try:
-        agent_reg.edit_agent(agent_id, payload.model_dump())
+        core.agent_registry.edit_agent(agent_id, payload.model_dump())
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -193,19 +175,17 @@ async def update_agent(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=str(exc),
             ) from exc
-        # Anything else is unexpected – treat as a server error.
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to edit agent.",
         ) from exc
     except OSError as exc:
-        # Writing the file failed for some OS‑level reason.
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to persist the updated agent file.",
         ) from exc
 
-    blueprint = agent_reg.blueprints.get(agent_id)
+    blueprint = core.agent_registry.blueprints.get(agent_id)
     if not blueprint:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
