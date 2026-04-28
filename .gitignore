@@ -21,8 +21,8 @@ workspaces/
 # Ignore the inbox directory where user drops their input files
 inbox/
 
-# Ignore the database directory
-database/
+# Ignore the database directory at root only (not nested in packages)
+/database/
 
 # Ignore the temp state used by genesis
 .genesis/

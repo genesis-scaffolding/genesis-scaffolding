@@ -14,7 +14,7 @@ from .agent.agent_registry import AgentRegistry
 from .configs import get_config
 from .database import init_system_db
 from .database.models import ChatSession, WorkflowSchedule
-from .events import CoreEvent, CoreEventType, EventBus
+from .events import EventBus
 from .managers import (
     ChatSessionManager,
     MemoryManager,
@@ -259,6 +259,8 @@ class GenesisCore:
             self._scheduler = SchedulerManager(
                 scheduled_job_manager=self.scheduled_job_manager,
                 workflow_job_manager=self.workflow_job_manager,
+                workflow_engine=self.workflow_engine,
+                event_bus=self.event_bus,
             )
         return self._scheduler
 

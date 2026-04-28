@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Literal
 
@@ -18,6 +19,8 @@ from genesis_server.schemas.productivity import (
     TaskRead,
     TaskUpdate,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TaskPaginatedResponse(BaseModel):
@@ -100,6 +103,7 @@ async def list_tasks(
     limit: int | None = None,
 ):
     """List tasks with optional filtering and pagination."""
+    logger.debug("list_tasks called with assigned_on=%s, project_id=%s, include_completed=%s", assigned_on, project_id, include_completed)
     tasks = core.productivity_manager.list_tasks(
         assigned_on=assigned_on,
         project_id=project_id,
@@ -107,6 +111,7 @@ async def list_tasks(
         sort_by=sort_by,
         order=order,
     )
+    logger.debug("list_tasks returned %d tasks", len(tasks))
     total = len(tasks)
 
     if offset is not None and limit is not None:

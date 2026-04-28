@@ -8,6 +8,7 @@ for Projects, Tasks, and JournalEntries.
 from datetime import UTC, date, datetime
 from typing import Any, Literal
 
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from ..configs import Config
@@ -95,7 +96,9 @@ class ProductivityManager:
         order: Literal["asc", "desc"] = "asc",
     ) -> list[Task]:
         with self._session() as session:
-            statement = select(Task)
+            # selectinload is the correct SQLAlchemy eager-load pattern; the string key
+            # form is valid at runtime but pyright's SQLAlchemy stubs can't resolve it
+            statement = select(Task).options(selectinload(Task.projects))  # type: ignore[reportArgumentType]
             if project_id:
                 statement = statement.join(ProjectTaskLink).where(ProjectTaskLink.project_id == project_id)
             if assigned_on:

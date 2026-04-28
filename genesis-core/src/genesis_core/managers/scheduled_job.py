@@ -33,11 +33,7 @@ class ScheduledJobManager:
     def list_enabled_schedules(self) -> list[WorkflowSchedule]:
         """List all enabled schedules (used by scheduler at startup)."""
         with get_session_context() as session:
-            return list(
-                session.exec(
-                    select(WorkflowSchedule).where(WorkflowSchedule.enabled).all()
-                )
-            )
+            return list(session.exec(select(WorkflowSchedule).where(WorkflowSchedule.enabled)).all())
 
     def get_schedule_by_id(self, schedule_id: int) -> WorkflowSchedule | None:
         """Get a schedule by ID without user filter (used by scheduler)."""
@@ -50,6 +46,7 @@ class ScheduledJobManager:
             schedule = session.get(WorkflowSchedule, schedule_id)
             if schedule:
                 from datetime import UTC, datetime
+
                 schedule.last_run_at = datetime.now(UTC)
                 session.add(schedule)
                 session.commit()
@@ -90,9 +87,7 @@ class ScheduledJobManager:
             session.refresh(schedule)
             return schedule
 
-    def update_schedule(
-        self, schedule_id: int, user_id: int, **kwargs
-    ) -> WorkflowSchedule | None:
+    def update_schedule(self, schedule_id: int, user_id: int, **kwargs) -> WorkflowSchedule | None:
         """Update schedule fields."""
         with get_session_context() as session:
             schedule = session.get(WorkflowSchedule, schedule_id)

@@ -10,6 +10,7 @@ import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+from genesis_core.events import EventBus
 from genesis_core.workflow.workflow_engine import WorkflowEngine
 
 from .managers.scheduled_job import ScheduledJobManager
@@ -41,12 +42,14 @@ class SchedulerManager:
         scheduled_job_manager: ScheduledJobManager,
         workflow_job_manager: WorkflowJobManager,
         workflow_engine: WorkflowEngine,
+        event_bus: EventBus,
     ):
         self._scheduled_job_manager = scheduled_job_manager
         self._workflow_job_manager = workflow_job_manager
         self._workflow_engine = workflow_engine
-        self.scheduler = AsyncIOScheduler()
+        self._event_bus = event_bus
         self._started = False
+        self.scheduler = AsyncIOScheduler()
 
     def start(self):
         if not self.scheduler.running:
@@ -97,26 +100,14 @@ class SchedulerManager:
             return
 
         user_id = schedule.user_id
-
-        user_workdir = get_config().path.server_users_directory / str(user_id)
-        user_config = get_config(
-            user_workdir=user_workdir,
-            override_yaml=user_workdir / "config.yaml",
-        )
-
-        workflow_engine = self._workflow_engine
-
-        # Get the workflow manifest
-        workflow_manifest = workflow_registry.get_workflow(schedule.workflow_id)
-        if not workflow_manifest:
-            logger.error("Workflow %s not found for user %s", schedule.workflow_id, user_id)
-            return
+        workflow_id = schedule.workflow_id
+        inputs = schedule.inputs or {}
 
         # Create the job record via manager (no direct DB session)
         job = self._workflow_job_manager.create_job(
             user_id=user_id,
             workflow_id=schedule.workflow_id,
-            inputs=schedule.inputs or {},
+            inputs=inputs,
             schedule_id=schedule_id,
         )
         job_id = job.id
@@ -131,10 +122,8 @@ class SchedulerManager:
 
         # Run the workflow
         try:
-            output = await workflow_engine._run(
-                workflow_manifest,
-                schedule.inputs or {},
-                step_callbacks=[],
+            output = await self._workflow_engine.run_workflow(
+                user_id=user_id, workflow_id=workflow_id, inputs=inputs, event_bus=self._event_bus
             )
             self._workflow_job_manager.mark_completed(
                 job_id,
