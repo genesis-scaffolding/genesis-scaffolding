@@ -98,9 +98,6 @@ class GenesisCore:
             self.workflow_job_manager,
         )
 
-        # Scheduler singleton: lazy acquisition
-        self._scheduler: SchedulerManager | None = None
-
         # Sandbox filesystem: lazy creation
         self._sandbox_filesystem: SandboxFilesystem | None = None
 
@@ -254,15 +251,22 @@ class GenesisCore:
 
     @property
     def scheduler(self) -> SchedulerManager:
-        """Create scheduler with injected managers on first access."""
-        if self._scheduler is None:
-            self._scheduler = SchedulerManager(
+        """Return the process-wide SchedulerManager singleton.
+
+        On first access, creates and stores the singleton using this instance's
+        managers. Subsequent accesses return the same singleton regardless of
+        which GenesisCore instance initiated it.
+        """
+        try:
+            return SchedulerManager.get_instance()
+        except RuntimeError:
+            sm = SchedulerManager(
                 scheduled_job_manager=self.scheduled_job_manager,
                 workflow_job_manager=self.workflow_job_manager,
                 workflow_engine=self.workflow_engine,
                 event_bus=self.event_bus,
             )
-        return self._scheduler
+            return sm
 
     @property
     def sandbox_filesystem(self) -> SandboxFilesystem:

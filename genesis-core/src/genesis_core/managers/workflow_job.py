@@ -5,6 +5,7 @@ Wraps the system database and provides CRUD operations for WorkflowJob.
 """
 
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from sqlmodel import col, select
@@ -12,6 +13,7 @@ from sqlmodel import col, select
 from ..configs import Config
 from ..database import get_session_context
 from ..database.models import JobStatus, WorkflowJob
+from ..schemas import WorkflowOutput
 
 
 class WorkflowJobManager:
@@ -90,9 +92,22 @@ class WorkflowJobManager:
         """Mark a job as running."""
         return self.update_job(job_id, user_id, status=JobStatus.RUNNING)
 
-    def mark_completed(self, job_id: int, user_id: int, result: dict[str, Any]) -> WorkflowJob | None:
-        """Mark a job as completed with result."""
-        return self.update_job(job_id, user_id, status=JobStatus.COMPLETED, result=result)
+    def mark_completed(self, job_id: int, user_id: int, output: WorkflowOutput) -> WorkflowJob | None:
+        """Mark a job as completed with a WorkflowOutput.
+
+        Extracts workflow_result into result, converts workspace_directory to
+        workspace_path (as string), and persists everything via update_job.
+        """
+        result = output.workflow_result
+        # Defensively convert any Path values to strings (safety net for any stray Path objects)
+        cleaned_result = {k: str(v) if isinstance(v, Path) else v for k, v in result.items()}
+        workspace_path = str(output.workspace_directory)
+        return self.update_job(
+            job_id, user_id,
+            status=JobStatus.COMPLETED,
+            result=cleaned_result,
+            workspace_path=workspace_path,
+        )
 
     def mark_failed(self, job_id: int, user_id: int, error_message: str) -> WorkflowJob | None:
         """Mark a job as failed with error message."""

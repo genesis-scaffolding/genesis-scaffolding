@@ -18,24 +18,17 @@ from .managers.workflow_job import WorkflowJobManager
 
 logger = logging.getLogger(__name__)
 
-_scheduler: "SchedulerManager | None" = None
-
-
-def get_scheduler() -> "SchedulerManager":
-    """Returns the process-wide SchedulerManager singleton."""
-    global _scheduler
-    if _scheduler is None:
-        raise RuntimeError("SchedulerManager not yet created.")
-    return _scheduler
-
 
 class SchedulerManager:
     """System-wide scheduler for workflow cron jobs.
 
-    All DB access goes through the injected managers:
+    Singleton — only one instance exists per process. All DB access goes through
+    the injected managers:
     - scheduled_job_manager: for reading/updating schedules
     - workflow_job_manager: for creating/updating job records
     """
+
+    _instance: "SchedulerManager | None" = None
 
     def __init__(
         self,
@@ -44,12 +37,23 @@ class SchedulerManager:
         workflow_engine: WorkflowEngine,
         event_bus: EventBus,
     ):
+        if SchedulerManager._instance is not None:
+            raise RuntimeError("SchedulerManager is already instantiated")
+        SchedulerManager._instance = self
+
         self._scheduled_job_manager = scheduled_job_manager
         self._workflow_job_manager = workflow_job_manager
         self._workflow_engine = workflow_engine
         self._event_bus = event_bus
         self._started = False
         self.scheduler = AsyncIOScheduler()
+
+    @classmethod
+    def get_instance(cls) -> "SchedulerManager":
+        """Return the process-wide singleton. Raises if not yet created."""
+        if cls._instance is None:
+            raise RuntimeError("SchedulerManager not yet created")
+        return cls._instance
 
     def start(self):
         if not self.scheduler.running:
@@ -93,6 +97,7 @@ class SchedulerManager:
 
     async def _execute_scheduled_task(self, schedule_id: int) -> None:
         """Execute a scheduled workflow. Called by APScheduler when cron fires."""
+        logger.info("Scheduled task triggered: schedule_id=%s", schedule_id)
         # Load schedule via manager (no direct DB session)
         schedule = self._scheduled_job_manager.get_schedule_by_id(schedule_id)
         if not schedule or not schedule.enabled:
@@ -123,13 +128,9 @@ class SchedulerManager:
         # Run the workflow
         try:
             output = await self._workflow_engine.run_workflow(
-                user_id=user_id, workflow_id=workflow_id, inputs=inputs, event_bus=self._event_bus
+                user_id=user_id, workflow_id=workflow_id, inputs=inputs, event_bus=self._event_bus,
             )
-            self._workflow_job_manager.mark_completed(
-                job_id,
-                user_id,
-                output.model_dump(),
-            )
+            self._workflow_job_manager.mark_completed(job_id, user_id, output)
             logger.info("Scheduled workflow %s completed for user %s", schedule.workflow_id, user_id)
         except Exception as e:
             self._workflow_job_manager.mark_failed(job_id, user_id, str(e))

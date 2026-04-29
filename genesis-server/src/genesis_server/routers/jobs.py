@@ -5,6 +5,7 @@ from typing import Any, cast
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
+from genesis_core.core import GenesisCore
 from genesis_core.schemas import WorkflowCallback, WorkflowEvent, WorkflowEventType
 from sse_starlette.sse import EventSourceResponse
 
@@ -36,10 +37,12 @@ class ServerSSERenderer:
     async def __call__(self, event: WorkflowEvent) -> None:
         queue = get_job_queue(self.user_id, self.job_id)
         if queue:
-            payload = json.dumps({
-                "step_id": event.step_id,
-                "message": event.message,
-            })
+            payload = json.dumps(
+                {
+                    "step_id": event.step_id,
+                    "message": event.message,
+                }
+            )
             await queue.put({"event": event.event_type.value, "data": payload})
 
 
@@ -62,25 +65,31 @@ class DatabaseProgressRenderer:
         new_status = mapping.get(event.event_type)
         if new_status:
             self.core_ref.workflow_job_manager.update_step_status(
-                self.job_id, self.user_id, event.step_id, new_status,
+                self.job_id,
+                self.user_id,
+                event.step_id,
+                new_status,
             )
 
 
 async def run_workflow_background(
     user_id: int,
-    job_id: int,
-    core_ref,
-    manifest,
+    workflow_id: str,
     workflow_inputs: dict[str, Any],
+    core_ref: GenesisCore,
     callbacks: list[WorkflowCallback],
+    job_id: int,
 ):
     """Background task to run a workflow job."""
     queue = get_job_queue(user_id, job_id)
     try:
-        await core_ref.workflow_engine.run(
-            manifest,
-            workflow_inputs,
-            step_callbacks=callbacks,
+        await core_ref.workflow_engine.run_workflow(
+            user_id=user_id,
+            workflow_id=workflow_id,
+            inputs=workflow_inputs,
+            event_bus=core_ref.event_bus,
+            job_id=job_id,
+            callbacks=callbacks,
         )
         if queue:
             await queue.put({"event": "status", "data": "COMPLETED"})
@@ -97,15 +106,14 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 def _resolve_inputs(manifest, inputs: dict[str, Any], user_inbox: Path) -> dict[str, Any]:
     """Resolve relative input paths relative to user inbox."""
     from genesis_core.schemas import WorkflowInputType
+
     resolved = inputs.copy()
     for input_name, definition in manifest.inputs.items():
         if input_name not in resolved or resolved[input_name] is None:
             continue
         val = resolved[input_name]
         if definition.type == WorkflowInputType.LIST_FILE and isinstance(val, list):
-            resolved[input_name] = [
-                str(user_inbox / f) if not Path(f).is_absolute() else f for f in val
-            ]
+            resolved[input_name] = [str(user_inbox / f) if not Path(f).is_absolute() else f for f in val]
         elif definition.type in [WorkflowInputType.FILE, WorkflowInputType.DIR] and isinstance(val, str):
             resolved[input_name] = str(user_inbox / val) if not Path(val).is_absolute() else val
     return resolved
@@ -146,18 +154,20 @@ async def submit_job(
 
     # Prepare callbacks
     sse_callback: WorkflowCallback = cast(WorkflowCallback, ServerSSERenderer(safe_user_id, safe_job_id))
-    db_callback: WorkflowCallback = cast(WorkflowCallback, DatabaseProgressRenderer(safe_job_id, safe_user_id, core))
+    db_callback: WorkflowCallback = cast(
+        WorkflowCallback, DatabaseProgressRenderer(safe_job_id, safe_user_id, core)
+    )
     callbacks = [sse_callback, db_callback]
 
     # Dispatch background task
     background_tasks.add_task(
         run_workflow_background,
         safe_user_id,
-        safe_job_id,
-        core,
-        manifest,
+        workflow_id,
         resolved_inputs,
+        core,
         callbacks,
+        safe_job_id,
     )
 
     return {"message": "Job submitted", "job_id": safe_job_id}
@@ -244,7 +254,9 @@ async def list_job_outputs(
     for full_path in output_dir.rglob("*"):
         if full_path.is_file():
             rel_path = full_path.relative_to(output_dir)
-            results.append({"name": full_path.name, "path": str(rel_path), "size": full_path.stat().st_size})
+            results.append(
+                {"name": full_path.name, "path": str(rel_path), "size": full_path.stat().st_size}
+            )
     return results
 
 

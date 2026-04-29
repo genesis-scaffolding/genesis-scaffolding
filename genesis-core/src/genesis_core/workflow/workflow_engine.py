@@ -164,75 +164,95 @@ class WorkflowEngine:
             json.dump(state, f, indent=2, default=str)
 
     async def run_workflow(
-        self, user_id: int, workflow_id: str, inputs: dict[str, Any], event_bus: EventBus
+        self,
+        user_id: int,
+        workflow_id: str,
+        inputs: dict[str, Any],
+        event_bus: EventBus,
+        job_id: int | None = None,
+        callbacks: list[WorkflowCallback] | None = None,
     ) -> Any:
-        """Run a workflow. Returns the completed job."""
-        # 1. Look up manifest
+        """Run a workflow. Returns the completed job.
+
+        Args:
+            user_id: Owner of the workflow.
+            workflow_id: Identifier of the workflow manifest to run.
+            inputs: Runtime inputs passed to the workflow.
+            event_bus: EventBus for streaming step events.
+            job_id: If given, use this existing job record instead of creating a new one.
+                    The job must exist and not be in a completed/failed state.
+            callbacks: Optional workflow-level callbacks for step events. If not provided,
+                       default callbacks that publish to event_bus are used.
+        """
         manifest = self.workflow_registry.get_workflow(workflow_id)
         if not manifest:
             raise ValueError(f"Workflow '{workflow_id}' not found")
 
-        # 2. Create job record
-        job = self.workflow_job_manager.create_job(
-            user_id=user_id,
-            workflow_id=workflow_id,
-            inputs=inputs,
-        )
-
-        # 3. Create event bus and wire callbacks
-
-        # 4. Run via engine (which handles step execution)
-        # Note: the existing engine.run() signature takes (manifest, user_inputs, step_callbacks)
-        # We adapt by wrapping step_callbacks to publish to event_bus
-        async def step_start_cb(event):
-            await event_bus.publish(
-                CoreEvent(
-                    event_type=CoreEventType.WORKFLOW_STEP_START,
-                    workflow_id=workflow_id,
-                    data={"step_id": event.step_id, "message": event.message},
-                )
+        # Use existing job or create a new one
+        if job_id is not None:
+            existing = self.workflow_job_manager.get_job(job_id, user_id)
+            if not existing:
+                raise ValueError(f"Job {job_id} not found for user {user_id}")
+            job = existing
+        else:
+            job = self.workflow_job_manager.create_job(
+                user_id=user_id,
+                workflow_id=workflow_id,
+                inputs=inputs,
             )
 
-        async def step_complete_cb(event):
-            await event_bus.publish(
-                CoreEvent(
-                    event_type=CoreEventType.WORKFLOW_STEP_COMPLETED,
-                    workflow_id=workflow_id,
-                    data={"step_id": event.step_id, "data": event.data},
+        # Build callback list: use provided callbacks, or wrap event_bus if none given
+        if callbacks is not None:
+            step_callbacks: list[WorkflowCallback] = callbacks
+        else:
+
+            async def step_start_cb(event):
+                await event_bus.publish(
+                    CoreEvent(
+                        event_type=CoreEventType.WORKFLOW_STEP_START,
+                        workflow_id=workflow_id,
+                        data={"step_id": event.step_id, "message": event.message},
+                    )
                 )
-            )
 
-        async def step_failed_cb(event):
-            await event_bus.publish(
-                CoreEvent(
-                    event_type=CoreEventType.WORKFLOW_STEP_FAILED,
-                    workflow_id=workflow_id,
-                    data={"step_id": event.step_id, "message": event.message},
+            async def step_complete_cb(event):
+                await event_bus.publish(
+                    CoreEvent(
+                        event_type=CoreEventType.WORKFLOW_STEP_COMPLETED,
+                        workflow_id=workflow_id,
+                        data={"step_id": event.step_id, "data": event.data},
+                    )
                 )
-            )
 
-        callbacks = []
+            async def step_failed_cb(event):
+                await event_bus.publish(
+                    CoreEvent(
+                        event_type=CoreEventType.WORKFLOW_STEP_FAILED,
+                        workflow_id=workflow_id,
+                        data={"step_id": event.step_id, "message": event.message},
+                    )
+                )
 
-        async def wrapped_cb(event):
-            if event.event_type == WorkflowEventType.STEP_START:
-                await step_start_cb(event)
-            elif event.event_type == WorkflowEventType.STEP_COMPLETED:
-                await step_complete_cb(event)
-            elif event.event_type == WorkflowEventType.STEP_FAILED:
-                await step_failed_cb(event)
+            async def wrapped_cb(event):
+                if event.event_type == WorkflowEventType.STEP_START:
+                    await step_start_cb(event)
+                elif event.event_type == WorkflowEventType.STEP_COMPLETED:
+                    await step_complete_cb(event)
+                elif event.event_type == WorkflowEventType.STEP_FAILED:
+                    await step_failed_cb(event)
 
-        callbacks.append(wrapped_cb)
+            step_callbacks = [wrapped_cb]
 
         try:
-            output = await self._run(manifest, inputs, step_callbacks=callbacks)
-            job_id = job.id
-            if job_id is None:
+            output = await self._run(manifest, inputs, step_callbacks=step_callbacks)
+            resolved_job_id = job.id
+            if resolved_job_id is None:
                 raise RuntimeError("Job id was not set after creation")
-            self.workflow_job_manager.mark_completed(job_id, user_id, output.model_dump())
+            self.workflow_job_manager.mark_completed(resolved_job_id, user_id, output)
             return job
         except Exception as e:
-            job_id = job.id
-            if job_id is None:
+            resolved_job_id = job.id
+            if resolved_job_id is None:
                 raise RuntimeError("Job id was not set after creation") from e
-            self.workflow_job_manager.mark_failed(job_id, user_id, str(e))
+            self.workflow_job_manager.mark_failed(resolved_job_id, user_id, str(e))
             raise
