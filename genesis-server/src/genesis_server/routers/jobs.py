@@ -1,49 +1,18 @@
-import asyncio
 import json
+import logging
 from pathlib import Path
 from typing import Any, cast
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 from genesis_core.core import GenesisCore
+from genesis_core.events import CoreEventType
 from genesis_core.schemas import WorkflowCallback, WorkflowEvent, WorkflowEventType
 from sse_starlette.sse import EventSourceResponse
 
 from genesis_server.dependencies import CoreDep
 
-# Global store: {user_id: {job_id: asyncio.Queue}}
-job_streams: dict[int, dict[int, asyncio.Queue]] = {}
-
-
-def get_job_queue(user_id: int, job_id: int) -> asyncio.Queue | None:
-    return job_streams.get(user_id, {}).get(job_id)
-
-
-def create_job_queue(user_id: int, job_id: int) -> asyncio.Queue:
-    if user_id not in job_streams:
-        job_streams[user_id] = {}
-    queue = asyncio.Queue()
-    job_streams[user_id][job_id] = queue
-    return queue
-
-
-class ServerSSERenderer:
-    """Implements WorkflowCallback to push events to SSE."""
-
-    def __init__(self, user_id: int, job_id: int):
-        self.user_id = user_id
-        self.job_id = job_id
-
-    async def __call__(self, event: WorkflowEvent) -> None:
-        queue = get_job_queue(self.user_id, self.job_id)
-        if queue:
-            payload = json.dumps(
-                {
-                    "step_id": event.step_id,
-                    "message": event.message,
-                }
-            )
-            await queue.put({"event": event.event_type.value, "data": payload})
+logger = logging.getLogger(__name__)
 
 
 class DatabaseProgressRenderer:
@@ -81,7 +50,6 @@ async def run_workflow_background(
     job_id: int,
 ):
     """Background task to run a workflow job."""
-    queue = get_job_queue(user_id, job_id)
     try:
         await core_ref.workflow_engine.run_workflow(
             user_id=user_id,
@@ -91,13 +59,8 @@ async def run_workflow_background(
             job_id=job_id,
             callbacks=callbacks,
         )
-        if queue:
-            await queue.put({"event": "status", "data": "COMPLETED"})
     except Exception as e:
-        if queue:
-            await queue.put({"event": "error", "data": json.dumps({"message": str(e)})})
-            await queue.put({"event": "status", "data": "FAILED"})
-            await asyncio.sleep(1)
+        logger.error("Workflow %s job %s failed: %s", workflow_id, job_id, e)
 
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -149,15 +112,11 @@ async def submit_job(
     safe_job_id = cast("int", job.id)
     safe_user_id = cast("int", user_id)
 
-    # Initialize SSE queue
-    create_job_queue(safe_user_id, safe_job_id)
-
-    # Prepare callbacks
-    sse_callback: WorkflowCallback = cast(WorkflowCallback, ServerSSERenderer(safe_user_id, safe_job_id))
+    # Prepare callbacks: only DatabaseProgressRenderer needed
     db_callback: WorkflowCallback = cast(
         WorkflowCallback, DatabaseProgressRenderer(safe_job_id, safe_user_id, core)
     )
-    callbacks = [sse_callback, db_callback]
+    callbacks = [db_callback]
 
     # Dispatch background task
     background_tasks.add_task(
@@ -204,30 +163,25 @@ async def get_job_detail(
 
 @router.get("/{job_id}/stream")
 async def stream_job(job_id: int, core: CoreDep):
-    """SSE stream for job step events."""
+    """SSE stream for job step events from EventBus."""
     user_id = core.user_id
     if user_id is None:
         raise HTTPException(status_code=400, detail="User has no ID")
 
-    async def event_generator():
-        queue = get_job_queue(user_id, job_id)
-        if not queue:
-            yield {"event": "error", "data": "Stream not found or expired"}
-            return
+    # Verify job exists and belongs to user
+    job = core.workflow_job_manager.get_job(job_id, user_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
 
-        try:
-            while True:
-                message = await queue.get()
-                yield message
-                is_status = message.get("event") == "status"
-                is_terminal = message.get("data") in ["COMPLETED", "FAILED"]
-                if (is_status and is_terminal) or message.get("event") == "error":
-                    break
-        finally:
-            if user_id in job_streams and job_id in job_streams[user_id]:
-                del job_streams[user_id][job_id]
-                if not job_streams[user_id]:
-                    del job_streams[user_id]
+    async def event_generator():
+        # Stream events from core.event_bus
+        async for event in core.event_bus.on_workflow(job_id):
+            if event.event_type == CoreEventType.WORKFLOW_STEP_START:
+                yield {"event": "step_start", "data": json.dumps({"step_id": event.data.get("step_id"), "message": event.data.get("message")})}
+            elif event.event_type == CoreEventType.WORKFLOW_STEP_COMPLETED:
+                yield {"event": "step_completed", "data": json.dumps({"step_id": event.data.get("step_id"), "data": event.data.get("data")})}
+            elif event.event_type == CoreEventType.WORKFLOW_STEP_FAILED:
+                yield {"event": "step_failed", "data": json.dumps({"step_id": event.data.get("step_id"), "message": event.data.get("message")})}
 
     return EventSourceResponse(event_generator())
 

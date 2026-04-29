@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from genesis_core.events import CoreEvent, CoreEventType, EventBus
+from genesis_core.events import CoreEventType, EventBus
 from genesis_core.managers.workflow_job import WorkflowJobManager
 
 from ..agent.agent_registry import AgentRegistry
@@ -202,35 +202,29 @@ class WorkflowEngine:
             )
 
         # Build callback list: use provided callbacks, or wrap event_bus if none given
+        resolved_job_id: int = job.id  # type: ignore[assignment]  # job.id is non-None after create_job
         if callbacks is not None:
             step_callbacks: list[WorkflowCallback] = callbacks
         else:
-
             async def step_start_cb(event):
-                await event_bus.publish(
-                    CoreEvent(
-                        event_type=CoreEventType.WORKFLOW_STEP_START,
-                        workflow_id=workflow_id,
-                        data={"step_id": event.step_id, "message": event.message},
-                    )
+                await event_bus.emit_workflow(
+                    resolved_job_id,
+                    CoreEventType.WORKFLOW_STEP_START,
+                    {"step_id": event.step_id, "message": event.message},
                 )
 
             async def step_complete_cb(event):
-                await event_bus.publish(
-                    CoreEvent(
-                        event_type=CoreEventType.WORKFLOW_STEP_COMPLETED,
-                        workflow_id=workflow_id,
-                        data={"step_id": event.step_id, "data": event.data},
-                    )
+                await event_bus.emit_workflow(
+                    resolved_job_id,
+                    CoreEventType.WORKFLOW_STEP_COMPLETED,
+                    {"step_id": event.step_id, "data": event.data},
                 )
 
             async def step_failed_cb(event):
-                await event_bus.publish(
-                    CoreEvent(
-                        event_type=CoreEventType.WORKFLOW_STEP_FAILED,
-                        workflow_id=workflow_id,
-                        data={"step_id": event.step_id, "message": event.message},
-                    )
+                await event_bus.emit_workflow(
+                    resolved_job_id,
+                    CoreEventType.WORKFLOW_STEP_FAILED,
+                    {"step_id": event.step_id, "message": event.message},
                 )
 
             async def wrapped_cb(event):
@@ -245,14 +239,10 @@ class WorkflowEngine:
 
         try:
             output = await self._run(manifest, inputs, step_callbacks=step_callbacks)
-            resolved_job_id = job.id
-            if resolved_job_id is None:
-                raise RuntimeError("Job id was not set after creation")
             self.workflow_job_manager.mark_completed(resolved_job_id, user_id, output)
             return job
         except Exception as e:
-            resolved_job_id = job.id
-            if resolved_job_id is None:
-                raise RuntimeError("Job id was not set after creation") from e
             self.workflow_job_manager.mark_failed(resolved_job_id, user_id, str(e))
             raise
+        finally:
+            await event_bus.end_workflow_stream(resolved_job_id)

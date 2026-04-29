@@ -3,15 +3,14 @@ Chat router using EventBus for SSE streaming.
 
 All DB operations go through core.chat_manager.
 Agent execution goes through core.agent_engine.
-SSE streaming uses EventBus: router creates a bus per session,
-SSE clients subscribe to it.
+SSE streaming uses EventBus: router subscribes to core.event_bus per session.
 """
 import json
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from genesis_core.events import CoreEvent, CoreEventType, EventBus
+from genesis_core.events import CoreEventType
 
 from genesis_server.dependencies import CoreDep, InboxDep
 from genesis_server.schemas.chat import ChatSessionCreate
@@ -137,28 +136,17 @@ async def send_message(
     # Lock session
     core.chat_manager.update_session(session_id, user_id, is_running=True)
 
-    # Create EventBus for this run and store in app.state
-    event_bus = EventBus()
-    if not hasattr(request.app.state, 'chat_streams'):
-        request.app.state.chat_streams = {}
-    request.app.state.chat_streams[session_id] = event_bus
-
     # Background task
     async def run_agent():
         try:
-            await core.agent_engine.run(session_id, user_input, event_bus, edit_index=input_index)
+            await core.agent_engine.run(session_id, user_input, core.event_bus, edit_index=input_index)
         except Exception as e:
             logger.error("Agent error for session %s: %s", session_id, e)
-            await event_bus.publish(CoreEvent(
-                event_type=CoreEventType.AGENT_CONTENT,
-                session_id=session_id,
-                data={"chunk": f"[Error: {e!s}]"},
-            ))
-        finally:
-            event_bus.done()
-            # Clean up stream reference
-            if hasattr(request.app.state, 'chat_streams') and session_id in request.app.state.chat_streams:
-                del request.app.state.chat_streams[session_id]
+            await core.event_bus.emit_chat(
+                session_id,
+                CoreEventType.AGENT_CONTENT,
+                {"chunk": f"[Error: {e!s}]"},
+            )
 
     background_tasks.add_task(run_agent)
     return {"status": "accepted", "message": "Agent is thinking..."}
@@ -167,7 +155,6 @@ async def send_message(
 @router.get("/{session_id}/stream")
 async def stream_chat(
     session_id: int,
-    request: Request,
     core: CoreDep,
 ):
     """SSE stream for chat session events."""
@@ -180,11 +167,6 @@ async def stream_chat(
     if not session_obj:
         raise HTTPException(status_code=404)
 
-    if not hasattr(request.app.state, 'chat_streams') or session_id not in request.app.state.chat_streams:
-        return StreamingResponse(iter([]), media_type="text/event-stream")
-
-    event_bus = request.app.state.chat_streams[session_id]
-
     async def event_generator():
         # Get catchup: current messages from the session
         try:
@@ -194,8 +176,8 @@ async def stream_chat(
         except ValueError:
             pass
 
-        # Stream events from EventBus
-        async for event in event_bus.subscribe():
+        # Stream events from core.event_bus
+        async for event in core.event_bus.on_chat(session_id):
             if event.event_type == CoreEventType.AGENT_CONTENT:
                 yield f"event: content\ndata: {json.dumps({'chunk': event.data.get('chunk', '')})}\n\n"
             elif event.event_type == CoreEventType.AGENT_REASONING:

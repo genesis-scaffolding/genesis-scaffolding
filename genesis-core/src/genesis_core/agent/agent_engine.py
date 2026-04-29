@@ -15,7 +15,7 @@ import logging
 from datetime import UTC, datetime
 
 from ..configs import Config
-from ..events import CoreEvent, CoreEventType, EventBus
+from ..events import CoreEventType, EventBus
 from ..managers.chat import ChatSessionManager
 from .agent_memory import AgentMemory
 from .agent_registry import AgentRegistry
@@ -54,6 +54,7 @@ class AgentEngine:
         5. Run agent.step()
         6. Persist new messages via chat_manager
         7. Broadcast final token/clipboard state
+        8. Emit STREAM_END (always, via finally block)
         """
         user_id = self._get_user_id_from_session(session_id)
         if user_id is None:
@@ -108,74 +109,53 @@ class AgentEngine:
 
         # 6. Wire callbacks to event_bus
         async def content_cb(chunk: str):
-            await event_bus.publish(CoreEvent(
-                event_type=CoreEventType.AGENT_CONTENT,
-                session_id=session_id,
-                data={"chunk": chunk},
-            ))
+            await event_bus.emit_chat(session_id, CoreEventType.AGENT_CONTENT, {"chunk": chunk})
 
         async def reasoning_cb(chunk: str):
-            await event_bus.publish(CoreEvent(
-                event_type=CoreEventType.AGENT_REASONING,
-                session_id=session_id,
-                data={"chunk": chunk},
-            ))
+            await event_bus.emit_chat(session_id, CoreEventType.AGENT_REASONING, {"chunk": chunk})
 
         async def tool_start_cb(name: str, args: dict):
-            await event_bus.publish(CoreEvent(
-                event_type=CoreEventType.AGENT_TOOL_START,
-                session_id=session_id,
-                data={"name": name, "args": args},
-            ))
+            await event_bus.emit_chat(session_id, CoreEventType.AGENT_TOOL_START, {"name": name, "args": args})
 
         async def tool_result_cb(name: str, args: dict):
-            await event_bus.publish(CoreEvent(
-                event_type=CoreEventType.AGENT_TOOL_RESULT,
-                session_id=session_id,
-                data={"name": name, "result": args.get("result", "")},
-            ))
+            await event_bus.emit_chat(session_id, CoreEventType.AGENT_TOOL_RESULT, {"name": name, "result": args.get("result", "")})
 
-        # 7. Run agent step
-        await agent.step(
-            input=user_input,
-            stream=True,
-            content_chunk_callbacks=[content_cb],
-            reasoning_chunk_callbacks=[reasoning_cb],
-            tool_start_callback=[tool_start_cb],
-            tool_result_callback=[tool_result_cb],
-        )
+        try:
+            # 7. Run agent step
+            await agent.step(
+                input=user_input,
+                stream=True,
+                content_chunk_callbacks=[content_cb],
+                reasoning_chunk_callbacks=[reasoning_cb],
+                tool_start_callback=[tool_start_cb],
+                tool_result_callback=[tool_result_cb],
+            )
 
-        # 8. Persist new messages
-        new_messages = agent.memory.messages[initial_memory_length:]
-        if new_messages:
-            self.chat_manager.add_messages(session_id, user_id, new_messages)
+            # 8. Persist new messages
+            new_messages = agent.memory.messages[initial_memory_length:]
+            if new_messages:
+                self.chat_manager.add_messages(session_id, user_id, new_messages)
 
-        # 9. Update clipboard state and timestamp
-        self.chat_manager.update_clipboard_state(
-            session_id,
-            user_id,
-            agent.memory.agent_clipboard.model_dump(mode="json") if agent.memory and agent.memory.agent_clipboard else {},
-        )
-        self.chat_manager.update_session(session_id, user_id, is_running=False, updated_at=datetime.now(UTC))
+            # 9. Update clipboard state and timestamp
+            self.chat_manager.update_clipboard_state(
+                session_id,
+                user_id,
+                agent.memory.agent_clipboard.model_dump(mode="json") if agent.memory and agent.memory.agent_clipboard else {},
+            )
+            self.chat_manager.update_session(session_id, user_id, is_running=False, updated_at=datetime.now(UTC))
 
-        # 10. Broadcast final token usage
-        context_info = agent.get_context_info()
-        await event_bus.publish(CoreEvent(
-            event_type=CoreEventType.AGENT_TOKEN_USAGE,
-            session_id=session_id,
-            data=context_info,
-        ))
+            # 10. Broadcast final token usage
+            context_info = agent.get_context_info()
+            await event_bus.emit_chat(session_id, CoreEventType.AGENT_TOKEN_USAGE, context_info)
 
-        # 11. Broadcast clipboard snapshot
-        if agent.memory and agent.memory.agent_clipboard:
-            clipboard_md = agent.memory.agent_clipboard.render_to_markdown()
-            await event_bus.publish(CoreEvent(
-                event_type=CoreEventType.AGENT_CLIPBOARD_SNAPSHOT,
-                session_id=session_id,
-                data={"clipboard_md": clipboard_md},
-            ))
+            # 11. Broadcast clipboard snapshot
+            if agent.memory and agent.memory.agent_clipboard:
+                clipboard_md = agent.memory.agent_clipboard.render_to_markdown()
+                await event_bus.emit_chat(session_id, CoreEventType.AGENT_CLIPBOARD_SNAPSHOT, {"clipboard_md": clipboard_md})
 
-        logger.info("AgentEngine: session %s completed", session_id)
+            logger.info("AgentEngine: session %s completed", session_id)
+        finally:
+            await event_bus.end_chat_stream(session_id)
 
     def _get_user_id_from_session(self, session_id: int) -> int | None:
         """Quick helper to get user_id from a session without full load."""

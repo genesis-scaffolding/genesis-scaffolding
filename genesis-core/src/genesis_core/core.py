@@ -172,15 +172,14 @@ class GenesisCore:
         user_input: str,
         edit_index: int | None = None,
     ) -> None:
-        """
-        Run a single agent turn on a chat session.
+        """Run a single agent turn on a chat session.
 
-        Caller should create an EventBus and subscribe to it to receive streamed events.
+        Events are published to self.event_bus. Callers should subscribe
+        to self.event_bus.on_chat(session_id) to receive streamed events.
         """
         if self.user_id is None:
             raise ValueError("run_agent requires a user_id")
-        event_bus = EventBus()
-        await self.agent_engine.run(session_id, user_input, event_bus, edit_index=edit_index)
+        await self.agent_engine.run(session_id, user_input, self.event_bus, edit_index=edit_index)
 
     # --- WORKFLOWS ---
 
@@ -240,12 +239,6 @@ class GenesisCore:
         await self.workflow_engine.run_workflow(
             self.user_id, workflow_id=workflow_id, inputs=inputs, event_bus=self.event_bus
         )
-
-    # --- EVENTS ---
-
-    def create_event_bus(self, session_id: int) -> EventBus:
-        """Create a new event bus for streaming events for a session."""
-        return EventBus()
 
     # --- SUBSYSTEM ACCESS (direct) ---
 
