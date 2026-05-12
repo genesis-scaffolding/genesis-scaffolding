@@ -13,8 +13,8 @@ services:
       - "3000:3000" # Frontend
       - "8000:8000" # Backend
     volumes:
-      - database_data:/app/database
-      - workspace_data:/app/workspaces
+      - genesis_data:/app/.genesis
+      - user_directories_data:/app/user_directories
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "ps", "aux"]
@@ -24,5 +24,5 @@ services:
       start_period: 10s
 
 volumes:
-  database_data:
-  workspace_data:
+  genesis_data:
+  user_directories_data:
