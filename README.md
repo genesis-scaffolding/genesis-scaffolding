@@ -8,18 +8,9 @@
 
 Genesis Scaffolding (`genesis-scaffolding`) is a scaffolding and an agent framework for building your own *full-stack agentic applications*. Use the existing monorepo structure and build scripts to bootstrap a web application quickly. Add interactive LLM-based agents within your application with the built-in agent framework. Leverage the built-in workflow engine and scheduler to put agents to work on repetitive processes within your app.
 
-`genesis-scaffolding` ships with the following to help you build your project:
-
-- A web app monorepo with sensible configurations. Supporting multiple users per instance with separate working directory and password-based `OAuth` flows out of the box.
-- A minimal agent framework developed from scratch with minimal external dependency. The framework provides a novel `agent clipboard` mechanism to optimize token usage to support small local models better.
-- A workflow engine developed from scratch to put agents to work in predefined processes. Workflows follow map-reduce design and can be written in YAML.
-- A built-in productivity management. Allowing you to build standalone personal assistant agents without granting access to your existing accounts.
-- Documentation and skills to support coding agents in adapting the scaffolding to your project.
-
-We developed and tuned the system with `nemotron-3-nano-30b-a3b` model to ensure that the system would work with smaller MoE models that can be deployed on consumer GPU with RAM offloading.
-
 `genesis-scaffolding` is usable out of the box as **a web-based productivity system that is fully accessible and controllable by AI agents**. The goal is to give everyone access to an "executive personal assistant" that they can own and host by themselves. We developed and tuned the system with `nemotron-3-nano-30b-a3b` model to ensure that the system would work with smaller MoE models that can be deployed on consumer GPU with RAM offloading.
 
+We developed and tuned the system with `nemotron-3-nano-30b-a3b` model to ensure that the system would work with smaller MoE models that can be deployed on consumer GPU with RAM offloading.
 
 ## Table of Contents
 
@@ -53,20 +44,6 @@ cd genesis-scaffolding
 ``` bash
 # Use the env template
 cp .env.example .env
-```
-
-```bash 
-## Content of the .env file
-# Define the provider (we name the provider "openrouter" in this case)
-genesis__providers__openrouter__name="openrouter" # Type of provider is openrouter
-genesis__providers__openrouter__base_url="https://openrouter.ai/api/v1" # Base URL to access the API
-genesis__providers__openrouter__api_key="sk1234" # API Key
-
-# Define the model (we name the model "default")
-genesis__models__default__provider="openrouter" # This model uses the provider defined above
-genesis__models__default__model="nvidia/nemotron-3-nano-30b-a3b:free" # Name of the model from openrouter
-# Optional: add extra params
-# genesis__models__default__params__temperature=0.5
 ```
 
 **Build and run docker image.** The state of the system is stored in `genesis_data` and `user_directories_data` volumes and preserved between docker runs
@@ -178,15 +155,15 @@ Agents are defined as markdown files at the backend. See [docs/agent_manifests.m
 ### Run workflows
 
 <p align="center">
-  <img src="docs/images/genesis_scaffolding_workflow_list_20260512.png" alt="Genesis Scaffolding Workflows" width="30%">
+  <img src="docs/images/genesis_scaffolding_workflow_list_20260512.png" alt="Genesis Scaffolding Workflows" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/images/genesis_scaffolding_workflow_input_20260512.png" alt="Genesis Scaffolding Workflows" width="30%">
+  <img src="docs/images/genesis_scaffolding_workflow_input_20260512.png" alt="Genesis Scaffolding Workflows" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/images/genesis_scaffolding_workflow_result_20260512.png" alt="Genesis Scaffolding Workflows" width="30%">
+  <img src="docs/images/genesis_scaffolding_workflow_result_20260512.png" alt="Genesis Scaffolding Workflows" width="100%">
 </p>
 
 A workflow is a predefined sequence of steps that take inputs and generate outputs. 
@@ -200,11 +177,11 @@ You can define workflows with YAML files. See [docs/workflow_manifest.md](docs/w
 ### Add LLM provider and models
 
 <p align="center">
-  <img src="docs/images/genesis_scaffolding_llm_configuration_20260512.png" alt="Genesis Scaffolding Workflows" width="30%">
+  <img src="docs/images/genesis_scaffolding_llm_configuration_20260512.png" alt="Genesis Scaffolding Workflows" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/images/genesis_scaffolding_provider_input_20260512.png" alt="Genesis Scaffolding Workflows" width="30%">
+  <img src="docs/images/genesis_scaffolding_provider_input_20260512.png" alt="Genesis Scaffolding Workflows" width="100%">
 </p>
 
 Access the LLM configuration by selecting *Workspace Settings* and then *LLM Configuration* tab.
@@ -217,7 +194,7 @@ Add a new provider by selecting the *Add Provider* button and fill in the form:
 - *API Key*
 
 <p align="center">
-  <img src="docs/images/genesis_scaffolding_model_input_20260512.png" alt="Genesis Scaffolding Workflows" width="30%">
+  <img src="docs/images/genesis_scaffolding_model_input_20260512.png" alt="Genesis Scaffolding Workflows" width="100%">
 </p>
 
 Add a new model by selecting the *Add New Model Configuration* button and fill in the form:
@@ -271,11 +248,11 @@ I realised that if LLM can query an external system for my productivity data, an
 
 Flash forward to 2025. We have 30B MoE models that can run locally at decent speed and have decent tool calling capability. They are also "smarter" with built-in ReACT and chain of thought due to model post-training regiments. At the same time, there is also a boom of LLM agents. So, I figured it is time to revive the old problem.
 
-*Why build agent framework from scratch?* LLM agents are simple at the concept level, though they can be quite complex at the engineering level. Each framework has different assumptions and interests, leading to different design decisions that can be quite opaque. The need to support many emerging standards and conventions like `agents.md`, `agent skills`, `mcp`, make the code even more complex and harder to understand how everything fits with everything else. Therefore, I set it as a challenge and learning opportunity to build everything from the ground up with as few dependencies as possible. Another advantage of building my own framework is the ability to test new ideas to optimise agents (see [docs/agent_clipboard.md](docs/agent_clipboard.md)).
+**Why build agent framework from scratch?** LLM agents are simple at the concept level, though they can be quite complex at the engineering level. Each framework has different assumptions and interests, leading to different design decisions that can be quite opaque. The need to support many emerging standards and conventions like `agents.md`, `agent skills`, `mcp`, make the code even more complex and harder to understand how everything fits with everything else. Therefore, I set it as a challenge and learning opportunity to build everything from the ground up with as few dependencies as possible. Another advantage of building my own framework is the ability to test new ideas to optimise agents (see [docs/agent_clipboard.md](docs/agent_clipboard.md)).
 
-*Why scaffolding rather than library?* I think there is still a big gap between a library and even a simple application (repository structure, backend tech, frontend tech, build process, authentication, database, etc.). Crossing this gap requires human developers or AI coding agents to think and make the same set of decisions again and again. So, what if build something runnable out of the gate with all of these decisions already made, so that developers (including my future self) can hit the ground running? You can still customize everything, but I provide a set of pre-made choices that at least work for me, so you can start building your own.
+**Why scaffolding rather than library?** I think there is still a big gap between a library and even a simple application (repository structure, backend tech, frontend tech, build process, authentication, database, etc.). Crossing this gap requires human developers or AI coding agents to think and make the same set of decisions again and again. So, what if build something runnable out of the gate with all of these decisions already made, so that developers (including my future self) can hit the ground running? You can still customize everything, but I provide a set of pre-made choices that at least work for me, so you can start building your own.
 
-*Why put productivity subsystem in the scaffolding?* Because I actually deploy and use this scaffolding system itself as my personal productivity system.
+**Why put productivity subsystem in the scaffolding?** Because I actually deploy and use this scaffolding system itself as my personal productivity system.
 
 
 ---
