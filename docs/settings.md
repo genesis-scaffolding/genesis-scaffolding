@@ -2,11 +2,45 @@
 
 `genesis-scaffolding` uses `pydantic-settings` for defining and managing settings used by the Python backend portion of the code base. 
 
-Server's settings are stored in `<cwd>/.env` or `<cwd>/config.yaml`. The repository ships with a `.env.example` as the scaffolding to create new valid `.env` files.
+The class `Config` in module `genesis_core.configs` defines all settings used by the system.
 
-User's settings are stored in `<cwd>/user_directories/<user_id>/config.yaml`. These settings would be merged over the server's settings to become concrete settings for a user.
+Settings are read from `.env` or `config.yaml` files. 
+
+The system uses two tiers of settings. Server-wide settings are configuration specific to the server or defaults shared between users. The user-specific settings are merged over the server's settings to create the specific settings for that that user.
 
 
+| Location | Scope | 
+| --- |--- |
+| `<cwd>/.env` | Server-wide settings | 
+| `<cwd>/user_directories/<user_id>/config.yaml` | User-specific settings | 
+
+
+---
+
+## Setting the settings
+
+Place a `.env` file or `config.yaml` file at the expected location to set the settings in the necessary scope.
+
+Environment variables in `.env` file use the prefix `genesis__` with `__` as a nested delimiter. For example
+
+- `genesis__timezone` is the `timezone` setting at the top level
+- `genesis__providers__openrouter__name` is equivalent to `configs.providers[openrouter].name`
+
+The repository ships with a `.env.example` as the scaffolding to create new valid `.env` files.
+
+---
+
+## Accessing the settings from code
+
+The `genesis_core.configs` module provides a utility function `get_config(user_workdir: Path | None = None, override_yaml: Path | None = None)` to retrieve the setting instance.
+
+Call this function without parameters to retrieve the server-wide settings.
+
+Supply the `user_workdir` (user's sandbox directory) and `override_yaml` (path to the user's specific `config.yaml`) to retrieve user-specific settings.
+
+Usually, you do not need to call `get_config` function directly. When you write FastAPI code, use the dependency injections in `genesis_server.dependencies` instead.
+
+---
 
 ## Backend Settings Reference
 
@@ -97,7 +131,17 @@ All configuration lives under the `Config` model. Environment variables use the 
 | `clipboard_item_ttl` | `int` | `100` | Time-to-live in number of turns for clipboard items |
 
 
+---
+
 ## Related Modules
 
 - `genesis_core.configs` — `Config`, `PathConfigs`, `ServerConfig`, `DatabaseConfig`, `get_config()`, `deep_merge()`
 - `genesis_core.schemas` — `LLMProvider`, `LLMModelConfig`
+
+---
+
+## Frontend Settings
+
+The frontend has only one config variable called `FASTAPI_URL`. It is default to `http://localhost:8000`. 
+
+This configuration works in both bare metal and all-in-one docker image. You unlikely need to modify this setting.
