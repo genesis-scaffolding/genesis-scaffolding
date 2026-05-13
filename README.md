@@ -8,7 +8,7 @@
 
 Genesis Scaffolding (`genesis-scaffolding`) is a scaffolding and an agent framework for building your own *full-stack agentic applications*. Use the existing monorepo structure and build scripts to bootstrap a web application quickly. Add interactive LLM-based agents within your application with the built-in agent framework. Leverage the built-in workflow engine and scheduler to put agents to work on repetitive processes within your app.
 
-`genesis-scaffolding` is usable out of the box as **a web-based productivity system that is fully accessible and controllable by AI agents**. The goal is to give everyone access to an "executive personal assistant" that they can own and host by themselves. We developed and tuned the system with `nemotron-3-nano-30b-a3b` model to ensure that the system would work with smaller MoE models that can be deployed on consumer GPU with RAM offloading.
+`genesis-scaffolding` is usable out of the box as **a web-based productivity system that is fully accessible and controllable by AI agents**. The goal is to give everyone access to an "executive personal assistant" that they can own and host by themselves. 
 
 We developed and tuned the system with `nemotron-3-nano-30b-a3b` model to ensure that the system would work with smaller MoE models that can be deployed on consumer GPU with RAM offloading.
 
