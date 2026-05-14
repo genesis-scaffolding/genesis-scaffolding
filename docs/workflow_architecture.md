@@ -402,11 +402,11 @@ await engine.run(manifest, inputs, step_callbacks=[my_callback])
 
 **Event types:**
 
-| Event | When fired | `step_id` | `data` |
-|-------|------------|-----------|--------|
-| `STEP_START` | Before a task runs | ✅ | — |
-| `STEP_COMPLETED` | After a task succeeds | ✅ | Full task output |
-| `STEP_FAILED` | When a task throws | ✅ | — |
+| Event | When fired | `data` |
+|-------|------------|--------|
+| `STEP_START` | Before a task runs |  — |
+| `STEP_COMPLETED` | After a task succeeds |  Full task output |
+| `STEP_FAILED` | When a task throws |  — |
 
 **Example — listening for step completion:**
 
