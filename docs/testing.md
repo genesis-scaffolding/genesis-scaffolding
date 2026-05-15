@@ -40,7 +40,7 @@ genesis-tui/tests/
 src/tests/
 ```
 
-Test files follow the `*.test.py` naming pattern. Pytest is configured in the root `pyproject.toml` under `[tool.pytest.ini_options]`.
+Test files follow the `test_*.py` naming pattern (prefix `test_`). Pytest is configured in the root `pyproject.toml` under `[tool.pytest.ini_options]`.
 
 ### Adding Tests
 
