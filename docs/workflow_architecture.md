@@ -5,8 +5,37 @@ The Workflow Engine coordinates step-by-step pipelines involving LLM agents.
 This document explains the design idea and some engineering details regarding the implementation of the workflows. See [workflow_manifest.md](workflow_manifest.md) for instructions to write new workflow manifests.
 
 ## Table of Contents
-
-TBA
+- [Key Concepts](#key-concepts)
+  - [Map-Reduce workflow design](#map-reduce-workflow-design)
+  - [The Blackboard](#the-blackboard)
+  - [Workflow manifests](#workflow-manifests)
+  - [Workspace directory](#workspace-directory)
+- [Implementation details](#implementation-details)
+  - [Specifying workflows without code](#specifying-workflows-without-code)
+  - [Defining data flows within the manifests with blackboard and Jinja2 templates](#defining-data-flows-within-the-manifests-with-blackboard-and-jinja2-templates)
+  - [Parameter verifications](#parameter-verifications)
+    - [Static verifications](#static-verifications)
+    - [Runtime workflow input validation](#runtime-workflow-input-validation)
+    - [Runtime workflow step parameter validation](#runtime-workflow-step-parameter-validation)
+  - [Running workflows and outputting events](#running-workflows-and-outputting-events)
+    - [Workflow run logic flow](#workflow-run-logic-flow)
+    - [Event callbacks](#event-callbacks)
+  - [Publishing workflow output to user's working directory](#publishing-workflow-output-to-user's-working-directory)
+- [Designing Workflow Tasks to be extensible](#designing-workflow-tasks-to-be-extensible)
+  - [Built-in workflow steps](#built-in-workflow-steps)
+    - [Summary Table](#summary-table)
+    - [Agent Map (`agent_map`)](#agent-map-agent_map)
+    - [Agent Reduce (`agent_reduce`)](#agent-reduce-agent_reduce)
+    - [Agent Projection (`agent_projection`)](#agent-projection-agent_projection)
+    - [ArXiv Download (`arxiv_download`)](#arxiv-download-arxiv_download)
+    - [ArXiv Search (`arxiv_search`)](#arxiv-search-arxiv_search)
+    - [File Ingest (`file_ingest`)](#file-ingest-file_ingest)
+    - [File Read (`file_read`)](#file-read-file_read)
+    - [RSS Fetch (`rss_fetch`)](#rss-fetch-rss_fetch)
+    - [Web Fetch (`web_fetch`)](#web-fetch-web_fetch)
+    - [Web Search (`web_search`)](#web-search-web_search)
+- [Potential Future Architecture Improvement](#potential-future-architecture-improvement)
+- [Related Modules](#related-modules)
 
 ---
 
@@ -23,6 +52,100 @@ In `genesis-scaffolding`, every workflow run maintains a data structure called *
 Every workflow run is also assigned a **workspace directory**. This directory stores the blackboard and any files that the workflow run creates. 
 
 The `genesis-scaffolding` uses map-reduce pattern to design workflow and allow you to write workflow manifests directly in YAML. It also provides a **workflow engine** that handles manifest discovery, workflow run creation, and workspace management.
+
+```mermaid
+classDiagram
+    direction TB
+
+    class WorkflowEngine {
+        +WorkflowRegistry registry
+        +WorkspaceManager workspace_manager
+        +TASK_LIBRARY task_library
+        +run(manifest, inputs, callbacks)
+        +validate_inputs()
+        +checkpoint_state()
+    }
+
+    class WorkflowManifest {
+        +str name
+        +str description
+        +str version
+        +dict inputs
+        +list steps
+        +dict outputs
+        +validate_runtime_inputs(data)
+    }
+
+    class WorkflowRun {
+        +str id
+        +WorkflowManifest manifest
+        +Blackboard blackboard
+        +WorkspaceDirectory workspace
+        +run()
+    }
+
+    class Blackboard {
+        +dict inputs
+        +dict steps
+        +update_step(step_id, output)
+        +serialize()
+        +checkpoint()
+    }
+
+    class WorkspaceDirectory {
+        +Path root
+        +Path input_dir
+        +Path internal_dir
+        +Path output_dir
+    }
+
+    class WorkflowStep {
+        +str id
+        +str type
+        +dict params
+        +str condition?
+    }
+
+    class StepOutput {
+        +list content
+        +list file_paths
+        +list pdf_paths
+        +list md_paths
+    }
+
+    class TaskParams {
+        +str type
+        +str description
+        +any default?
+        +bool required?
+    }
+
+    WorkflowEngine --> WorkflowRun : creates & manages
+    WorkflowEngine --> WorkspaceDirectory : creates
+    WorkflowRun --> Blackboard : owns & updates
+    WorkflowRun --> WorkspaceDirectory : owns
+    WorkflowManifest "1" --> "*" WorkflowStep : defines
+    WorkflowRun --> WorkflowManifest : instantiates
+    Blackboard --> StepOutput : stores
+    WorkflowStep --> TaskParams : declares
+
+    note for WorkspaceDirectory "job_root/
+    ├── input/   ← user-provided files
+    ├── internal/← intermediate artifacts
+    └── output/  ← final artifacts"
+
+
+    note for Blackboard "Contains:
+    • inputs: workflow inputs
+    • steps: outputs by step_id"
+
+    note for WorkflowManifest "Template for a workflow type.
+    Defines inputs, steps, outputs."
+
+
+    note for WorkflowRun "Runtime instance of a manifest.
+    Multiple runs per manifest."
+```
 
 ### Map-Reduce workflow design
 
@@ -354,39 +477,86 @@ Since Jinja2 always produces strings, `TaskParams` (the base params model) inclu
 
 The `WorkflowEngine.run()` method executes a workflow through the following steps:
 
-```
-1. Validate runtime inputs
-   └─ manifest.validate_runtime_inputs(user_inputs)
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Caller
+    participant WorkflowEngine
+    participant WorkflowManifest
+    participant WorkspaceManager
+    participant JobContext
+    participant Blackboard
+    participant StepDefinition
+    participant TASK_LIBRARY
+    participant BaseTask
+    participant Callback as Step Callbacks
+    participant OutputPublisher
 
-2. Create job workspace
-   └─ workspace_manager.create_job(manifest.name)
+    Caller->>WorkflowEngine: run(manifest, inputs, callbacks)
 
-3. Initialize blackboard state
-   └─ state = {"inputs": validated_inputs, "steps": {}}
+    WorkflowEngine->>WorkflowManifest: validate_runtime_inputs(inputs)
+    WorkflowManifest-->>WorkflowEngine: validated_inputs
 
-4. Loop through manifest.steps
-   │
-   ├─ Check condition (skip if false)
-   │
-   ├─ Resolve Jinja2 placeholders in step params
-   │
-   ├─ Get task class from TASK_LIBRARY
-   │
-   ├─ FIRE STEP_START callback
-   │
-   ├─ Execute: task.run(job_context, agent_registry, resolved_params)
-   │   ├─ Success → update blackboard
-   │   └─ Exception → FIRE STEP_FAILED callback, re-raise
-   │
-   ├─ Checkpoint state to workflow_state.json
-   │
-   └─ FIRE STEP_COMPLETED callback (if successful)
+    WorkflowEngine->>WorkspaceManager: create_job(manifest.name)
+    WorkspaceManager->>JobContext: creates directory structure
+    JobContext-->>WorkspaceManager: JobContext(root/input/internal/output)
+    WorkspaceManager-->>WorkflowEngine: job_context
 
-5. Resolve final outputs via Jinja2
+    WorkflowEngine->>Blackboard: initialize state
+    Note over Blackboard: state = {inputs, steps: {}}
 
-6. Publish output files to user's working directory
+    loop For each step in manifest.steps
+        WorkflowEngine->>StepDefinition: check condition
+        StepDefinition-->>WorkflowEngine: evaluate_condition(condition, state)
+        alt condition is false
+            WorkflowEngine->>WorkflowEngine: skip step
+        end
 
-7. Return WorkflowOutput
+        WorkflowEngine->>WorkflowEngine: resolve_placeholders(params, state)
+        Note right of WorkflowEngine: Replaces {{ steps.* }} with actual values
+
+        WorkflowEngine->>TASK_LIBRARY: TASK_LIBRARY[step.type]
+        TASK_LIBRARY-->>WorkflowEngine: TaskClass
+
+        WorkflowEngine->>WorkflowEngine: instantiate(TaskClass)
+        Note right of WorkflowEngine: Creates task_instance
+
+        par FIRE STEP_START callback
+            WorkflowEngine->>Callback: WorkflowEvent(STEP_START, step_id)
+            Callback-->>WorkflowEngine: ack
+        end
+
+        WorkflowEngine->>BaseTask: task.run(job_context, agent_registry, resolved_params)
+
+        alt run() is async
+            BaseTask-->>WorkflowEngine: await output
+        else run() is sync
+            WorkflowEngine->>BaseTask: asyncio.to_thread(task.run, ...)
+            BaseTask-->>WorkflowEngine: output
+        end
+
+        alt exception occurred
+            WorkflowEngine->>Callback: WorkflowEvent(STEP_FAILED, step_id)
+            Callback-->>WorkflowEngine: ack
+            WorkflowEngine-->>Caller: raise exception
+        else success
+            WorkflowEngine->>Blackboard: state["steps"][step_id] = output
+
+            WorkflowEngine->>JobContext: checkpoint state to workflow_state.json
+            JobContext-->>WorkflowEngine: saved
+
+            WorkflowEngine->>Callback: WorkflowEvent(STEP_COMPLETED, step_id, data=output)
+            Callback-->>WorkflowEngine: ack
+        end
+    end
+
+    WorkflowEngine->>WorkflowEngine: resolve_placeholders(outputs["value"])
+    WorkflowEngine->>WorkflowEngine: resolve_placeholders(outputs["destination"])
+
+    WorkflowEngine->>OutputPublisher: publish(outputs, result, destinations, job_context)
+    OutputPublisher-->>WorkflowEngine: files copied
+
+    WorkflowEngine-->>Caller: WorkflowOutput(workflow_result, workspace_dir)
 ```
 
 #### Event callbacks
@@ -416,6 +586,49 @@ async def on_step_done(event: WorkflowEvent):
         print(f"Step {event.step_id} produced {len(event.data.get('content', []))} items")
 
 await engine.run(manifest, inputs, step_callbacks=[on_step_done])
+```
+
+The callback flow follows this pattern:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant WorkflowEngine
+    participant Callback1 as Callback 1..N
+    participant WorkflowEvent
+
+    Note over WorkflowEngine: Step is starting...
+
+    WorkflowEngine->>WorkflowEvent: WorkflowEvent(STEP_START, step_id, message)
+    WorkflowEvent-->>WorkflowEngine: WorkflowEvent instance
+
+    loop For each registered callback
+        WorkflowEngine->>Callback1: callback(WorkflowEvent)
+        Note right of Callback1: Application code (e.g., update UI, log, notify)
+        Callback1-->>WorkflowEngine: return
+    end
+
+    Note over WorkflowEngine: Step executes and completes...
+
+    WorkflowEngine->>WorkflowEvent: WorkflowEvent(STEP_COMPLETED, step_id, data=output)
+    WorkflowEvent-->>WorkflowEngine: WorkflowEvent instance
+
+    loop For each registered callback
+        WorkflowEngine->>Callback1: callback(WorkflowEvent)
+        Note right of Callback1: Application code receives full task output in event.data
+        Callback1-->>WorkflowEngine: return
+    end
+
+    Note over WorkflowEngine: Or if step failed...
+
+    WorkflowEngine->>WorkflowEvent: WorkflowEvent(STEP_FAILED, step_id, message)
+    WorkflowEvent-->>WorkflowEngine: WorkflowEvent instance
+
+    loop For each registered callback
+        WorkflowEngine->>Callback1: callback(WorkflowEvent)
+        Note right of Callback1: Application code handles failure (e.g., log error, rollback)
+        Callback1-->>WorkflowEngine: return
+    end
 ```
 
 ### Publishing workflow output to user's working directory

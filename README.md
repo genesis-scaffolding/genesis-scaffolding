@@ -134,7 +134,7 @@ See [docs/using_productivity_subsystem.md](docs/using_productivity_subsystem.md)
 ### Create and Edit Agent
 
 <p align="center">
-  <img src="docs/images/genesis_scaffolding_agent_edit.png" alt="Genesis Scaffolding Quick Action Bar" width="30%">
+  <img src="docs/images/genesis_scaffolding_agent_edit.png" alt="Genesis Scaffolding Quick Action Bar" width="100%">
 </p>
 
 An agent is a wrapper around an LLM. It can call multiple tools to gather information and act upon its surrounding environment. 
