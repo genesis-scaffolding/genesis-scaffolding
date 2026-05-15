@@ -67,14 +67,14 @@ The `Dockerfile` and `docker-compose.yml` at the repo root define the image.
 
 ## Specific Topics
 
+For a full module map of the codebase, see [architecture.md](./architecture.md).
+
 ### Workflows
 
 - [Workflow architecture](../docs/workflow_architecture.md) — how the workflow engine works
 - [Writing workflow manifests](../docs/workflow_manifest.md) — define new workflows in YAML
 - [Building workflow tasks](../docs/workflow_task.md) — create custom workflow step types
 
-### Other Topics
+## Keeping the architecture docs current
 
-- [Productivity subsystem](../docs/productivity_subsystem.md) — tasks, projects, journals
-- [Agent manifests](../docs/agent_manifests.md) — configure LLM agents
-- [Settings](../docs/settings.md) — configuration options
+When you add, remove, or move a module in this codebase, update `docs/architecture.md` to reflect the change. The module architecture section is the primary map for the codebase — stale references break the system's understandability for both human developers and AI agents.

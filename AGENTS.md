@@ -1,5 +1,7 @@
 # Development Rules
 
+This project is called `genesis-scaffolding`
+
 ## Conversational Style
 
 - Keep answers short and concise
@@ -10,7 +12,7 @@
 ## Overall Protocol
 
 - Thoroughly understand the related architecture and code before answering code related questions, planning or making code change. Ensure you understand the code modules relevant to your task and the interaction between them
-- Read the `README.md` and necessary docs to orient yourself, and then verify the detail of corresponding source code to understand the architecture and the code
+- Read the `README.md` and necessary docs to orient yourself — start with `docs/architecture.md` for the system overview, then drill into specific docs for the area you're working on.
 - Create specification of the code change and step-by-step plan to implement it and present to user before coding. NEVER start coding before getting the plan approved
 - Ask user questions and suggest implementations to fully understand user's requirements before writing specification and plan
 - **Human developer signing off commit**. NEVER commit unless user asks you to.
@@ -23,7 +25,7 @@
 - Always ask before removing functionality or code that appears to be intentional
 - Do not preserve backward compatibility unless the user explicitly asks for it
 - **Keep it simple**: Do not add abstraction layers and modules to "future-proof" the project. Your design need to prioritise readability and maintainability
-- **Don't repeat yourself**: Adapt your proposed new code to work with the existing logic, modules, components if possible. Refactor existing logic, modules, components, into shared utilities if necessary. 
+- **Don't repeat yourself**: Adapt your proposed new code to work with the existing logic, modules, components if possible. Refactor existing logic, modules, components, into shared utilities if necessary.
 - The code must pass the full suite of linting and tests before considered ready
 
 ## Commands
@@ -131,7 +133,16 @@ git pull --rebase && git push
 
 If the user instructions conflict with rules set out here, ask for confirmation that they want to override the rules. Only then execute their instructions.
 
-## Other topics
+## Module architecture docs must be kept current
+
+When you add, remove, or move a module in this codebase, update `docs/architecture.md` to reflect the change. The module architecture section is the primary map for agents and developers to navigate the codebase — stale references break the system's ability to be understood by both human developers and AI agents.
+
+Specifically:
+- Adding a new module or package — add it to the appropriate subsection
+- Removing a module — remove it from the list
+- Moving a module to a different package — update location and grouping
+
+This is not optional. Treat the architecture doc as part of the code change.
 
 ### Dealing with type errors
 
