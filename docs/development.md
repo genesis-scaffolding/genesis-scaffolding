@@ -67,7 +67,7 @@ The `Dockerfile` and `docker-compose.yml` at the repo root define the image.
 
 ## Specific Topics
 
-For a full module map of the codebase, see [architecture.md](./architecture.md).
+For a full module map of the codebase, see [architecture.md](./architecture.md). For detailed module references, see [module_reference.md](./module_reference.md).
 
 ### Workflows
 
@@ -75,6 +75,6 @@ For a full module map of the codebase, see [architecture.md](./architecture.md).
 - [Writing workflow manifests](../docs/workflow_manifest.md) — define new workflows in YAML
 - [Building workflow tasks](../docs/workflow_task.md) — create custom workflow step types
 
-## Keeping the architecture docs current
+## Keeping the module reference current
 
-When you add, remove, or move a module in this codebase, update `docs/architecture.md` to reflect the change. The module architecture section is the primary map for the codebase — stale references break the system's understandability for both human developers and AI agents.
+When you add, remove, or move a module in this codebase, update [module_reference.md](./module_reference.md) to reflect the change. This file is the primary map for agents and developers to navigate the codebase — stale references break understandability for both human developers and AI agents.
