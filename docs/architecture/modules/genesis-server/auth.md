@@ -14,7 +14,7 @@ The system issues two classes of tokens:
 
 **Access tokens** are short-lived JWTs (15-minute expiry) used to authorize API requests. They contain a minimal payload: a subject claim identifying the user, an issued-at timestamp, and an expiry time. The access token payload deliberately omits permissions or roles; authorization decisions are derived from the user context injected per-request.
 
-**Refresh tokens** are long-lived tokens (7-day expiry) used solely to obtain new access tokens. They are not JWTs but opaque tokens stored in the user's SQLite database, allowing server-side revocation if needed. A refresh token can be exchanged for a new access token via the refresh endpoint without requiring the user to re-authenticate with their password.
+**Refresh tokens** are long-lived JWTs (7-day expiry) used solely to obtain new access tokens. They are signed JWTs like access tokens but carry a `type: "refresh"` claim to distinguish them from access tokens. The server does not store refresh tokens in the database — expiry is enforced by the `exp` claim inside the JWT itself. This means the server cannot revoke a refresh token before it expires without changing the JWT secret.
 
 ## Per-Request Dependency Injection
 
@@ -22,11 +22,11 @@ FastAPI's dependency injection system handles auth on every authenticated endpoi
 
 ## Multi-User Isolation
 
-The JWT payload identifies the user via the subject claim. When the dependency injection decodes this claim, it resolves it to a specific user record and opens the corresponding SQLite file. This file contains the user's refresh token, conversation history, agent memory, and all other per-user data. No request can access another user's data unless that user's JWT subject is explicitly requested, which does not occur in normal operation.
+The JWT payload identifies the user via the subject claim. When the dependency injection decodes this claim, it resolves it to a specific user record and opens the corresponding SQLite file. This file contains the user's conversation history, agent memory, and all other per-user data. No request can access another user's data unless that user's JWT subject is explicitly requested, which does not occur in normal operation.
 
 ## Refresh Flow
 
-When an access token expires, the client sends the long-lived refresh token to `POST /auth/refresh`. The server looks up the refresh token in the requesting user's SQLite file, verifies it has not been revoked or expired, and if valid issues a new access token with a fresh 15-minute expiry. The refresh token itself is not replaced during this flow; only the access token is renewed. This allows clients to maintain a session indefinitely by refreshing before expiry, while the short access token window limits the exposure if a token is leaked.
+When an access token expires, the client sends the refresh token to `POST /auth/refresh`. The server decodes the refresh token JWT, verifies the signature, confirms the `type` claim is `"refresh"`, and checks that the user still exists in the database. If all checks pass, the server issues a new access token with a fresh 15-minute expiry. The refresh token itself is not replaced during this flow. The server cannot revoke a refresh token before its 7-day expiry without invalidating all outstanding tokens.
 
 ## Related Modules
 

@@ -99,15 +99,15 @@ classDiagram
         +forget()
     }
 
-    BaseTool <|-- SearchTasksTool
-    BaseTool <|-- ReadFileTool
-    BaseTool <|-- WebSearchTool
-    ToolRegistry ..> BaseTool
-    Agent o-- ToolRegistry
-    Agent o-- AgentMemory
-    AgentMemory o-- AgentClipboard
-    ToolResult --> TrackedEntity
-    AgentClipboard --> AgentClipboardPinnedEntity
+    BaseTool <|-- SearchTasksTool : inherits
+    BaseTool <|-- ReadFileTool : inherits
+    BaseTool <|-- WebSearchTool : inherits
+    ToolRegistry ..> BaseTool : creates instances
+    Agent o-- ToolRegistry : looks up tools
+    Agent o-- AgentMemory : owns
+    AgentMemory o-- AgentClipboard : owns
+    ToolResult --> TrackedEntity : contains zero or more
+    AgentClipboard --> AgentClipboardPinnedEntity : stores zero or more
 ```
 
 ### Tool base class

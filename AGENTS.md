@@ -7,6 +7,7 @@ This project is called `genesis-scaffolding`
 - Keep answers short and concise
 - No emojis in commits, issues, PR comments, or code
 - No fluff or cheerful filler text
+- No unicode, em-dashes, or non-ASCII characters in any text content. Plain ASCII only.
 - Technical prose only, be kind but direct (e.g., "Thanks @user" not "Thanks so much @user!")
 
 ## Overall Protocol
