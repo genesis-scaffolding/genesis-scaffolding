@@ -184,5 +184,4 @@ Tools run in parallel via `asyncio.gather`. Each tool:
 ## See also
 
 - [agent_manifests.md](./agent_manifests.md) — agent manifest format, how agents are defined
-- [persistent_memory.md](./persistent_memory.md) — long-term agent memory beyond a single turn
-- [agent_clipboard.md](./agent_clipboard.md) — clipboard mechanism details (experimental)
+- [agent_clipboard.md](./agent_clipboard.md) — clipboard mechanism details

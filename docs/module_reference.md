@@ -78,6 +78,7 @@ genesis-core/src/genesis_core/workflow_tasks/arxiv_download.py
 genesis-core/src/genesis_core/workflow_tasks/arxiv_search.py
 genesis-core/src/genesis_core/workflow_tasks/file_ingest.py
 genesis-core/src/genesis_core/workflow_tasks/file_read.py
+genesis-core/src/genesis_core/workflow_tasks/sample_task.py
 genesis-core/src/genesis_core/workflow_tasks/rss_fetch.py
 genesis-core/src/genesis_core/workflow_tasks/web_fetch.py
 genesis-core/src/genesis_core/workflow_tasks/web_search.py

@@ -6,9 +6,9 @@ Guidelines for writing and maintaining documentation in the Genesis Scaffolding 
 
 ## Architecture vs Developer Guides
 
-**Architecture docs** (`docs_2/architecture/`) describe the system's design — the "why" and "what" of each component. They should be conceptual, with module-level references but no code snippets. Written once; revised when design changes.
+**Architecture docs** (`docs/architecture/`) describe the system's design — the "why" and "what" of each component. They should be conceptual, with module-level references but no code snippets. Written once; revised when design changes.
 
-**Developer guides** (`docs_2/developer_guides/`) describe how to accomplish tasks — the "how". They may include code snippets, steps, and reference material. Kept current with implementation changes.
+**Developer guides** (`docs/developer_guides/`) describe how to accomplish tasks — the "how". They may include code snippets, steps, and reference material. Kept current with implementation changes.
 
 ## Style Guidelines
 

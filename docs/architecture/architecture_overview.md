@@ -89,7 +89,7 @@ The platform splits into:
 
 ### Sub-Repositories
 
-Each sub-repo is documented in its own directory under `docs/architecture/modules/`. 
+Each sub-repo is documented in its own directory under `docs/architecture/modules/`.
 
 ### `genesis-core/`
 
