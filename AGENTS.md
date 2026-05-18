@@ -7,24 +7,28 @@ This project is called `genesis-scaffolding`
 - Keep answers short and concise
 - No emojis in commits, issues, PR comments, or code
 - No fluff or cheerful filler text
-- No unicode, em-dashes, or non-ASCII characters in any text content. Plain ASCII only.
+- No unicode, em-dashes, or non-ASCII characters in any text content. Plain ASCII only
+- Do not use em-dashes in writing. Use comma or parentheses instead (e.g., "The process (code, test, document) must be followed" not "The process - code, test, document - must be followed")
 - Technical prose only, be kind but direct (e.g., "Thanks @user" not "Thanks so much @user!")
 
 ## Overall Protocol
 
 - Thoroughly understand the related architecture and code before answering code related questions, planning or making code change. Ensure you understand the code modules relevant to your task and the interaction between them
 - Read the `README.md` and necessary docs to orient yourself — start with `docs/architecture.md` for the system overview, `docs/module_reference.md` for the detailed module map, then drill into specific docs for the area you're working on.
-- Create specification of the code change and step-by-step plan to implement it and present to user before coding. NEVER start coding before getting the plan approved
-- Ask user questions and suggest implementations to fully understand user's requirements before writing specification and plan
-- **Human developer signing off commit**. NEVER commit unless user asks you to.
+- Create specification of the code change and step-by-step plan to implement it and present to developer before coding. NEVER start coding before getting the plan approved
+- Ask developer questions and suggest implementations to fully understand developer's requirements before writing specification and plan
+- Write or modify code according to the plan
+- Report to developer the progress and results after all the planned code changes have been completed and verified with tests
+- AFTER developer has approved the code, add new docs and update current docs to ensure the docs accurately track the code. Refer to the [documentation.md](documentation.md) for more details regarding documentation.
+- **Human developer signing off commit**. NEVER commit unless developer asks you to.
 
 ## Code Quality
 
-- Read files in full before making wide-ranging changes, before editing files you have not already fully inspected, and when the user asks you to investigate or audit something. Do not rely only on search snippets for broad changes.
+- Read files in full before making wide-ranging changes, before editing files you have not already fully inspected, and when the developer asks you to investigate or audit something. Do not rely only on search snippets for broad changes.
 - Check `node_modules` or `.venv` for external API type definitions instead of guessing
 - **NEVER use inline imports** Always use standard top-level imports.
 - Always ask before removing functionality or code that appears to be intentional
-- Do not preserve backward compatibility unless the user explicitly asks for it
+- Do not preserve backward compatibility unless the developer explicitly asks for it
 - **Keep it simple**: Do not add abstraction layers and modules to "future-proof" the project. Your design need to prioritise readability and maintainability
 - **Don't repeat yourself**: Adapt your proposed new code to work with the existing logic, modules, components if possible. Refactor existing logic, modules, components, into shared utilities if necessary.
 - The code must pass the full suite of linting and tests before considered ready
@@ -127,12 +131,12 @@ git pull --rebase && git push
 ### If Rebase Conflicts Occur
 
 - Resolve conflicts in YOUR files only
-- If conflict is in a file you didn't modify, abort and ask the user
+- If conflict is in a file you didn't modify, abort and ask the developer
 - NEVER force push
 
-### User override
+### developer override
 
-If the user instructions conflict with rules set out here, ask for confirmation that they want to override the rules. Only then execute their instructions.
+If the developer instructions conflict with rules set out here, ask for confirmation that they want to override the rules. Only then execute their instructions.
 
 ## Module reference must be kept current
 
