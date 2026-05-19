@@ -1,5 +1,58 @@
 # Architecture
 
+## Documentation index
+
+This section lists the top-level documentation files that describe different parts of the system. For a detailed module map, see [module_reference.md](./module_reference.md).
+
+### System-level
+
+| File | Description |
+|---|---|
+| [module_reference.md](./module_reference.md) | Detailed module map of all packages and their responsibilities |
+| [settings.md](./settings.md) | Environment variables and config fields consumed by `genesis-core.configs.Config` |
+| [development.md](./development.md) | Local setup, tooling, and coding conventions |
+| [testing.md](./testing.md) | Testing conventions and patterns |
+| [documentation.md](./documentation.md) | Standards for writing and maintaining docs |
+
+### Authentication and sessions
+
+| File | Description |
+|---|---|
+| [authentication.md](./authentication.md) | JWT structure, login/logout, token refresh, Edge Middleware |
+
+### Frontend
+
+| File | Description |
+|---|---|
+| [frontend_architecture.md](./frontend_architecture.md) | Next.js app structure, routing, and key design decisions |
+| [frontend_data_flow.md](./frontend_data_flow.md) | Browser to Next.js to FastAPI communication paths |
+| [frontend_layout_system.md](./frontend_layout_system.md) | CSS constraints, flex layout rules, PageContainer pattern |
+| [frontend_component_tree.md](./frontend_component_tree.md) | Full component hierarchy from HTML root to page level |
+
+### Backend
+
+| File | Description |
+|---|---|
+| [backend_architecture.md](./backend_architecture.md) | FastAPI DI system, router architecture, startup lifecycle |
+| [chat_token_streaming.md](./chat_token_streaming.md) | SSE streaming from LLM tokens to browser via ActiveRun |
+| [scheduled_workflow.md](./scheduled_workflow.md) | APScheduler cron registration and just-in-time workflow execution |
+
+### Core subsystems
+
+| File | Description |
+|---|---|
+| [llm_client.md](./llm_client.md) | LiteLLM and Anthropic SDK integration, token streaming |
+| [agent_loop.md](./agent_loop.md) | Agent loop architecture, step execution, tool call handling |
+| [agent_tool.md](./agent_tool.md) | Tool class hierarchy, execution lifecycle, entity pinning |
+| [agent_clipboard.md](./agent_clipboard.md) | Ephemeral working memory and context injection |
+| [agent_manifests.md](./agent_manifests.md) | Agent Markdown manifest format |
+| [workflow_architecture.md](./workflow_architecture.md) | Workflow engine, blackboard state, step execution |
+| [workflow_manifest.md](./workflow_manifest.md) | Writing workflow YAML manifests |
+| [workflow_task.md](./workflow_task.md) | Building new workflow task types |
+| [productivity_subsystem.md](./productivity_subsystem.md) | Productivity data models and service layer |
+| [using_productivity_subsystem.md](./using_productivity_subsystem.md) | Using the productivity subsystem |
+| [providers.md](./providers.md) | LLM provider configuration |
+
 ## Runtime architecture
 
 At runtime, the system comprises three processes: the FastAPI server, the NextJS server, and ReactJS components sitting in user's web browser. The system also calls external LLM providers for LLM inference necessary to drive the agents.
