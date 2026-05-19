@@ -40,6 +40,7 @@ See the **Frontend Component Documentation Template** section below for the requ
 - Update `module_reference.md` after adding, moving, or removing python modules in the backend
 - Update frontend component docs in `docs/frontend_components/` if you update any of the mentioned frontend components
 - Add new frontend component docs in `docs/frontend_components/` if you add any important, reusable components. If component is for specific purpose and simple, you don't need to add docs
+- Update the `backend_architecture.md` if you add or modify routes, modify the dependency injection, modify the server startup and shutdown sequence, or make any other changes made to the backend
 
 In rare cases where a major code refactoring has happened that impact top-level docs (example: `architecture.md`), identify the top-level docs that need changes and get explicit approval from developer before updating docs
 
