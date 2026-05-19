@@ -13,59 +13,44 @@ Create a new workflow task (step) as a Python module.
 
 ## Workflow
 
-### Step 1: Clarify Requirements
+### Step 1: Read the Guide
 
-Before writing any code, engage in a structured Q&A with the developer to fully understand the task requirements.
+Before doing anything else, load `docs/developer_guides/create_workflow_step.md` to understand the task implementation patterns and the three-component structure.
 
-Ask the following questions in order:
+### Step 2: Clarify Requirements
 
-1. **Purpose**: What does this task do? What is its role in the workflow?
-2. **Input Parameters**: What data does this task need? List each parameter with its type and whether it is required or optional.
-3. **Output**: What does the task produce? Does it just return text content and file paths, or does it need additional structured output?
-4. **Operation Type**: Is this a map, reduce, or projection operation?
-   - **Map**: Apply the same operation to each item in an array
-   - **Reduce**: Take all items and condense into fewer items
-   - **Projection**: Transform a list from one type to another without LLM
-5. **Dependencies**: Does this task depend on external services, APIs, or libraries?
+Engage with the developer to understand what they want to build. Ask about:
 
-### Step 2: Document the Design
+- **Purpose**: What does this task do and why is it needed?
+- **Inputs**: What data does this task need to operate?
+- **Output**: What does it produce? Just text, or structured data?
+- **Dependencies**: Any external services, APIs, or libraries this task must call?
 
-After the Q&A, produce a clear summary of:
+Do not ask about implementation details like params model, output model, or operation type. Those are for the agent to decide.
+
+### Step 3: Create Preliminary Design
+
+Based on the requirements and your understanding of the docs, draft a task design:
 
 - Task name and description
-- Params model (field name, type, default, required)
-- Output model (if extending beyond `content` and `file_paths`)
-- Operation type (map/reduce/projection)
-- Key implementation notes (API calls, retry logic, file handling, etc.)
+- Input parameters (name, type, required, default)
+- Output model (if extending beyond text content)
+- Operation type (map, reduce, or projection)
+- Key implementation notes
 
-Present this to the developer for approval before writing any code.
+Present this to the developer for review.
 
-### Step 3: Implement the Task
+### Step 4: Iterate Until Approved
 
-Once approved:
+Refine the design based on developer feedback. Repeat until the developer approves.
 
-1. **Read the guide** — Load `docs/developer_guides/create_workflow_step.md` to ensure you follow the correct patterns.
-2. **Create the task file** at `genesis-core/src/genesis_core/workflow_tasks/<task_name>.py`.
-3. **Implement the three components**:
-   - Params model (extend `TaskParams`)
-   - Output model (extend `TaskOutput` or use it directly)
-   - Task class (extend `BaseTask[Params, Output]` and implement `run()`)
-4. **Register the task** in `genesis-core/src/genesis_core/workflow_tasks/registry.py`.
+### Step 5: Implement the Task
 
-### Step 4: Verify
+Only after approval, implement the task following the patterns in the guide:
 
-After implementation:
-- Ensure `params_model.model_validate(params)` is called at the start of `run()`.
-- Check that all async operations use `asyncio.to_thread()` for blocking I/O.
-- Verify the task is properly registered in `TASK_LIBRARY`.
-
-## File Locations
-
-| File | Purpose |
-|------|---------|
-| `genesis-core/src/genesis_core/workflow_tasks/base_task.py` | Do not modify. Contains `BaseTask`, `TaskParams`, `TaskOutput` |
-| `genesis-core/src/genesis_core/workflow_tasks/<task_name>.py` | Your new task implementation |
-| `genesis-core/src/genesis_core/workflow_tasks/registry.py` | Add your task to `TASK_LIBRARY` here |
+1. Create the task file at `genesis-core/src/genesis_core/workflow_tasks/<task_name>.py`
+2. Implement the three components (params model, output model, task class)
+3. Register the task in `genesis-core/src/genesis_core/workflow_tasks/registry.py`
 
 ## Reference
 
