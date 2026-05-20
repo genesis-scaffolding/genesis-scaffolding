@@ -23,9 +23,9 @@ We developed and tuned the system with `nemotron-3-nano-30b-a3b` model to ensure
   - [Add LLM provider and models](#add-llm-provider-and-models)
 - [Settings and important paths](#settings-and-important-paths)
   - [Important paths](#important-paths)
-- [Why build this?](#why-build-this)
-- [Roadmap](#roadmap)
 - [Contributing and Development](#contributing-and-development)
+- [Roadmap](#roadmap)
+- [Why build this?](#why-build-this)
 - [License](#license)
 
 ---
@@ -239,21 +239,15 @@ See [docs/settings.md](docs/settings.md) for a list of available settings.
 
 ---
 
+## Contributing and Development
 
-## Why build this?
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-Ever since my first deployment of local LLM with Mistral 7B, Llama 3 8B, and Nous-Hermes models back in early 2024, I have been fascinated by one problem: *"what if the LLM can actual do what it hallucinates that it can do, when it roleplay as an executive assistant?"*
+See [docs/development.md](docs/development.md) for setup and running. 
 
-I realised that if LLM can query an external system for my productivity data, and if LLM can see the output from the external system to adjust its own plan and response on the fly, then it is possible to run LLM in a loop in a way that it can be have like an intelligent assistant that can get things done. Back in early 2024, tool calling was far from usable with small local models, and cloud models, to me, are not really an attractive choice to build an personal assistant. Therefore, I resigned to focus on productivity and knowledge management systems instead.
+See [docs/architecture.md](docs/architecture.md) for a high-level overview of the architecture of `genesis-scaffolding` and its subcomponents.
 
-Flash forward to 2025. We have 30B MoE models that can run locally at decent speed and have decent tool calling capability. They are also "smarter" with built-in ReACT and chain of thought due to model post-training regiments. At the same time, there is also a boom of LLM agents. So, I figured it is time to revive the old problem.
-
-**Why build agent framework from scratch?** LLM agents are simple at the concept level, though they can be quite complex at the engineering level. Each framework has different assumptions and interests, leading to different design decisions that can be quite opaque. The need to support many emerging standards and conventions like `agents.md`, `agent skills`, `mcp`, make the code even more complex and harder to understand how everything fits with everything else. Therefore, I set it as a challenge and learning opportunity to build everything from the ground up with as few dependencies as possible. Another advantage of building my own framework is the ability to test new ideas to optimise agents (see [docs/agent_clipboard.md](docs/agent_clipboard.md)).
-
-**Why scaffolding rather than library?** I think there is still a big gap between a library and even a simple application (repository structure, backend tech, frontend tech, build process, authentication, database, etc.). Crossing this gap requires human developers or AI coding agents to think and make the same set of decisions again and again. So, what if build something runnable out of the gate with all of these decisions already made, so that developers (including my future self) can hit the ground running? You can still customize everything, but I provide a set of pre-made choices that at least work for me, so you can start building your own.
-
-**Why put productivity subsystem in the scaffolding?** Because I actually deploy and use this scaffolding system itself as my personal productivity system.
-
+See [docs/developer_guides_index.md](docs/developer_guides_index.md) for link to guides to perform different development tasks with the repository.
 
 ---
 
@@ -282,14 +276,21 @@ Wishlist:
 
 ---
 
-## Contributing and Development
+## Why build this?
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Ever since my first deployment of local LLM with Mistral 7B, Llama 3 8B, and Nous-Hermes models back in early 2024, I have been fascinated by one problem: *"what if the LLM can actual do what it hallucinates that it can do, when it roleplay as an executive assistant?"*
 
-See [docs/development.md](docs/development.md) for setup and running. See [docs/architecture.md](docs/architecture.md) for a high-level overview of the architecture of `genesis-scaffolding` and its subcomponents.
+I realised that if LLM can query an external system for my productivity data, and if LLM can see the output from the external system to adjust its own plan and response on the fly, then it is possible to run LLM in a loop in a way that it can be have like an intelligent assistant that can get things done. Back in early 2024, tool calling was far from usable with small local models, and cloud models, to me, are not really an attractive choice to build an personal assistant. Therefore, I resigned to focus on productivity and knowledge management systems instead.
+
+Flash forward to 2025. We have 30B MoE models that can run locally at decent speed and have decent tool calling capability. They are also "smarter" with built-in ReACT and chain of thought due to model post-training regiments. At the same time, there is also a boom of LLM agents. So, I figured it is time to revive the old problem.
+
+**Why build agent framework from scratch?** LLM agents are simple at the concept level, though they can be quite complex at the engineering level. Each framework has different assumptions and interests, leading to different design decisions that can be quite opaque. The need to support many emerging standards and conventions like `agents.md`, `agent skills`, `mcp`, make the code even more complex and harder to understand how everything fits with everything else. Therefore, I set it as a challenge and learning opportunity to build everything from the ground up with as few dependencies as possible. Another advantage of building my own framework is the ability to test new ideas to optimise agents (see [docs/agent_clipboard.md](docs/agent_clipboard.md)).
+
+**Why scaffolding rather than library?** I think there is still a big gap between a library and even a simple application (repository structure, backend tech, frontend tech, build process, authentication, database, etc.). Crossing this gap requires human developers or AI coding agents to think and make the same set of decisions again and again. So, what if build something runnable out of the gate with all of these decisions already made, so that developers (including my future self) can hit the ground running? You can still customize everything, but I provide a set of pre-made choices that at least work for me, so you can start building your own.
+
+**Why put productivity subsystem in the scaffolding?** Because I actually deploy and use this scaffolding system itself as my personal productivity system.
 
 ---
-
 ## License
 
 AGPL-3.0

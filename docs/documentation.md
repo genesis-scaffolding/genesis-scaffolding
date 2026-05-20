@@ -4,38 +4,11 @@ This document defines the standards for writing and maintaining documentation in
 
 ## Documentation Structure
 
-### Entry Points (Root-Level Docs)
+Root-level docs in `docs/` provide reference for the architecture of the system and key sub-systems.
 
-Root-level docs in `/docs/` provide high-level orientation:
+The docs under `docs/frontend_components/` describe architecture and usage guideline some important and complex reusable frontend component live in `/docs/frontend_components/`. Each doc covers one component or a closely related group of components.
 
-| File | Purpose |
-|---|---|
-| `architecture.md` | System-level overview of all processes — the primary entry point |
-| `module_reference.md` | Detailed module map of all packages and their responsibilities |
-| `frontend_architecture.md` | High-level overview of the frontend — framework, communication pattern, tech stack |
-| `frontend_data_flow.md` | How browser, Next.js, and FastAPI communicate — server actions, API proxy, token injection |
-| `frontend_component_tree.md` | Full component hierarchy from HTML root to page level |
-| `frontend_layout_system.md` | CSS constraints, flex rules, PageContainer/PageBody pattern |
-| `authentication.md` | JWT structure, login/logout, token refresh, known limitations |
-| `backend_architecture.md` | FastAPI backend — DI system, router architecture, startup lifecycle |
-| `chat_token_streaming.md` | SSE token streaming from LLM to browser via ActiveRun |
-| `scheduled_workflow.md` | APScheduler cron registration and just-in-time workflow execution |
-| `llm_client.md` | LiteLLM and Anthropic SDK integration, provider routing |
-| `agent_loop.md` | Agent loop architecture, step execution, tool call handling |
-| `agent_tool.md` | Tool class hierarchy, execution lifecycle, entity pinning |
-| `agent_clipboard.md` | Ephemeral working memory and context injection |
-| `agent_manifests.md` | Agent Markdown manifest format with YAML frontmatter |
-| `workflow_architecture.md` | Workflow engine, blackboard state, step execution |
-| `workflow_manifest.md` | Writing workflow YAML manifests |
-| `workflow_task.md` | Building new workflow task types |
-| `productivity_subsystem.md` | Productivity data models and service layer |
-| `providers.md` | LLM provider and model configuration format |
-
-### Frontend Component Documentation
-
-Frontend component docs live in `/docs/frontend_components/`. Each doc covers one component or a closely related group of components.
-
-See the **Frontend Component Documentation Template** section below for the required structure.
+Docs under `docs/developer_guides` provides guidance for differen development tasks like adding new backend entity, frontend pages, or writing new workflows.
 
 ## Writing Principles
 
@@ -52,15 +25,15 @@ See the **Frontend Component Documentation Template** section below for the requ
 
 ## Documentation Update Guide
 
-- Update `module_reference.md` after adding, moving, or removing python modules in the backend
-- Update frontend component docs in `docs/frontend_components/` if you update any of the mentioned frontend components
-- Add new frontend component docs in `docs/frontend_components/` if you add any important, reusable components. If component is for specific purpose and simple, you don't need to add docs
 - Update `backend_architecture.md` if you add or modify routes, modify the dependency injection, or change the server startup and shutdown sequence
-- Update `chat_token_streaming.md` if the SSE event flow, callback chain, or frontend event handlers change
-- Update `scheduled_workflow.md` if APScheduler registration, user context resolution, or job execution changes
-- Update `llm_client.md` if provider routing, callback signatures, or message conversion changes
-- Update `agent_manifests.md` if frontmatter fields, registry loading logic, or the creation/editing flow changes
-- Update `providers.md` if provider or model schema fields or API endpoints change
+- Update `fastapi_reference.md` when adding, removing, or changing endpoint paths, methods, or parameters. Keep it in sync with the actual router files in `genesis-server/src/genesis_server/routers/`
+- Update `module_reference.md` after adding, moving, or removing python modules in the backend
+- Update `frontend_architecture.md`, `frontend_component_tree.md`, `frontend_data_flow.md`, or `frontend_layout_system.md` if you make changes to the fundamental architecture and data flow of the frontend.
+- Update frontend component docs in `docs/frontend_components/` if you update any of the mentioned frontend components
+- Add new frontend component docs in `docs/frontend_components/` if you add any important, reusable components. If component is for specific purpose and simple (example, a text edit form that is used for only one page), then you don't need to document
+- Update `settings.md` if you modify or add settings
+- Update the document index in `docs/architecture.md` if you add or rename or remove any top-level architecture docs
+- Update the guide index in `docs/developer_guides_index.md` if you add or rename or remove any of the developer guide
 
 ## Frontend Component Documentation Template
 
@@ -131,14 +104,49 @@ Files related to this subcomponent.
 ... (same structure)
 ```
 
+## FastAPI Route Documentation Template
 
+Use this template when adding or updating endpoint documentation in `fastapi_reference.md`. Each route group gets a section with a heading, brief overview, module path, and endpoint table.
 
-## Maintaining Existing Docs
+```markdown
+## GroupName (`/path`)
 
-When modifying a component:
-- Update the affected section in the component doc
-- Check for cross-reference links that may need updating
-- If a new prop is added, document it in the Props section with an example
-- If internal behavior changes significantly, update the Internal Operations section
+One or two sentences describing what this group of endpoints does.
 
-Docs are considered part of the codebase change. When committing the code change, include the doc update in the same commit.
+**Module:** `genesis-server/src/genesis_server/routers/filename.py`
+
+| Method | Path | Params | Description |
+|---|---|---|---|
+| GET | `/path` | Auth required | One sentence describing what happens |
+| POST | `/path/{param}` | Path: `param`, Body: `SchemaName`, Auth required | One sentence describing what happens |
+```
+
+### Fields
+
+- **Method** — HTTP method: GET, POST, PATCH, DELETE
+- **Path** — Relative path from the group prefix. Use `{param}` for path parameters
+- **Params** — Comma-separated list of parameter locations and types: `Path: param_name`, `Query: param_name`, `Body: SchemaName`, `Auth required`. For no-auth endpoints, omit auth from the list
+- **Description** — What the endpoint does in one sentence. Include notable behaviors like status codes (e.g., "returns 202 and streams via SSE", "403 if read-only")
+
+### Nesting sub-groups
+
+If a group has distinct sub-groups (e.g., Projects, Tasks, Journals under `/productivity`), use sub-headings:
+
+```markdown
+## Productivity (`/productivity`)
+
+CRUD for projects, tasks, and journal entries.
+
+### Projects
+
+| Method | Path | Params | Description |
+|---|---|---|---|
+| POST | `/productivity/projects` | Body: `ProjectCreate`, Auth required | Create project |
+
+### Tasks
+
+| Method | Path | Params | Description |
+|---|---|---|---|
+| GET | `/productivity/tasks` | Query: `project_id`, Auth required | List tasks |
+```
+

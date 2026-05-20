@@ -115,21 +115,7 @@ Routers use these aliases so individual route handlers only declare the managers
 
 All routers follow the same pattern: a FastAPI `APIRouter` with a `prefix` and `tags`. Route handlers declare the dependencies they need via type-annotated parameters. User-scoped routers require authentication, system-level routers do not.
 
-### Router map
-
-| Router | Prefix | Description |
-|---|---|---|
-| `auth` | `/auth` | Login, logout, token refresh (no auth required) |
-| `users` | `/users` | User profile and registration |
-| `chat` | `/chats` | Chat sessions, message streaming |
-| `agents` | `/agents` | Agent blueprint CRUD |
-| `workflows` | `/workflows` | Workflow manifest listing and detail |
-| `jobs` | `/jobs` | Workflow job submission, status, output |
-| `schedules` | `/schedules` | Cron schedule CRUD, live sync to APScheduler |
-| `productivity` | `/productivity` | Projects, tasks, journals CRUD |
-| `memory` | `/memory` | Event logs and topical memories CRUD |
-| `llm_config` | `/configs/llm` | LLM provider and model configuration |
-| `files` | `/files` | File upload, browse, delete via sandbox filesystem |
+See [FastAPI Reference](fastapi_reference.md) for the full endpoint inventory.
 
 ### Common patterns
 

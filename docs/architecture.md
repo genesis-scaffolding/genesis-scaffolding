@@ -15,12 +15,6 @@ This section lists the top-level documentation files that describe different par
 | [testing.md](./testing.md) | Testing conventions and patterns |
 | [documentation.md](./documentation.md) | Standards for writing and maintaining docs |
 | [logging.md](./logging.md) | Centralized logging configuration and log levels |
-| [developer_guides/adding_logging.md](./developer_guides/adding_logging.md) | Adding logging to backend modules |
-| [developer_guides/adding_configuration.md](./developer_guides/adding_configuration.md) | Adding configuration options to the system |
-| [developer_guides/creating_agent_tools.md](./developer_guides/creating_agent_tools.md) | Implementing new tools for the agent system |
-| [developer_guides/creating_agent_manifests.md](./developer_guides/creating_agent_manifests.md) | Writing Markdown manifests to define new agents |
-| [developer_guides/adding_new_entity.md](./developer_guides/adding_new_entity.md) | Adding a new user-owned data entity and REST API endpoints |
-| [developer_guides/adding_frontend_entity.md](./developer_guides/adding_frontend_entity.md) | Adding pages and components for a new entity in the frontend |
 
 ### Authentication and sessions
 
@@ -42,6 +36,7 @@ This section lists the top-level documentation files that describe different par
 | File | Description |
 |---|---|
 | [backend_architecture.md](./backend_architecture.md) | FastAPI DI system, router architecture, startup lifecycle |
+| [fastapi_reference.md](./fastapi_reference.md) | Complete REST API endpoint reference |
 | [chat_token_streaming.md](./chat_token_streaming.md) | SSE streaming from LLM tokens to browser via ActiveRun |
 | [scheduled_workflow.md](./scheduled_workflow.md) | APScheduler cron registration and just-in-time workflow execution |
 

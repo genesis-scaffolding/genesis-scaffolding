@@ -13,13 +13,14 @@ This project is called `genesis-scaffolding`
 
 ## Overall Protocol
 
-- Thoroughly understand the related architecture and code before answering code related questions, planning or making code change. Ensure you understand the code modules relevant to your task and the interaction between them
-- Read the `README.md` and necessary docs to orient yourself. Start with `docs/architecture.md` for the system overview, `docs/architecture.md#documentation-index` for a full list of available docs, and `docs/module_reference.md` for the detailed module map. Then drill into specific docs for the area you are working on.
+- Read important docs to understand architecture and known development guidelines before doing any planning, coding, or answering questions:
+  - `docs/architecture.md` provides architecture overview and link to other important architecture docs
+  - `docs/developer_guides_index.md` provides an index to existing developer guides for specific complex tasks
 - Create specification of the code change and step-by-step plan to implement it and present to developer before coding. NEVER start coding before getting the plan approved
 - Ask developer questions and suggest implementations to fully understand developer's requirements before writing specification and plan
 - Write or modify code according to the plan
 - Report to developer the progress and results after all the planned code changes have been completed and verified with tests
-- AFTER developer has approved the code, add new docs and update current docs to ensure the docs accurately track the code. Refer to the [documentation.md](documentation.md) for more details regarding documentation.
+- AFTER developer has approved the code, add new docs and update current docs to ensure the docs accurately track the code. Refer to the `docs/documentation.md` for more details regarding documentation.
 - **Human developer signing off commit**. NEVER commit unless developer asks you to.
 
 ## Code Quality
@@ -32,6 +33,7 @@ This project is called `genesis-scaffolding`
 - **Keep it simple**: Do not add abstraction layers and modules to "future-proof" the project. Your design need to prioritise readability and maintainability
 - **Don't repeat yourself**: Adapt your proposed new code to work with the existing logic, modules, components if possible. Refactor existing logic, modules, components, into shared utilities if necessary.
 - The code must pass the full suite of linting and tests before considered ready
+- Always create and update the effected documents. The document must follow the code, and the link between documents must be updated.
 
 ## Commands
 
