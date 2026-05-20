@@ -10,9 +10,17 @@ This section lists the top-level documentation files that describe different par
 |---|---|
 | [module_reference.md](./module_reference.md) | Detailed module map of all packages and their responsibilities |
 | [settings.md](./settings.md) | Environment variables and config fields consumed by `genesis-core.configs.Config` |
+| [database.md](./database.md) | Database architecture, SQLModel models, engines, sessions, and access patterns |
 | [development.md](./development.md) | Local setup, tooling, and coding conventions |
 | [testing.md](./testing.md) | Testing conventions and patterns |
 | [documentation.md](./documentation.md) | Standards for writing and maintaining docs |
+| [logging.md](./logging.md) | Centralized logging configuration and log levels |
+| [developer_guides/adding_logging.md](./developer_guides/adding_logging.md) | Adding logging to backend modules |
+| [developer_guides/adding_configuration.md](./developer_guides/adding_configuration.md) | Adding configuration options to the system |
+| [developer_guides/creating_agent_tools.md](./developer_guides/creating_agent_tools.md) | Implementing new tools for the agent system |
+| [developer_guides/creating_agent_manifests.md](./developer_guides/creating_agent_manifests.md) | Writing Markdown manifests to define new agents |
+| [developer_guides/adding_new_entity.md](./developer_guides/adding_new_entity.md) | Adding a new user-owned data entity and REST API endpoints |
+| [developer_guides/adding_frontend_entity.md](./developer_guides/adding_frontend_entity.md) | Adding pages and components for a new entity in the frontend |
 
 ### Authentication and sessions
 
@@ -41,6 +49,7 @@ This section lists the top-level documentation files that describe different par
 
 | File | Description |
 |---|---|
+| [sandbox_filesystem.md](./sandbox_filesystem.md) | Path-safe filesystem abstraction with sandbox boundary enforcement |
 | [llm_client.md](./llm_client.md) | LiteLLM and Anthropic SDK integration, token streaming |
 | [agent_loop.md](./agent_loop.md) | Agent loop architecture, step execution, tool call handling |
 | [agent_tool.md](./agent_tool.md) | Tool class hierarchy, execution lifecycle, entity pinning |

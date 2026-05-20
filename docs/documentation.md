@@ -10,12 +10,26 @@ Root-level docs in `/docs/` provide high-level orientation:
 
 | File | Purpose |
 |---|---|
+| `architecture.md` | System-level overview of all processes — the primary entry point |
+| `module_reference.md` | Detailed module map of all packages and their responsibilities |
 | `frontend_architecture.md` | High-level overview of the frontend — framework, communication pattern, tech stack |
 | `frontend_data_flow.md` | How browser, Next.js, and FastAPI communicate — server actions, API proxy, token injection |
 | `frontend_component_tree.md` | Full component hierarchy from HTML root to page level |
 | `frontend_layout_system.md` | CSS constraints, flex rules, PageContainer/PageBody pattern |
 | `authentication.md` | JWT structure, login/logout, token refresh, known limitations |
-| `architecture.md` | System-level overview of all processes |
+| `backend_architecture.md` | FastAPI backend — DI system, router architecture, startup lifecycle |
+| `chat_token_streaming.md` | SSE token streaming from LLM to browser via ActiveRun |
+| `scheduled_workflow.md` | APScheduler cron registration and just-in-time workflow execution |
+| `llm_client.md` | LiteLLM and Anthropic SDK integration, provider routing |
+| `agent_loop.md` | Agent loop architecture, step execution, tool call handling |
+| `agent_tool.md` | Tool class hierarchy, execution lifecycle, entity pinning |
+| `agent_clipboard.md` | Ephemeral working memory and context injection |
+| `agent_manifests.md` | Agent Markdown manifest format with YAML frontmatter |
+| `workflow_architecture.md` | Workflow engine, blackboard state, step execution |
+| `workflow_manifest.md` | Writing workflow YAML manifests |
+| `workflow_task.md` | Building new workflow task types |
+| `productivity_subsystem.md` | Productivity data models and service layer |
+| `providers.md` | LLM provider and model configuration format |
 
 ### Frontend Component Documentation
 
@@ -25,6 +39,7 @@ See the **Frontend Component Documentation Template** section below for the requ
 
 ## Writing Principles
 
+- Use underscores (`_`) instead of hyphens (`-`) in doc filenames. For example, `creating_agent_manifests.md` not `creating-agent-manifests.md`
 - Always read the source code before writing to ensure accuracy
 - Keep language simple and paragraphs short to make docs easy to read
 - Do not reproduce every line of code. The docs drift from the code over time if they are too detailed. Describe behavior at the level of functions and data flows, not individual lines
@@ -40,9 +55,12 @@ See the **Frontend Component Documentation Template** section below for the requ
 - Update `module_reference.md` after adding, moving, or removing python modules in the backend
 - Update frontend component docs in `docs/frontend_components/` if you update any of the mentioned frontend components
 - Add new frontend component docs in `docs/frontend_components/` if you add any important, reusable components. If component is for specific purpose and simple, you don't need to add docs
-- Update the `backend_architecture.md` if you add or modify routes, modify the dependency injection, modify the server startup and shutdown sequence, or make any other changes made to the backend
-
-In rare cases where a major code refactoring has happened that impact top-level docs (example: `architecture.md`), identify the top-level docs that need changes and get explicit approval from developer before updating docs
+- Update `backend_architecture.md` if you add or modify routes, modify the dependency injection, or change the server startup and shutdown sequence
+- Update `chat_token_streaming.md` if the SSE event flow, callback chain, or frontend event handlers change
+- Update `scheduled_workflow.md` if APScheduler registration, user context resolution, or job execution changes
+- Update `llm_client.md` if provider routing, callback signatures, or message conversion changes
+- Update `agent_manifests.md` if frontmatter fields, registry loading logic, or the creation/editing flow changes
+- Update `providers.md` if provider or model schema fields or API endpoints change
 
 ## Frontend Component Documentation Template
 

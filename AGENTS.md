@@ -14,7 +14,7 @@ This project is called `genesis-scaffolding`
 ## Overall Protocol
 
 - Thoroughly understand the related architecture and code before answering code related questions, planning or making code change. Ensure you understand the code modules relevant to your task and the interaction between them
-- Read the `README.md` and necessary docs to orient yourself — start with `docs/architecture.md` for the system overview, `docs/module_reference.md` for the detailed module map, then drill into specific docs for the area you're working on.
+- Read the `README.md` and necessary docs to orient yourself. Start with `docs/architecture.md` for the system overview, `docs/architecture.md#documentation-index` for a full list of available docs, and `docs/module_reference.md` for the detailed module map. Then drill into specific docs for the area you are working on.
 - Create specification of the code change and step-by-step plan to implement it and present to developer before coding. NEVER start coding before getting the plan approved
 - Ask developer questions and suggest implementations to fully understand developer's requirements before writing specification and plan
 - Write or modify code according to the plan
