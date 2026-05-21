@@ -4,6 +4,7 @@ Step-by-step guides for extending and customizing the system.
 
 ## Guides
 
+- [adapting_scaffolding.md](./developer_guides/adapting_scaffolding.md) - Overview of the adaptation process for implementing your own use case
 - [adding_configuration.md](./developer_guides/adding_configuration.md) - Adding configuration options to the system
 - [adding_frontend_entity.md](./developer_guides/adding_frontend_entity.md) - Adding pages and components for a new entity in the frontend
 - [adding_logging.md](./developer_guides/adding_logging.md) - Adding logging to backend modules
