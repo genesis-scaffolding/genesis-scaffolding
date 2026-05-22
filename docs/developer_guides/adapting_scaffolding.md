@@ -35,6 +35,25 @@ With your application in mind, identify the smallest backend changes needed to s
 
 Most applications need only one or two of these. Choose the minimal set that makes the application work.
 
+**Extending the productivity subsystem before adding new entities.**
+
+The productivity subsystem provides Task, Project, and JournalEntry entities. See [productivity_subsystem.md](../productivity_subsystem.md) for the full design. Before adding a new entity, check whether it belongs in this subsystem. JournalEntry is a generic note with markdown content. It supports multiple entry types (daily, weekly, monthly, yearly, project, general). If your application needs notes, sources, synthesis entries, or any other text-based content that a user would write and reference, consider extending the existing JournalEntry entity by adding new entry types instead of creating a separate entity.
+
+For example, a personal knowledge base system might add:
+
+- `source` — a captured web page, article, or video transcript
+- `synthesis` — a user's written synthesis connecting multiple sources
+- `literature_note` — a note capturing a key insight from a source
+
+These are all journal entry types. Adding them to JournalEntry means you reuse the existing storage, API routes, and agent tools. You only need to:
+
+1. Add new values to the `JournalType` enum in `genesis_core/productivity/models.py`
+2. Update the normalization logic in `genesis_tools/productivity_tools.py` if the new type needs special reference date handling
+3. Update the agent manifest to handle the new entry types with type-specific instructions
+4. Add frontend pages to display and manage the new journal types
+
+Only create a new entity when your data requires structured fields that JournalEntry cannot capture, or when the entity has fundamentally different access patterns. For example, a `Source` entity that tracks URLs, fetching status, and extracted content would justify a separate model because JournalEntry does not support those fields.
+
 ### Phase 3: Minimal frontend and UX changes
 
 Once the backend logic is in place, adjust the frontend to present it in a coherent interface. This is often the most impactful part of an adaptation.
@@ -53,12 +72,12 @@ Once the backend logic is in place, adjust the frontend to present it in a coher
 
 **Phase 2 changes**:
 - Add a new **tool** to fetch and download video content. See [creating_agent_tools.md](./developer_guides/creating_agent_tools.md)
-- Add a **Source entity** to track ingested web pages and videos. See [adding_new_entity_to_backend.md](./developer_guides/adding_new_entity_to_backend.md)
+- Extend the productivity subsystem by adding `source` and `synthesis` entry types to the `JournalType` enum in `genesis_core/productivity/models.py`. See [productivity_subsystem.md](../productivity_subsystem.md) for the extension model. These journal entries store the captured content and user-written syntheses respectively
 - Build **workflows** for ingesting sources and processing their content. See [create_workflow.md](./developer_guides/create_workflow.md)
 - Write a new **agent manifest** that uses the new tools and existing memory tools, with instructions to write and update synthesis notes. See [creating_agent_manifests.md](./developer_guides/creating_agent_manifests.md)
 
 **Phase 3 changes**:
-- Add pages and navigation for the Source entity. See [adding_frontend_entity.md](./developer_guides/adding_frontend_entity.md)
+- Add pages and navigation to browse source and synthesis journal entries by type. See [adding_frontend_entity.md](./developer_guides/adding_frontend_entity.md) (the existing journal UI can be reused with type filtering)
 - Add a workflow launcher to the homepage for quick ingestion
 - Surface synthesis notes and recent sources on the homepage
 
