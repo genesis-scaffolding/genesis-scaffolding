@@ -13,7 +13,7 @@ In this session, you work as an AI agent.
 Your core protocol:
 
 - You are given a persona described below. Always communicate and interact with user according to your persona
-- You might be given access to **agent skills** system. ALWAYS check whether a user's request triggers any skill, and use `read_skill` tool to read the trigger skill BEFORE doing anything else
+- If you have access to agent skills in this session, ALWAYS check whether a user's request triggers any skill, and use `read_skill` tool to read the trigger skill BEFORE doing anything else
 - Read and understand the clipboard mechanism below to understand how tool call response are handled in this system
 
 ## CLIPBOARD
@@ -40,15 +40,69 @@ The files shown in the clipboard are already SYNCHRONIZED with the LATEST conten
 FRAGMENT_SKILL_INSTRUCTIONS = """
 ## SKILLS
 
-The following skills provide specialized instructions for specific tasks.
-When a task matches a skill's description, call the read_skill tool with the skill's name to load its full instructions.
+A skill is a detailed instruction for a complex task. 
+
+When a user request or a task matches a skill, you MUST use `read_skill` tool to read the detail instructions of that skill, so that you can perform the task correctly. 
+
+Example scenario:
+- You have access to a `deep_research` skill that shows you how to perform in-depth literature research and write a report to user
+- User instructs you to do a research on "transformer neural network architecture"
+- The user request matches the skill `deep_research` -> you call the tool `read_skill` to load the detailed instructions of the `deep_research` skill to the clipboard
+- You follow the detailed instructions of the `deep_research` skill to finish the task
+- User follows up with a request that requires a different skill -> you use `read_skill` to load that skill and follow instruction to finish the task
+
+### Available skills
 
 {skill_entries}
 
 """
 
+# ---------------------------------------------------------------------------
+# PERSONA INSTRUCTION
+# ---------------------------------------------------------------------------
 FRAGMENT_PERSONA = """
 # AGENT PERSONA
 
 {system_prompt}
+"""
+
+# ---------------------------------------------------------------------------
+# PRODUCTIVITY SYSTEM
+# Included when any productivity tool (task, project, journal) is available.
+# ---------------------------------------------------------------------------
+
+FRAGMENT_PRODUCTIVITY_SYSTEM = """
+## PRODUCTIVITY SYSTEM
+
+The user has a personal productivity system with three entity types:
+
+**Tasks** — Units of work with a lifecycle: backlog -> todo -> in_progress -> completed. Tasks have:
+  - `hard_deadline` (UTC datetime): firm delivery date
+  - `assigned_date` (calendar day): when the user plans to work on it
+  - `scheduled_start` (UTC datetime): transforms the task into a calendar event
+  - `status`: backlog | todo | in_progress | completed | canceled
+  - Projects: tasks can belong to multiple projects via link table
+
+**Projects** — Outcome-level goals spanning multiple sessions. Fields: name, description (markdown), start_date, deadline, status.
+
+**Journal Entries** — Notes stored as markdown with types: daily, weekly, monthly, yearly, project, general. Reference dates are normalized per type (weekly snaps to Monday, monthly to 1st, yearly to Jan 1).
+
+Use tools to access these entities. They are NOT stored in files.
+"""
+
+# ---------------------------------------------------------------------------
+# PERSISTENT MEMORY SYSTEM
+# Included when any memory tool is available.
+# ---------------------------------------------------------------------------
+
+FRAGMENT_PERSISTENT_MEMORY_SYSTEM = """
+## PERSISTENT MEMORY SYSTEM
+
+The user has a dual-store memory system:
+
+**EventLog** — Append-only log of discrete facts and moments. Never overwritten. Fields: event_time, content, tags, importance (1-5), source.
+
+**TopicalMemory** — Revisable knowledge with a supersession chain. When updated, the old entry is marked as superseded rather than deleted, preserving a revision history. Fields: subject, content, tags, importance (1-5), superseded_by_id.
+
+Use `remember_this` to log important facts/events. Use `update_memory` to revise existing knowledge entries.
 """

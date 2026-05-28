@@ -23,29 +23,36 @@ _TOOL_TO_SKILL = {
     "update_memory": "memory_skill",
     "delete_memory": "memory_skill",
     "rebuild_fts_index": "memory_skill",
-    "search_tasks": "productivity_skill",
-    "read_task": "productivity_skill",
-    "search_projects": "productivity_skill",
-    "read_project": "productivity_skill",
-    "search_journals": "productivity_skill",
-    "read_journal": "productivity_skill",
-    "create_task": "productivity_skill",
-    "create_project": "productivity_skill",
-    "create_journal": "productivity_skill",
-    "update_tasks": "productivity_skill",
-    "update_project": "productivity_skill",
-    "edit_journal": "productivity_skill",
-    "read_file": "file_skill",
-    "list_files": "file_skill",
-    "write_file": "file_skill",
-    "edit_file": "file_skill",
-    "find_files": "file_skill",
-    "delete_file": "file_skill",
-    "move_file": "file_skill",
-    "search_file_content": "file_skill",
     "web_search": "web_skill",
     "news_search": "web_skill",
     "fetch_web_page": "web_skill",
+}
+
+# Tools that indicate the productivity subsystem is active.
+_PRODUCTIVITY_TOOLS = {
+    "search_tasks",
+    "read_task",
+    "search_projects",
+    "read_project",
+    "search_journals",
+    "read_journal",
+    "create_task",
+    "create_project",
+    "create_journal",
+    "update_tasks",
+    "update_project",
+    "edit_journal",
+}
+
+# Tools that indicate the persistent memory subsystem is active.
+_MEMORY_TOOLS = {
+    "remember_this",
+    "search_memories",
+    "list_memories",
+    "get_memory",
+    "update_memory",
+    "delete_memory",
+    "rebuild_fts_index",
 }
 
 
@@ -109,10 +116,10 @@ def build_system_prompt(config: BuildPromptConfig) -> str:
     """
     parts = []
 
-    # 1. Base instruction — always included
+    # Base instruction — always included
     parts.append(fragments.BASE_INSTRUCTION)
 
-    # 2. Skill instructions — included when read_skill is in the tool list
+    # Skill instructions — included when read_skill is in the tool list
     if "read_skill" in config.allowed_tools:
         injected_skills = _inject_missing_builtin_skills(config)
         skills_to_show = injected_skills if injected_skills else config.allowed_skills
@@ -129,10 +136,17 @@ def build_system_prompt(config: BuildPromptConfig) -> str:
         )
         parts.append(skill_section)
 
-    # 3. Agent-specific role description — always last, from the .md file
+    # Inject productivity system description if any productivity tool is available
+    if any(tool in config.allowed_tools for tool in _PRODUCTIVITY_TOOLS):
+        parts.append(fragments.FRAGMENT_PRODUCTIVITY_SYSTEM)
+
+    # Inject persistent memory system description if any memory tool is available
+    if any(tool in config.allowed_tools for tool in _MEMORY_TOOLS):
+        parts.append(fragments.FRAGMENT_PERSISTENT_MEMORY_SYSTEM)
+
+    # Agent-specific role description — always last, from the .md file
 
     persona_section = fragments.FRAGMENT_PERSONA.format(system_prompt=config.system_prompt)
     parts.append(persona_section)
 
     return "\n\n".join(parts)
-
