@@ -36,6 +36,7 @@ from .productivity_tools import (
     UpdateTasksTool,
 )
 from .rss_utils import RssFetchTool
+from .skill import ReadSkillTool
 from .test_tools import MockTestTool
 from .web_fetch import WebPageFetchTool
 from .web_search import NewsSearchTool, WebSearchTool
@@ -103,6 +104,8 @@ tool_registry.register("update_memory", UpdateMemoryTool)
 tool_registry.register("delete_memory", DeleteMemoryTool)
 tool_registry.register("rebuild_fts_index", RebuildFtsIndexTool)
 tool_registry.register("compute_date_range", ComputeDateRangeTool)
+# Skill tools
+tool_registry.register("read_skill", ReadSkillTool)
 
 
 def main():

@@ -39,6 +39,7 @@ The `---` delimiters mark the YAML frontmatter section. Everything after the clo
 | `interactive` | `bool` | `false` | If `true`, the agent can be selected for chat sessions. Non-interactive agents are only usable internally by workflows. |
 | `read_only` | `bool` | `false` | If `true`, the agent cannot be edited or deleted through the API. Built-in agents shipped with the package are marked `read_only: true`. |
 | `allowed_tools` | `list[str]` | `[]` | List of tool names the agent is permitted to use. An empty list means no tools. |
+| `allowed_skills` | `list[str]` | `[]` | List of skill names this agent may use. Skills must exist in the skill registry. See [agent_skill.md](./agent_skill.md). |
 | `allowed_agents` | `list[str]` | `[]` | List of agent IDs this agent may delegate to. Used for hierarchical agent setups. |
 | `is_default` | `bool` | `false` | If `true`, this agent is pre-selected for new chat sessions. Only one agent should have this flag. |
 

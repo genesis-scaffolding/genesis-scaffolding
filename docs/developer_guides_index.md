@@ -8,6 +8,7 @@ Step-by-step guides for extending and customizing the system.
 - [adding_configuration.md](./developer_guides/adding_configuration.md) - Adding configuration options to the system
 - [adding_frontend_entity.md](./developer_guides/adding_frontend_entity.md) - Adding pages and components for a new entity in the frontend
 - [adding_logging.md](./developer_guides/adding_logging.md) - Adding logging to backend modules
+- [adding_agent_skill.md](./developer_guides/adding_agent_skill.md) - Adding new skills to the agent system
 - [adding_new_entity_to_backend.md](./developer_guides/adding_new_entity_to_backend.md) - Adding a new user-owned data entity and REST API endpoints
 - [creating_agent_manifests.md](./developer_guides/creating_agent_manifests.md) - Writing Markdown manifests to define new agents
 - [creating_agent_tools.md](./developer_guides/creating_agent_tools.md) - Implementing new tools for the agent system

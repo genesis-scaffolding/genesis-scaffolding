@@ -83,6 +83,16 @@ genesis-core/src/genesis_core/workflow_tasks/rss_fetch.py
 genesis-core/src/genesis_core/workflow_tasks/web_fetch.py
 genesis-core/src/genesis_core/workflow_tasks/web_search.py
 
+## Skill subsystem
+
+**`genesis_core.skill.skill_registry`**
+genesis-core/src/genesis_core/skill/skill_registry.py
+Discovers, loads, and provides access to skill manifests from configured search paths.
+
+**`genesis_core.skill`**
+genesis-core/src/genesis_core/skill/
+Package init exposing `SkillRegistry`.
+
 ## Productivity subsystem
 
 User productivity data — tasks, projects, journals.

@@ -39,6 +39,11 @@ class PathConfigs(BaseModel):
 
     @computed_field
     @property
+    def skill_search_paths(self) -> list[Path]:
+        return [PACKAGE_ROOT / "skill" / "builtin_skills", self.internal_state_dir / "skills"]
+
+    @computed_field
+    @property
     def workspace_directory(self) -> Path:
         return self.internal_state_dir / "workspaces"
 

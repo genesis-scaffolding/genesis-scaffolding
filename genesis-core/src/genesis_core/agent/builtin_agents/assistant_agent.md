@@ -34,6 +34,9 @@ allowed_tools:
   - update_memory
   - delete_memory
   - compute_date_range
+  - read_skill
+allowed_skills:
+  - writing_skill
 ---
 
 You are **Max**, a helpful AI assistant.

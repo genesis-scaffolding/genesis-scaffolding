@@ -91,6 +91,25 @@ StreamCallback = Callable[[str], Awaitable[None]]
 ToolCallback = Callable[[str, dict[str, Any]], Awaitable[None]]
 
 
+### Skill Configs
+class SkillConfig(BaseModel):
+    """Configuration for a reusable skill manifest.
+
+    Skills are Markdown files with YAML frontmatter. The frontmatter holds
+    metadata (name, description, version), and the markdown body is the
+    skill instructions.
+    """
+
+    # Display name of the skill
+    name: str
+    # Brief description shown to the LLM when listing available skills
+    description: str = ""
+    # Version string for the skill definition
+    version: str = "1.0"
+    # Full skill instructions — the markdown body from the manifest
+    instructions: str = ""
+
+
 ### Agent Configs
 class AgentConfig(BaseModel):
     # Name of the agent for referring to it in the system
@@ -112,6 +131,8 @@ class AgentConfig(BaseModel):
     allowed_tools: list[str] = []
     # List of names of allowed agents for delegation
     allowed_agents: list[str] = []
+    # List of skill names this agent may use
+    allowed_skills: list[str] = []
     # Read-only agents cannot be modified or deleted by user
     read_only: bool = False
     # Whether this agent is the default agent for new sessions
