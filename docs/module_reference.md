@@ -93,6 +93,12 @@ Discovers, loads, and provides access to skill manifests from configured search 
 genesis-core/src/genesis_core/skill/
 Package init exposing `SkillRegistry`.
 
+**Builtin skill manifests**
+genesis-core/src/genesis_core/skill/builtin_skills/
+Markdown files with YAML frontmatter containing skill instructions. Each file stem is the skill identifier.
+
+Available builtin skills: `briefing_skill`, `daily_logging_skill`, `file_skill`, `long_horizon_planning_skill`, `memory_skill`, `productivity_skill`, `project_planning_skill`, `review_skill`, `update_project_plan_skill`, `web_skill`, `writing_skill`.
+
 ## Productivity subsystem
 
 User productivity data — tasks, projects, journals.

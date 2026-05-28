@@ -37,12 +37,12 @@ Detailed instructions for the skill...
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | `str` | Yes | Display name. Used as the skill identifier. Must match the filename stem. |
-| `description` | `str` | No | Brief description shown in the system prompt skill list. |
+| `description` | `str` | No | Brief description shown in the system prompt skill list. Write this as a trigger condition — state when the agent should call `read_skill` to load this skill. |
 | `version` | `str` | No | Version string. Defaults to `"1.0"`. |
 
 ### Instructions Body
 
-The markdown body after the closing `---` is the skill instructions. This content is returned in full when the agent calls `read_skill`. Write it as if addressing the agent directly.
+The markdown body after the closing `---` is the skill instructions. This content is returned in full when the agent calls `read_skill`. Write it as if addressing the agent directly. Include step-by-step processes, examples, and clear boundaries.
 
 ## Where to Place Skills
 
@@ -127,6 +127,7 @@ allowed_tools:
   - read_file
   - write_file
   - edit_file
+  - read_skill
 allowed_skills:
   - coding_style_skill
 ---
@@ -134,11 +135,34 @@ allowed_skills:
 You are a coding assistant specialized in Python development...
 ```
 
+## Adding the `read_skill` Tool
+
+**The `read_skill` tool must be present in `allowed_tools` for the skill system to function.** Without it, the skill section is not injected into the system prompt and the agent cannot load skill instructions at runtime.
+
+> This is a temporary friction. In a future version, `read_skill` will be injected automatically when `allowed_skills` is populated, removing the need to add it manually.
+
+If `read_skill` is present but a skill referenced in `allowed_skills` cannot be found, the agent will still start but the skill will not appear in the session skill list.
+
+## Auto-injection of Missing Builtin Skills
+
+When `read_skill` is in the tool list, the system automatically adds any builtin skill that maps to the agent's tools but is missing from `allowed_skills`. A warning is logged:
+
+```
+Agent 'Max' has tools ['read_file', 'remember_this'] but is missing the
+corresponding skill(s) ['file_skill', 'memory_skill']. Automatically
+injected for this session. Add these skills to the agent manifest's
+allowed_skills list.
+```
+
+This prevents the agent from having powerful tools without guidance. To fix it permanently, add the missing skill names to the agent manifest's `allowed_skills` list.
+
+The tool-to-skill mapping is documented in [../agent_skill.md](../agent_skill.md#auto-injection-of-missing-builtin-skills).
+
 ## How Agents Use Skills
 
-1. **At creation time**, the agent's system prompt includes a skill list section with name and description for each allowed skill.
+1. **At creation time**, the system prompt includes a skill instruction fragment that tells the agent when to call `read_skill`, lists available builtin skills, and lists the skills active for this session.
 
-2. **At runtime**, the agent can call `read_skill(skill_name="coding_style_skill")` to load the full instructions into the clipboard.
+2. **At runtime**, the agent calls `read_skill(skill_name="coding_style_skill")` to load the full instructions into the clipboard.
 
 3. The skill content is then available in the agent's context for the current turn and persists in the clipboard until it expires.
 
@@ -146,13 +170,15 @@ You are a coding assistant specialized in Python development...
 
 1. **Name should match filename** — The `name` field in frontmatter should match the file stem (e.g., `coding_style_skill.md` has `name: "Coding Style Skill"` or `name: "coding_style_skill"`). Both work, but be consistent.
 
-2. **Be specific in instructions** — Write as if instructing the agent directly. Include examples, boundaries, and step-by-step processes where relevant.
+2. **Write the description as a trigger condition** — State explicitly when the agent should load this skill. For example: "Use this skill when user asks to write or review code."
 
-3. **Avoid em-dashes and AI clichés** — Per project conventions, use parentheses or commas instead of em-dashes. Avoid words like "delve", "leverage", "seamless", etc.
+3. **Be specific in instructions** — Write as if instructing the agent directly. Include examples, boundaries, and step-by-step processes where relevant.
 
-4. **Keep descriptions brief** — The description appears in the system prompt skill list. One to two sentences is enough.
+4. **Avoid em-dashes and AI cliches** — Per project conventions, use parentheses or commas instead of em-dashes. Avoid words like "delve", "leverage", "seamless", etc.
 
-5. **One skill, one focus** — Each skill should cover a single capability or domain. Split compound skills into multiple files.
+5. **Keep descriptions brief** — The description appears in the system prompt skill list. One to two sentences is enough.
+
+6. **One skill, one focus** — Each skill should cover a single capability or domain. Split compound skills into multiple files.
 
 ## Example: Research Review Skill
 

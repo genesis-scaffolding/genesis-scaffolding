@@ -1,10 +1,52 @@
 """System prompt factory — assembles prompt from modular fragments based on agent configuration."""
 
+import logging
+
 from pydantic import BaseModel, ConfigDict
 
 from genesis_core.skill import SkillRegistry
 
 from . import fragments
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Tool-to-skill mapping
+# Maps tool names to their corresponding builtin skill names.
+# ---------------------------------------------------------------------------
+
+_TOOL_TO_SKILL = {
+    "remember_this": "memory_skill",
+    "search_memories": "memory_skill",
+    "list_memories": "memory_skill",
+    "get_memory": "memory_skill",
+    "update_memory": "memory_skill",
+    "delete_memory": "memory_skill",
+    "rebuild_fts_index": "memory_skill",
+    "search_tasks": "productivity_skill",
+    "read_task": "productivity_skill",
+    "search_projects": "productivity_skill",
+    "read_project": "productivity_skill",
+    "search_journals": "productivity_skill",
+    "read_journal": "productivity_skill",
+    "create_task": "productivity_skill",
+    "create_project": "productivity_skill",
+    "create_journal": "productivity_skill",
+    "update_tasks": "productivity_skill",
+    "update_project": "productivity_skill",
+    "edit_journal": "productivity_skill",
+    "read_file": "file_skill",
+    "list_files": "file_skill",
+    "write_file": "file_skill",
+    "edit_file": "file_skill",
+    "find_files": "file_skill",
+    "delete_file": "file_skill",
+    "move_file": "file_skill",
+    "search_file_content": "file_skill",
+    "web_search": "web_skill",
+    "news_search": "web_skill",
+    "fetch_web_page": "web_skill",
+}
 
 
 class BuildPromptConfig(BaseModel):
@@ -20,82 +62,44 @@ class BuildPromptConfig(BaseModel):
     has_working_directory: bool = False  # True when a working directory is provided
     allowed_skills: list[str] = []  # Skill names from agent_config.allowed_skills
     skill_registry: SkillRegistry | None = None  # SkillRegistry instance for resolving skill metadata
+    agent_name: str = "unknown"  # Agent name for logging purposes
 
 
-# ---------------------------------------------------------------------------
-# Tool category detection helpers
-# ---------------------------------------------------------------------------
+def _inject_missing_builtin_skills(config: BuildPromptConfig) -> list[str]:
+    """Check for missing builtin skills and auto-inject them with a warning log.
 
-_MEMORY_TOOL_NAMES = frozenset([
-    "remember_this",
-    "search_memories",
-    "list_memories",
-    "get_memory",
-    "update_memory",
-    "delete_memory",
-    "rebuild_fts_index",
-])
+    If an agent has tools that map to a builtin skill, but the skill is not listed
+    in allowed_skills, the skill is injected automatically and a warning is logged.
 
-_PRODUCTIVITY_TOOL_NAMES = frozenset([
-    "search_tasks",
-    "read_task",
-    "search_projects",
-    "read_project",
-    "search_journals",
-    "read_journal",
-    "create_task",
-    "create_project",
-    "create_journal",
-    "update_tasks",
-    "update_project",
-    "edit_journal",
-])
+    Returns the augmented skill list.
+    """
+    if not config.skill_registry:
+        return list(config.allowed_skills)
 
-_FILE_TOOL_NAMES = frozenset([
-    "read_file",
-    "list_files",
-    "write_file",
-    "edit_file",
-    "find_files",
-    "delete_file",
-    "move_file",
-    "search_file_content",
-])
+    allowed_set = set(config.allowed_skills)
+    auto_injected: list[str] = []
+    tool_to_missing_skill: dict[str, str] = {}
 
-_WEB_TOOL_NAMES = frozenset([
-    "web_search",
-    "news_search",
-    "fetch_web_page",
-])
+    for tool in config.allowed_tools:
+        skill = _TOOL_TO_SKILL.get(tool)
+        if skill and skill not in allowed_set:
+            auto_injected.append(skill)
+            tool_to_missing_skill.setdefault(skill, tool)
 
-_PDF_TOOL_NAMES = frozenset([
-    "pdf_to_markdown",
-])
+    if auto_injected:
+        unique_skills = list(dict.fromkeys(auto_injected))  # preserve order, dedupe
+        logger.warning(
+            "Agent '%s' has tools %s but is missing the corresponding skill(s) %s. "
+            "Automatically injected for this session. Add these skills to the agent "
+            "manifest's allowed_skills list.",
+            config.agent_name,
+            sorted(tool_to_missing_skill.values()),
+            sorted(tool_to_missing_skill.keys()),
+        )
+        return list(config.allowed_skills) + unique_skills
 
+    return list(config.allowed_skills)
 
-def _has_memory_tools(tools: list[str]) -> bool:
-    return bool(tools and not _MEMORY_TOOL_NAMES.isdisjoint(tools))
-
-
-def _has_productivity_tools(tools: list[str]) -> bool:
-    return bool(tools and not _PRODUCTIVITY_TOOL_NAMES.isdisjoint(tools))
-
-
-def _has_file_tools(tools: list[str]) -> bool:
-    return bool(tools and not _FILE_TOOL_NAMES.isdisjoint(tools))
-
-
-def _has_web_tools(tools: list[str]) -> bool:
-    return bool(tools and not _WEB_TOOL_NAMES.isdisjoint(tools))
-
-
-def _has_pdf_tools(tools: list[str]) -> bool:
-    return bool(tools and not _PDF_TOOL_NAMES.isdisjoint(tools))
-
-
-# ---------------------------------------------------------------------------
-# Main factory function
-# ---------------------------------------------------------------------------
 
 def build_system_prompt(config: BuildPromptConfig) -> str:
     """Assemble the full system prompt from fragments based on agent configuration.
@@ -108,39 +112,27 @@ def build_system_prompt(config: BuildPromptConfig) -> str:
     # 1. Base instruction — always included
     parts.append(fragments.BASE_INSTRUCTION)
 
-    # 2. Working directory / file tools
-    if config.has_working_directory or _has_file_tools(config.allowed_tools):
-        parts.append(fragments.FRAGMENT_WORKING_DIRECTORY)
+    # 2. Skill instructions — included when read_skill is in the tool list
+    if "read_skill" in config.allowed_tools:
+        injected_skills = _inject_missing_builtin_skills(config)
+        skills_to_show = injected_skills if injected_skills else config.allowed_skills
 
-    # 3. Memory guidance — included whenever memory tools are present
-    if _has_memory_tools(config.allowed_tools):
-        parts.append(fragments.FRAGMENT_MEMORY)
+        skill_entries: list[str] = []
+        if config.skill_registry and skills_to_show:
+            for skill in skills_to_show:
+                skill_config = config.skill_registry.get_skill(skill)
+                if skill_config:
+                    skill_entries.append(f"- **{skill_config.name}**: {skill_config.description}")
 
-    # 5. Productivity subsystem — requires user DB AND productivity tools
-    if config.has_user_db and _has_productivity_tools(config.allowed_tools):
-        parts.append(fragments.FRAGMENT_PRODUCTIVITY_SYSTEM)
+        skill_section = fragments.FRAGMENT_SKILL_INSTRUCTIONS.format(
+            skill_entries="\n".join(skill_entries) if skill_entries else "(none)"
+        )
+        parts.append(skill_section)
 
-    # 6. Web tools
-    if _has_web_tools(config.allowed_tools):
-        parts.append(fragments.FRAGMENT_WEB_TOOLS)
+    # 3. Agent-specific role description — always last, from the .md file
 
-    # 7. PDF tools
-    if _has_pdf_tools(config.allowed_tools):
-        parts.append(fragments.FRAGMENT_PDF_TOOLS)
-
-    # 8. Skills — included when allowed_skills is populated
-    if config.allowed_skills and config.skill_registry:
-        skills = config.skill_registry.get_skills_by_names(config.allowed_skills)
-        if skills:
-            skills_text = "\n".join(f"- **{s.name}**: {s.description}" for s in skills)
-            parts.append(f"""\n## Available Skills
-
-The following specialized skills are available for you to use. Use the `read_skill` tool to load a skill's full instructions when you need it.
-
-{skills_text}
-""")
-
-    # 9. Agent-specific role description — always last, from the .md file
-    parts.append(config.system_prompt)
+    persona_section = fragments.FRAGMENT_PERSONA.format(system_prompt=config.system_prompt)
+    parts.append(persona_section)
 
     return "\n\n".join(parts)
+

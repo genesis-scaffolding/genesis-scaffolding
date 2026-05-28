@@ -58,6 +58,7 @@ class Agent:
             has_working_directory=working_directory is not None,
             allowed_skills=agent_config.allowed_skills,
             skill_registry=skill_registry,
+            agent_name=agent_config.name,
         )
         system_prompt = build_system_prompt(prompt_config)
         self.memory = memory or AgentMemory(

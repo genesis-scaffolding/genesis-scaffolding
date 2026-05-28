@@ -38,7 +38,7 @@ You are a writing specialist. Your role is to help produce high-quality written 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `name` | `str` | required | Display name. Used as the skill identifier in agent manifests. |
-| `description` | `str` | `""` | Brief description shown to the LLM when listing available skills. |
+| `description` | `str` | `""` | Brief description shown to the LLM when listing available skills. This field should state the trigger condition — when should the agent call `read_skill` to load this skill? |
 | `version` | `str` | `"1.0"` | Version string for the skill definition. |
 
 The markdown body after the closing `---` is the skill instructions. It is stored as `instructions` in the `SkillConfig` blueprint and returned in full when the agent calls `read_skill`.
@@ -72,7 +72,26 @@ class SkillRegistry:
 
 The registry scans all search paths on initialization, parses `.md` files with frontmatter, and stores `SkillConfig` blueprints keyed by file stem.
 
+## Builtin Skills
+
+The following builtin skills are available:
+
+| Skill | Trigger |
+|---|---|
+| `memory_skill` | User references something from the past, a preference, a habit, or a previous conversation |
+| `productivity_skill` | User asks about tasks, projects, calendar, agenda, plans, or journal entries |
+| `web_skill` | User asks about current events, news, or factual information needing web search |
+| `file_skill` | User asks to read, write, edit, list, search, or organize files in the working directory |
+
+These skills are extracted from the previous prompt fragment system and migrated into skill manifests. Each builtin skill's manifest lives in `genesis-core/src/genesis_core/skill/builtin_skills/`.
+
 ## Agent Integration
+
+### Prerequisite: The `read_skill` Tool
+
+**The `read_skill` tool must be in the agent's `allowed_tools` list for the skill system to function.** Without it, the skill section is not injected into the system prompt and the agent cannot load skill instructions at runtime.
+
+> Note: This is a temporary friction. In a future version, `read_skill` will be injected automatically when `allowed_skills` is populated, removing the need to add it manually.
 
 ### Agent Manifest
 
@@ -83,8 +102,9 @@ Agents reference skills via the `allowed_skills` field in their manifest:
 name: "Max"
 description: "Max is a helpful AI assistant"
 allowed_tools:
-  - search_web
   - read_file
+  - search_web
+  - read_skill
 allowed_skills:
   - writing_skill
 ---
@@ -94,17 +114,53 @@ You are Max, a helpful AI assistant...
 
 ### System Prompt Injection
 
-When an agent is created, `build_system_prompt()` receives the agent's `allowed_skills` list and the skill registry. If skills are present, it renders a skill list section into the system prompt:
+When an agent is created, `build_system_prompt()` assembles the system prompt in this order:
+
+1. `BASE_INSTRUCTION` — always included
+2. Skill instructions fragment — included only when `read_skill` is in `allowed_tools`
+3. Agent manifest system prompt — the role description from the `.md` file
+
+The skill instructions fragment tells the agent:
+
+- What skills are and when to call `read_skill`
+- Which builtin skills are available and what triggers each one
+- Which skills are active for this session (from `allowed_skills` plus auto-injected skills)
 
 ```markdown
-## Available Skills
+## Skills
 
-The following specialized skills are available for you to use. Use the `read_skill` tool to load a skill's full instructions when you need it.
+You have access to **skills** — specialized instruction sets that tell you how to handle specific types of requests.
+
+**When your conversation or task aligns with a skill's trigger, call `read_skill` immediately and follow its instructions.**
+
+The skills you have access to in this session are:
 
 - **Writing Skill**: Guidelines for producing clear, concise written content
 ```
 
-This gives the LLM awareness of available skills without embedding the full instructions. The agent can call `read_skill` to load the full content when needed.
+### Auto-injection of Missing Builtin Skills
+
+When `read_skill` is in the tool list, `build_system_prompt()` checks whether the agent's tools map to any builtin skills that are not already in `allowed_skills`. If so, those skills are automatically added to the session skill list and a warning is logged:
+
+```
+Agent 'Max' has tools ['read_file', 'remember_this'] but is missing the
+corresponding skill(s) ['file_skill', 'memory_skill']. Automatically
+injected for this session. Add these skills to the agent manifest's
+allowed_skills list.
+```
+
+This prevents the agent from having powerful tools without the guidance to use them correctly. The fix is to add the missing skill names to the agent manifest's `allowed_skills` list.
+
+### Tool-to-Skill Mapping
+
+The following tool names trigger auto-injection of the corresponding builtin skill:
+
+| Skill | Triggering Tools |
+|---|---|
+| `memory_skill` | `remember_this`, `search_memories`, `list_memories`, `get_memory`, `update_memory`, `delete_memory`, `rebuild_fts_index` |
+| `productivity_skill` | `search_tasks`, `read_task`, `search_projects`, `read_project`, `search_journals`, `read_journal`, `create_task`, `create_project`, `create_journal`, `update_tasks`, `update_project`, `edit_journal` |
+| `file_skill` | `read_file`, `list_files`, `write_file`, `edit_file`, `find_files`, `delete_file`, `move_file`, `search_file_content` |
+| `web_skill` | `web_search`, `news_search`, `fetch_web_page` |
 
 ### Skill Registry Pass-through
 
@@ -175,7 +231,8 @@ On failure (skill not found or registry unavailable), returns an error with avai
 | `genesis-core/src/genesis_core/skill/skill_registry.py` | `SkillRegistry` — discovery and lookup |
 | `genesis-core/src/genesis_core/agent/agent_registry.py` | Owns `SkillRegistry`, passes to agents |
 | `genesis-core/src/genesis_core/agent/agent.py` | Stores skill_registry, passes to tools |
-| `genesis-core/src/genesis_core/prompts/builder.py` | Builds skill list section in system prompt |
+| `genesis-core/src/genesis_core/prompts/builder.py` | Builds skill section; handles auto-injection |
+| `genesis-core/src/genesis_core/prompts/fragments.py` | `BASE_INSTRUCTION` and `FRAGMENT_SKILL_INSTRUCTIONS` |
 | `genesis-tools/src/genesis_tools/skill.py` | `ReadSkillTool` |
 | `genesis-tools/src/genesis_tools/registry.py` | Tool registration |
 | `genesis-core/src/genesis_core/skill/builtin_skills/*.md` | Builtin skill manifests |

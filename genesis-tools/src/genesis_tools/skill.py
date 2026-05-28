@@ -13,7 +13,7 @@ class ReadSkillTool(BaseTool):
     """
 
     name = "read_skill"
-    description = "Load a skill's full instructions into the clipboard for reference. Use this when you need to apply a specialized skill to your current task."
+    description = "Load a skill's full instructions into the clipboard. Check the clipboard for the content, then follow the skill's instructions to carry out the task."
     parameters = {
         "type": "object",
         "properties": {
@@ -56,7 +56,7 @@ class ReadSkillTool(BaseTool):
         content = f"## {skill.name}\n\n{skill.instructions}"
         return ToolResult(
             status="success",
-            tool_response=f"# {skill.name}\n\n{skill.instructions}",
+            tool_response=f"Skill '{skill.name}' loaded. Full instructions are in the clipboard under the read_skill tool result. Follow the instructions to carry out the task.",
             results_to_add_to_clipboard=[content],
             files_to_add_to_clipboard=[],
             entities_to_track=[],
