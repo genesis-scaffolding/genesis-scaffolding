@@ -119,8 +119,8 @@ def build_system_prompt(config: BuildPromptConfig) -> str:
     # Base instruction — always included
     parts.append(fragments.BASE_INSTRUCTION)
 
-    # Skill instructions — included when read_skill is in the tool list
-    if "read_skill" in config.allowed_tools:
+    # Skill instructions — included when activate_skill is in the tool list
+    if "activate_skill" in config.allowed_tools:
         injected_skills = _inject_missing_builtin_skills(config)
         skills_to_show = injected_skills if injected_skills else config.allowed_skills
 

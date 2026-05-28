@@ -4,7 +4,7 @@ See [../agent_skill.md](../agent_skill.md) for the full architecture reference.
 
 ## Overview
 
-A skill is a Markdown file with YAML frontmatter. Skills are reusable capability definitions that agents can reference in their manifests and access at runtime via the `read_skill` tool.
+A skill is a Markdown file with YAML frontmatter. Skills are reusable capability definitions that agents can reference in their manifests and access at runtime via the `activate_skill` tool.
 
 ## When to Create a Skill
 
@@ -37,12 +37,12 @@ Detailed instructions for the skill...
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | `str` | Yes | Display name. Used as the skill identifier. Must match the filename stem. |
-| `description` | `str` | No | Brief description shown in the system prompt skill list. Write this as a trigger condition — state when the agent should call `read_skill` to load this skill. |
+| `description` | `str` | No | Brief description shown in the system prompt skill list. Write this as a trigger condition - state when the agent should call `activate_skill` to load this skill. |
 | `version` | `str` | No | Version string. Defaults to `"1.0"`. |
 
 ### Instructions Body
 
-The markdown body after the closing `---` is the skill instructions. This content is returned in full when the agent calls `read_skill`. Write it as if addressing the agent directly. Include step-by-step processes, examples, and clear boundaries.
+The markdown body after the closing `---` is the skill instructions. This content is returned in full when the agent calls `activate_skill`. Write it as if addressing the agent directly. Include step-by-step processes, examples, and clear boundaries.
 
 ## Where to Place Skills
 
@@ -127,7 +127,7 @@ allowed_tools:
   - read_file
   - write_file
   - edit_file
-  - read_skill
+  - activate_skill
 allowed_skills:
   - coding_style_skill
 ---
@@ -135,17 +135,17 @@ allowed_skills:
 You are a coding assistant specialized in Python development...
 ```
 
-## Adding the `read_skill` Tool
+## Adding the `activate_skill` Tool
 
-**The `read_skill` tool must be present in `allowed_tools` for the skill system to function.** Without it, the skill section is not injected into the system prompt and the agent cannot load skill instructions at runtime.
+**The `activate_skill` tool must be present in `allowed_tools` for the skill system to function.** Without it, the skill section is not injected into the system prompt and the agent cannot load skill instructions at runtime.
 
-> This is a temporary friction. In a future version, `read_skill` will be injected automatically when `allowed_skills` is populated, removing the need to add it manually.
+> This is a temporary friction. In a future version, `activate_skill` will be injected automatically when `allowed_skills` is populated, removing the need to add it manually.
 
-If `read_skill` is present but a skill referenced in `allowed_skills` cannot be found, the agent will still start but the skill will not appear in the session skill list.
+If `activate_skill` is present but a skill referenced in `allowed_skills` cannot be found, the agent will still start but the skill will not appear in the session skill list.
 
 ## Auto-injection of Missing Builtin Skills
 
-When `read_skill` is in the tool list, the system automatically adds any builtin skill that maps to the agent's tools but is missing from `allowed_skills`. A warning is logged:
+When `activate_skill` is in the tool list, the system automatically adds any builtin skill that maps to the agent's tools but is missing from `allowed_skills`. A warning is logged:
 
 ```
 Agent 'Max' has tools ['read_file', 'remember_this'] but is missing the
@@ -160,25 +160,25 @@ The tool-to-skill mapping is documented in [../agent_skill.md](../agent_skill.md
 
 ## How Agents Use Skills
 
-1. **At creation time**, the system prompt includes a skill instruction fragment that tells the agent when to call `read_skill`, lists available builtin skills, and lists the skills active for this session.
+1. **At creation time**, the system prompt includes a skill instruction fragment that tells the agent when to call `activate_skill`, lists available builtin skills, and lists the skills active for this session.
 
-2. **At runtime**, the agent calls `read_skill(skill_name="coding_style_skill")` to load the full instructions into the clipboard.
+2. **At runtime**, the agent calls `activate_skill(skill_name="coding_style_skill")` to load the full instructions into the clipboard.
 
 3. The skill content is then available in the agent's context for the current turn and persists in the clipboard until it expires.
 
 ## Best Practices
 
-1. **Name should match filename** — The `name` field in frontmatter should match the file stem (e.g., `coding_style_skill.md` has `name: "Coding Style Skill"` or `name: "coding_style_skill"`). Both work, but be consistent.
+1. **Name should match filename** - The `name` field in frontmatter should match the file stem (e.g., `coding_style_skill.md` has `name: "Coding Style Skill"` or `name: "coding_style_skill"`). Both work, but be consistent.
 
-2. **Write the description as a trigger condition** — State explicitly when the agent should load this skill. For example: "Use this skill when user asks to write or review code."
+2. **Write the description as a trigger condition** - State explicitly when the agent should load this skill. For example: "Use this skill when user asks to write or review code."
 
-3. **Be specific in instructions** — Write as if instructing the agent directly. Include examples, boundaries, and step-by-step processes where relevant.
+3. **Be specific in instructions** - Write as if instructing the agent directly. Include examples, boundaries, and step-by-step processes where relevant.
 
-4. **Avoid em-dashes and AI cliches** — Per project conventions, use parentheses or commas instead of em-dashes. Avoid words like "delve", "leverage", "seamless", etc.
+4. **Avoid em-dashes and AI cliches** - Per project conventions, use parentheses or commas instead of em-dashes. Avoid words like "delve", "leverage", "seamless", etc.
 
-5. **Keep descriptions brief** — The description appears in the system prompt skill list. One to two sentences is enough.
+5. **Keep descriptions brief** - The description appears in the system prompt skill list. One to two sentences is enough.
 
-6. **One skill, one focus** — Each skill should cover a single capability or domain. Split compound skills into multiple files.
+6. **One skill, one focus** - Each skill should cover a single capability or domain. Split compound skills into multiple files.
 
 ## Example: Research Review Skill
 
@@ -195,10 +195,10 @@ You are a research critic. Your role is to evaluate research summaries for accur
 
 ## Evaluation Criteria
 
-1. **Accuracy** — Are factual claims correct? Verify against source material.
-2. **Completeness** — Are key aspects covered? Check methodology, results, conclusions.
-3. **Clarity** — Is the summary understandable to a non-expert?
-4. **Citations** — Are sources properly referenced?
+1. **Accuracy** - Are factual claims correct? Verify against source material.
+2. **Completeness** - Are key aspects covered? Check methodology, results, conclusions.
+3. **Clarity** - Is the summary understandable to a non-expert?
+4. **Citations** - Are sources properly referenced?
 
 ## Review Process
 
@@ -219,5 +219,5 @@ When reviewing, structure your response as:
 
 ## See also
 
-- [../agent_skill.md](../agent_skill.md) — full skill system architecture
-- [creating_agent_manifests.md](./creating_agent_manifests.md) — defining agents that use skills
+- [../agent_skill.md](../agent_skill.md) - full skill system architecture
+- [creating_agent_manifests.md](./creating_agent_manifests.md) - defining agents that use skills

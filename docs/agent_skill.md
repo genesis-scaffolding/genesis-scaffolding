@@ -9,7 +9,7 @@ The skill system follows the same architectural patterns as the agent registry:
 - Skills are discovered from configurable search paths
 - Multiple search paths support builtin vs user-defined skills
 - A `SkillRegistry` provides in-memory lookup of skill blueprints
-- Agents access skills via the `read_skill` tool at runtime
+- Agents access skills via the `activate_skill` tool at runtime
 
 ## Skill Manifest Format
 
@@ -28,8 +28,8 @@ You are a writing specialist. Your role is to help produce high-quality written 
 
 ## Core Principles
 
-1. **Clarity** — Use simple words and short sentences.
-2. **Specificity** — Be concrete and precise.
+1. **Clarity** - Use simple words and short sentences.
+2. **Specificity** - Be concrete and precise.
 ...
 ```
 
@@ -38,10 +38,10 @@ You are a writing specialist. Your role is to help produce high-quality written 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `name` | `str` | required | Display name. Used as the skill identifier in agent manifests. |
-| `description` | `str` | `""` | Brief description shown to the LLM when listing available skills. This field should state the trigger condition — when should the agent call `read_skill` to load this skill? |
+| `description` | `str` | `""` | Brief description shown to the LLM when listing available skills. This field should state the trigger condition - when should the agent call `activate_skill` to load this skill? |
 | `version` | `str` | `"1.0"` | Version string for the skill definition. |
 
-The markdown body after the closing `---` is the skill instructions. It is stored as `instructions` in the `SkillConfig` blueprint and returned in full when the agent calls `read_skill`.
+The markdown body after the closing `---` is the skill instructions. It is stored as `instructions` in the `SkillConfig` blueprint and returned in full when the agent calls `activate_skill`.
 
 ## Search Paths
 
@@ -51,8 +51,8 @@ The markdown body after the closing `---` is the skill instructions. It is store
 [PACKAGE_ROOT / "skill" / "builtin_skills", .genesis/skills/]
 ```
 
-- First path is read-only — ships builtin skills with the package.
-- Last path is the user's private skill directory — writable.
+- First path is read-only - ships builtin skills with the package.
+- Last path is the user's private skill directory - writable.
 
 The file stem (filename without `.md`) is used as the skill name, for example `writing_skill.md` becomes `"writing_skill"`.
 
@@ -87,11 +87,11 @@ These skills are extracted from the previous prompt fragment system and migrated
 
 ## Agent Integration
 
-### Prerequisite: The `read_skill` Tool
+### Prerequisite: The `activate_skill` Tool
 
-**The `read_skill` tool must be in the agent's `allowed_tools` list for the skill system to function.** Without it, the skill section is not injected into the system prompt and the agent cannot load skill instructions at runtime.
+**The `activate_skill` tool must be in the agent's `allowed_tools` list for the skill system to function.** Without it, the skill section is not injected into the system prompt and the agent cannot load skill instructions at runtime.
 
-> Note: This is a temporary friction. In a future version, `read_skill` will be injected automatically when `allowed_skills` is populated, removing the need to add it manually.
+> Note: This is a temporary friction. In a future version, `activate_skill` will be injected automatically when `allowed_skills` is populated, removing the need to add it manually.
 
 ### Agent Manifest
 
@@ -104,7 +104,7 @@ description: "Max is a helpful AI assistant"
 allowed_tools:
   - read_file
   - search_web
-  - read_skill
+  - activate_skill
 allowed_skills:
   - writing_skill
 ---
@@ -116,22 +116,22 @@ You are Max, a helpful AI assistant...
 
 When an agent is created, `build_system_prompt()` assembles the system prompt in this order:
 
-1. `BASE_INSTRUCTION` — always included
-2. Skill instructions fragment — included only when `read_skill` is in `allowed_tools`
-3. Agent manifest system prompt — the role description from the `.md` file
+1. `BASE_INSTRUCTION` - always included
+2. Skill instructions fragment - included only when `activate_skill` is in `allowed_tools`
+3. Agent manifest system prompt - the role description from the `.md` file
 
 The skill instructions fragment tells the agent:
 
-- What skills are and when to call `read_skill`
+- What skills are and when to call `activate_skill`
 - Which builtin skills are available and what triggers each one
 - Which skills are active for this session (from `allowed_skills` plus auto-injected skills)
 
 ```markdown
 ## Skills
 
-You have access to **skills** — specialized instruction sets that tell you how to handle specific types of requests.
+You have access to **skills** - specialized instruction sets that tell you how to handle specific types of requests.
 
-**When your conversation or task aligns with a skill's trigger, call `read_skill` immediately and follow its instructions.**
+**When your conversation or task aligns with a skill's trigger, call `activate_skill` immediately and follow its instructions.**
 
 The skills you have access to in this session are:
 
@@ -140,7 +140,7 @@ The skills you have access to in this session are:
 
 ### Auto-injection of Missing Builtin Skills
 
-When `read_skill` is in the tool list, `build_system_prompt()` checks whether the agent's tools map to any builtin skills that are not already in `allowed_skills`. If so, those skills are automatically added to the session skill list and a warning is logged:
+When `activate_skill` is in the tool list, `build_system_prompt()` checks whether the agent's tools map to any builtin skills that are not already in `allowed_skills`. If so, those skills are automatically added to the session skill list and a warning is logged:
 
 ```
 Agent 'Max' has tools ['read_file', 'remember_this'] but is missing the
@@ -182,13 +182,13 @@ class AgentRegistry:
 
 The skill registry is stored on the `Agent` instance and passed to tools via kwargs during tool execution.
 
-## Read Skill Tool
+## Activate Skill Tool
 
-The `read_skill` tool fetches a skill's full instructions at runtime:
+The `activate_skill` tool fetches a skill's full instructions at runtime:
 
 ```python
-class ReadSkillTool(BaseTool):
-    name = "read_skill"
+class ActivateSkillTool(BaseTool):
+    name = "activate_skill"
     parameters = {
         "type": "object",
         "properties": {
@@ -204,7 +204,7 @@ class ReadSkillTool(BaseTool):
 ### Tool Execution Flow
 
 ```
-Agent._execute_tool_and_format(tool_id, "read_skill", {"skill_name": "writing_skill"}, working_directory):
+Agent._execute_tool_and_format(tool_id, "activate_skill", {"skill_name": "writing_skill"}, working_directory):
     tool.run(
         working_directory=...,
         skill_registry=self.skill_registry,  # injected by harness
@@ -228,17 +228,17 @@ On failure (skill not found or registry unavailable), returns an error with avai
 |---|---|
 | `genesis-core/src/genesis_core/schemas.py` | `SkillConfig` and `AgentConfig.allowed_skills` |
 | `genesis-core/src/genesis_core/configs.py` | `skill_search_paths` in `PathConfigs` |
-| `genesis-core/src/genesis_core/skill/skill_registry.py` | `SkillRegistry` — discovery and lookup |
+| `genesis-core/src/genesis_core/skill/skill_registry.py` | `SkillRegistry` - discovery and lookup |
 | `genesis-core/src/genesis_core/agent/agent_registry.py` | Owns `SkillRegistry`, passes to agents |
 | `genesis-core/src/genesis_core/agent/agent.py` | Stores skill_registry, passes to tools |
 | `genesis-core/src/genesis_core/prompts/builder.py` | Builds skill section; handles auto-injection |
 | `genesis-core/src/genesis_core/prompts/fragments.py` | `BASE_INSTRUCTION` and `FRAGMENT_SKILL_INSTRUCTIONS` |
-| `genesis-tools/src/genesis_tools/skill.py` | `ReadSkillTool` |
+| `genesis-tools/src/genesis_tools/skill.py` | `ActivateSkillTool` |
 | `genesis-tools/src/genesis_tools/registry.py` | Tool registration |
 | `genesis-core/src/genesis_core/skill/builtin_skills/*.md` | Builtin skill manifests |
 
 ## See also
 
-- [agent_manifests.md](./agent_manifests.md) — agent manifest format, `allowed_skills` field
-- [agent_tool.md](./agent_tool.md) — tool execution lifecycle, framework-injected kwargs
-- [developer_guides/adding_agent_skill.md](./developer_guides/adding_agent_skill.md) — how to add new skills
+- [agent_manifests.md](./agent_manifests.md) - agent manifest format, `allowed_skills` field
+- [agent_tool.md](./agent_tool.md) - tool execution lifecycle, framework-injected kwargs
+- [developer_guides/adding_agent_skill.md](./developer_guides/adding_agent_skill.md) - how to add new skills

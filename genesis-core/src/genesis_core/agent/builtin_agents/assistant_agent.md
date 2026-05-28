@@ -34,7 +34,7 @@ allowed_tools:
   - update_memory
   - delete_memory
   - compute_date_range
-  - read_skill
+  - activate_skill
 allowed_skills:
   - memory_skill
   - web_skill

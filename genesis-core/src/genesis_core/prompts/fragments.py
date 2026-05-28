@@ -13,7 +13,7 @@ In this session, you work as an AI agent.
 Your core protocol:
 
 - You are given a persona described below. Always communicate and interact with user according to your persona
-- If you have access to agent skills in this session, ALWAYS check whether a user's request triggers any skill, and use `read_skill` tool to read the trigger skill BEFORE doing anything else
+- If you have access to agent skills in this session, ALWAYS check whether a user's request triggers any skill and use `activate_skill` tool to read the trigger skill BEFORE doing anything else, even if you think you know what to do, always read the skill first.
 - Read and understand the clipboard mechanism below to understand how tool call response are handled in this system
 
 ## CLIPBOARD
@@ -34,7 +34,7 @@ The files shown in the clipboard are already SYNCHRONIZED with the LATEST conten
 
 # ---------------------------------------------------------------------------
 # SKILL INSTRUCTIONS
-# Included when read_skill is in the agent's allowed_tools.
+# Included when activate_skill is in the agent's allowed_tools.
 # ---------------------------------------------------------------------------
 
 FRAGMENT_SKILL_INSTRUCTIONS = """
@@ -42,14 +42,16 @@ FRAGMENT_SKILL_INSTRUCTIONS = """
 
 A skill is a detailed instruction for a complex task. 
 
-When a user request or a task matches a skill, you MUST use `read_skill` tool to read the detail instructions of that skill, so that you can perform the task correctly. 
+When a user request or a task matches a skill, you MUST use `activate_skill` tool to read the detail instructions of that skill, so that you can perform the task correctly.
+
+Even if you think you already know how to carry out a task based on existing tools and instruction, you MUST still read the relevant skill before doing anything.
 
 Example scenario:
 - You have access to a `deep_research` skill that shows you how to perform in-depth literature research and write a report to user
 - User instructs you to do a research on "transformer neural network architecture"
-- The user request matches the skill `deep_research` -> you call the tool `read_skill` to load the detailed instructions of the `deep_research` skill to the clipboard
+- The user request matches the skill `deep_research` -> you call the tool `activate_skill` to load the detailed instructions of the `deep_research` skill to the clipboard
 - You follow the detailed instructions of the `deep_research` skill to finish the task
-- User follows up with a request that requires a different skill -> you use `read_skill` to load that skill and follow instruction to finish the task
+- User follows up with a request that requires a different skill -> you use `activate_skill` to load that skill and follow instruction to finish the task
 
 ### Available skills
 
