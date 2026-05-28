@@ -10,6 +10,7 @@ class AgentRead(BaseModel):
     read_only: bool
     allowed_tools: list[str]
     allowed_agents: list[str]
+    allowed_skills: list[str] = []
     system_prompt: str
     # We include the model name but NOT the provider's API key
     model_name: str | None = None
@@ -23,6 +24,7 @@ class AgentCreate(BaseModel):
     interactive: bool = True
     allowed_tools: list[str] = []
     allowed_agents: list[str] = []
+    allowed_skills: list[str] = []
     model_name: str | None = None
 
 
@@ -32,5 +34,6 @@ class AgentEdit(BaseModel):
     interactive: bool = True
     allowed_tools: list[str] = []
     allowed_agents: list[str] = []
+    allowed_skills: list[str] = []
     model_name: str | None = None
     is_default: bool = False

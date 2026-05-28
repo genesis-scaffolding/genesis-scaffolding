@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2, Save, Bot, Wrench, Settings2, Sparkles } from 'lucide-react';
+import { Loader2, Save, Bot, Wrench, Settings2, Sparkles, BookOpen } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -40,6 +40,7 @@ const agentSchema = z.object({
   model_name: z.string(),
   allowed_tools_raw: z.string(),
   allowed_agents_raw: z.string(),
+  allowed_skills_raw: z.string(),
 });
 
 type AgentFormValues = z.infer<typeof agentSchema>;
@@ -66,6 +67,7 @@ export function AgentForm({ initialData }: AgentFormProps) {
       model_name: initialData?.model_name || '',
       allowed_tools_raw: initialData?.allowed_tools?.join(', ') || '',
       allowed_agents_raw: initialData?.allowed_agents?.join(', ') || '',
+      allowed_skills_raw: initialData?.allowed_skills?.join(', ') || '',
     },
   });
 
@@ -100,6 +102,9 @@ export function AgentForm({ initialData }: AgentFormProps) {
           : [],
         allowed_agents: values.allowed_agents_raw
           ? values.allowed_agents_raw.split(',').map(s => s.trim()).filter(Boolean)
+          : [],
+        allowed_skills: values.allowed_skills_raw
+          ? values.allowed_skills_raw.split(',').map(s => s.trim()).filter(Boolean)
           : [],
       };
 
@@ -256,6 +261,25 @@ export function AgentForm({ initialData }: AgentFormProps) {
                   <FormLabel>Sub-Agents</FormLabel>
                   <FormControl><Input placeholder="e.g. coder, designer" {...field} /></FormControl>
                   <FormDescription className="text-[11px]">Comma-separated agent IDs</FormDescription>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <FormField
+              control={form.control}
+              name="allowed_skills_raw"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-4 w-4" />
+                      Skills
+                    </div>
+                  </FormLabel>
+                  <FormControl><Input placeholder="e.g. writing_skill, memory_skill" {...field} /></FormControl>
+                  <FormDescription className="text-[11px]">Comma-separated skill names</FormDescription>
                 </FormItem>
               )}
             />

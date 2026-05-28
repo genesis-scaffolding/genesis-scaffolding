@@ -31,6 +31,7 @@ export interface Agent {
   read_only: boolean;
   allowed_tools: string[];
   allowed_agents: string[];
+  allowed_skills: string[];
   model_name?: string | null;
   is_default?: boolean;
 }
@@ -42,6 +43,7 @@ export interface AgentCreate {
   interactive: boolean;
   allowed_tools: string[];
   allowed_agents: string[];
+  allowed_skills: string[];
   model_name?: string | null;
 }
 
@@ -51,6 +53,7 @@ export interface AgentUpdate {
   interactive: boolean;
   allowed_tools: string[];
   allowed_agents: string[];
+  allowed_skills: string[];
   model_name?: string | null;
   is_default?: boolean;
 }

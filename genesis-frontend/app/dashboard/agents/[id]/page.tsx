@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Bot, ChevronLeft, Pencil, Wrench, Users, Terminal } from "lucide-react";
+import { Bot, ChevronLeft, Pencil, Wrench, Users, Terminal, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
@@ -96,6 +96,10 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
                     <span className="font-medium">{agent.allowed_agents.length} Sub-Agents</span>
                   </div>
                   <div className="flex items-center text-sm">
+                    <BookOpen className="mr-2 h-4 w-4 text-slate-400" />
+                    <span className="font-medium">{agent.allowed_skills.length} Skills Enabled</span>
+                  </div>
+                  <div className="flex items-center text-sm">
                     <Terminal className="mr-2 h-4 w-4 text-slate-400" />
                     <span className="font-medium">
                       {agent.interactive ? "Interactive Mode" : "Background Only"}
@@ -126,6 +130,57 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
                 <div className="bg-slate-50 rounded-md p-4 border text-xs font-mono text-slate-700 max-h-[300px] overflow-y-auto whitespace-pre-wrap">
                   {agent.system_prompt || "No system prompt defined."}
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+                  Allowed Tools
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {agent.allowed_tools.length > 0 ? (
+                  <div className="bg-slate-50 rounded-md p-3 border text-xs font-mono text-slate-700 break-all">
+                    {agent.allowed_tools.join(', ')}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No tools configured.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+                  Sub-Agents
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {agent.allowed_agents.length > 0 ? (
+                  <div className="bg-slate-50 rounded-md p-3 border text-xs font-mono text-slate-700 break-all">
+                    {agent.allowed_agents.join(', ')}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No sub-agents configured.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+                  Skills
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {agent.allowed_skills.length > 0 ? (
+                  <div className="bg-slate-50 rounded-md p-3 border text-xs font-mono text-slate-700 break-all">
+                    {agent.allowed_skills.join(', ')}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No skills configured.</p>
+                )}
               </CardContent>
             </Card>
           </div>
