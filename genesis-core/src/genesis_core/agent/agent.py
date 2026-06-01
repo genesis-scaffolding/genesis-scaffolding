@@ -17,6 +17,7 @@ from ..persistent_memory.db import get_memory_session
 from ..productivity.db import get_user_session
 from ..prompts import BuildPromptConfig, build_system_prompt
 from ..schemas import AgentConfig, StreamCallback, ToolCallback
+from ..skill import SkillRegistry
 from ..utils import streamcallback_simple_print
 from .agent_memory import AgentMemory
 
@@ -28,6 +29,7 @@ class Agent:
         self,
         agent_config: AgentConfig,
         memory: AgentMemory | None = None,
+        skill_registry: SkillRegistry | None = None,
         timezone: str = "UTC",
         working_directory: Path | None = None,
         content_chunk_callbacks: list[StreamCallback] | None = None,
@@ -37,6 +39,7 @@ class Agent:
         clipboard_item_ttl: int = 50,
     ) -> None:
         self.agent_config = agent_config
+        self.skill_registry = skill_registry
         if not agent_config.provider_config:
             raise Exception(f"Agent {agent_config.name} does not have LLM provider configuration.")
 
@@ -53,6 +56,9 @@ class Agent:
             has_memory_db=memory_db_url is not None,
             has_user_db=user_db_url is not None,
             has_working_directory=working_directory is not None,
+            allowed_skills=agent_config.allowed_skills,
+            skill_registry=skill_registry,
+            agent_name=agent_config.name,
         )
         system_prompt = build_system_prompt(prompt_config)
         self.memory = memory or AgentMemory(
@@ -137,6 +143,7 @@ class Agent:
                     user_db_url=self.user_db_url,
                     memory_db_url=self.memory_db_url,
                     timezone=self.timezone,
+                    skill_registry=self.skill_registry,
                     **args,
                 )
 

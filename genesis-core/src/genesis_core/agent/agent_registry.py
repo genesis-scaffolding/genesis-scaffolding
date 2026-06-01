@@ -9,6 +9,7 @@ from genesis_core.agent.agent import Agent
 
 from ..configs import Config, get_config
 from ..schemas import AgentConfig, LLMModelConfig, LLMProvider
+from ..skill import SkillRegistry
 from .agent_memory import AgentMemory
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 class AgentRegistry:
     def __init__(self, settings: Config):
         self.settings = settings
+        self.skill_registry = SkillRegistry(settings=settings)
         self.agent_search_paths = settings.path.agent_search_paths
         # Store CONFIGS (blueprints), not INSTANCES
         self.blueprints: dict[str, AgentConfig] = {}
@@ -177,6 +179,7 @@ class AgentRegistry:
             agent_config=instance_config,
             working_directory=working_directory,
             memory=memory,
+            skill_registry=self.skill_registry,
             timezone=self.settings.timezone,
             user_db_url=self.settings.user_db.connection_string,  # injecting user's database connection string
             memory_db_url=self.settings.memory_db.connection_string,  # injecting user's memory database connection string

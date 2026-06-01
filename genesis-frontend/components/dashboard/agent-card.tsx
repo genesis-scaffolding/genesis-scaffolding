@@ -55,6 +55,7 @@ export function AgentCard({ agent }: AgentCardProps) {
         interactive: agent.interactive,
         allowed_tools: agent.allowed_tools,
         allowed_agents: agent.allowed_agents,
+        allowed_skills: agent.allowed_skills,
         model_name: agent.model_name,
         is_default: !agent.is_default,
       });
