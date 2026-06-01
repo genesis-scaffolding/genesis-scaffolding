@@ -42,6 +42,16 @@ class SearchTasksTool(BaseTool):
     name = "search_tasks"
     description = (
         "Search and filter the user's tasks. The results will be pinned to your CLIPBOARD. "
+        "DEFAULT BEHAVIOR: Omit 'status' to fetch all INCOMPLETE tasks. The default 'limit' is 100, "
+        "which is large enough to capture a full project's task list in one call. Use a smaller 'limit' "
+        "only if you need to save context for very large projects. "
+        "WORKED EXAMPLES (use these patterns verbatim): "
+        "1. All open tasks of a project: set 'project_id' to the project ID and 'limit' to a high number (e.g., 200). "
+        "2. Tasks assigned today or overdue: set 'assigned_date_end' to today's date (YYYY-MM-DD). "
+        "3. Appointments this week: set 'scheduled_start_start' to this Monday's date and 'scheduled_start_end' to this Sunday's date. "
+        "4. Tasks with deadline this week: set 'deadline_end' to the end of this week's date. "
+        "For 'this week' or 'today' boundaries, call the 'compute_date_range' tool first to get exact YYYY-MM-DD strings "
+        "for the user's timezone. Do not compute calendar dates inline. "
         "CRITICAL SEARCH BEHAVIOR: "
         "1. By default, date/text filters are combined using 'OR'. If you want strict matching, change 'query_logic' to 'AND'. "
         "2. If you provide a date (YYYY-MM-DD), it automatically covers the entire 24-hour day in the user's timezone. "
@@ -95,7 +105,10 @@ class SearchTasksTool(BaseTool):
                 "type": "string",
                 "description": "YYYY-MM-DD or ISO8601. Appointments on or before this date.",
             },
-            "limit": {"type": "integer", "description": "Pagination limit. Default is 20."},
+            "limit": {
+                "type": "integer",
+                "description": "Pagination limit. Default is 100. Use a smaller value only for very large projects.",
+            },
             "offset": {
                 "type": "integer",
                 "description": "Pagination offset (number of tasks to skip). Default is 0.",
@@ -108,7 +121,7 @@ class SearchTasksTool(BaseTool):
         if not user_db_url:
             return ToolResult(status="error", tool_response="Database connection not available.")
 
-        limit = kwargs.get("limit", 20)
+        limit = kwargs.get("limit", 100)
         offset = kwargs.get("offset", 0)
         logic = kwargs.get("query_logic", "OR").upper()
         status = kwargs.get("status")
@@ -1024,9 +1037,17 @@ class UpdateProjectTool(BaseTool):
 class EditJournalTool(BaseTool):
     name = "edit_journal"
     description = (
-        "Replaces a single specific block of text in a journal entry with new text. "
-        "Use this tool to add, append, or replace the Markdown content of an existing journal. "
-        "NOTE: You cannot change the entry_type or reference_date of a journal. "
+        "Edits an existing journal entry. Supports two content modes and optional metadata updates. "
+        "CONTENT MODES (choose exactly one per call): "
+        "1. SURGICAL REPLACE: provide 'old_str' AND 'new_str' to replace a single specific block of text. "
+        "'old_str' must match the journal content EXACTLY, including indentation and line breaks. "
+        "Fails if the old string is not found or appears more than once. "
+        "2. FULL OVERWRITE: provide 'new_content' (without 'old_str' or 'new_str') to replace the entire content in one shot. "
+        "Use this for large journals where matching 'old_str' exactly is impractical. "
+        "METADATA UPDATES (work with either content mode): "
+        "- 'title': set a new title for the journal entry (use this to rename a journal). "
+        "- 'project_id': link the journal to a different project, or pass null to unlink. "
+        "NOTE: You cannot change the 'entry_type' or 'reference_date' of a journal. "
         "After a successful edit, the updated journal will be pinned to your CLIPBOARD so you can verify the changes."
     )
     parameters = {
@@ -1038,22 +1059,26 @@ class EditJournalTool(BaseTool):
             },
             "old_str": {
                 "type": "string",
-                "description": "The exact block of text you want to replace. It must match the journal content EXACTLY, including indentation and line breaks.",
+                "description": "Surgical mode: the exact block of text you want to replace. Required when 'new_content' is omitted.",
             },
             "new_str": {
                 "type": "string",
-                "description": "The new text that will replace 'old_str'.",
+                "description": "Surgical mode: the new text that will replace 'old_str'. Required when 'new_content' is omitted.",
+            },
+            "new_content": {
+                "type": "string",
+                "description": "Overwrite mode: the new full content of the journal. Mutually exclusive with 'old_str'/'new_str'.",
             },
             "title": {
                 "type": "string",
-                "description": "Optional. A new title for the journal entry.",
+                "description": "Optional. A new title for the journal entry. Use this to rename a journal.",
             },
             "project_id": {
                 "type": "integer",
-                "description": "Optional. The ID of a project to link this journal to.",
+                "description": "Optional. The ID of a project to link this journal to. Pass null to unlink.",
             },
         },
-        "required": ["journal_id", "old_str", "new_str"],
+        "required": ["journal_id"],
     }
 
     async def run(self, user_db_url: str | None = None, **kwargs: Any) -> ToolResult:
@@ -1061,52 +1086,86 @@ class EditJournalTool(BaseTool):
             return ToolResult(status="error", tool_response="Database connection not available.")
 
         journal_id = kwargs.get("journal_id")
+        if journal_id is None:
+            return ToolResult(status="error", tool_response="Missing required field: journal_id.")
+
         old_str = kwargs.get("old_str")
         new_str = kwargs.get("new_str")
+        new_content = kwargs.get("new_content")
 
-        if journal_id is None or old_str is None or new_str is None:
+        # 1. Validate content mode selection
+        surgical_mode = old_str is not None or new_str is not None
+        overwrite_mode = new_content is not None
+
+        if surgical_mode and overwrite_mode:
             return ToolResult(
-                status="error", tool_response="Missing required fields (journal_id, old_str, new_str).",
+                status="error",
+                tool_response=(
+                    "Ambiguous content mode. Provide EITHER ('old_str' AND 'new_str') for surgical replace, "
+                    "OR 'new_content' for full overwrite, but not both."
+                ),
             )
+
+        if not surgical_mode and not overwrite_mode:
+            return ToolResult(
+                status="error",
+                tool_response=(
+                    "Missing content update. Provide ('old_str' AND 'new_str') for surgical replace, "
+                    "or 'new_content' for full overwrite."
+                ),
+            )
+
+        if surgical_mode and (old_str is None or new_str is None):
+            return ToolResult(
+                status="error",
+                tool_response="Surgical mode requires BOTH 'old_str' and 'new_str'.",
+            )
+
+        # After validation, narrow types so pyright knows these are str in the surgical branch
+        surgical_old_str: str = old_str  # type: ignore[assignment]
+        surgical_new_str: str = new_str  # type: ignore[assignment]
 
         try:
             was_updated = False
             for session in get_user_session(db_url=user_db_url):
-                # 1. Fetch current journal
+                # 2. Fetch current journal
                 journal = prod_service.get_journal(session, journal_id)
                 if not journal:
                     return ToolResult(status="error", tool_response=f"Journal ID {journal_id} not found.")
 
-                current_content = journal.content
+                # 3. Compute the new content
+                if overwrite_mode:
+                    resolved_content = new_content
+                else:
+                    current_content = journal.content
+                    occurrence_count = current_content.count(surgical_old_str)
 
-                # 2. Safety check: Exact match logic
-                occurrence_count = current_content.count(old_str)
+                    if occurrence_count == 0:
+                        return ToolResult(
+                            status="error",
+                            tool_response=(
+                                f"Could not find the old string you specified.\n"
+                                f"Please read the journal content (ID: {journal_id}) from your clipboard "
+                                "and ensure your 'old_str' matches the characters and line breaks exactly. "
+                                "Using a smaller 'old_str' might help, or call this tool again with 'new_content' "
+                                "to overwrite the full document."
+                            ),
+                        )
 
-                if occurrence_count == 0:
-                    return ToolResult(
-                        status="error",
-                        tool_response=(
-                            f"Could not find the old string you specified.\n"
-                            f"Please read the journal content (ID: {journal_id}) from your clipboard "
-                            "and ensure your 'old_str' matches the characters and line breaks exactly. "
-                            "Using a smaller 'old_str' might help."
-                        ),
-                    )
+                    if occurrence_count > 1:
+                        return ToolResult(
+                            status="error",
+                            tool_response=(
+                                f"Found {occurrence_count} occurrences of your old string in Journal {journal_id}. "
+                                "Please include more surrounding lines in 'old_str' to make the match unique, "
+                                "or call this tool again with 'new_content' to overwrite the full document."
+                            ),
+                        )
 
-                if occurrence_count > 1:
-                    return ToolResult(
-                        status="error",
-                        tool_response=(
-                            f"Found {occurrence_count} occurrences of your old string in Journal {journal_id}. "
-                            "Please include more surrounding lines in 'old_str' to make the match unique."
-                        ),
-                    )
-
-                # 3. Perform the replacement
-                new_content = current_content.replace(old_str, new_str)
+                    resolved_content = current_content.replace(surgical_old_str, surgical_new_str)
 
                 # 4. Prepare update payload
-                update_data: dict[str, Any] = {"content": new_content}
+                update_data: dict[str, Any] = {"content": resolved_content}
                 if "title" in kwargs:
                     update_data["title"] = kwargs["title"]
                 if "project_id" in kwargs:
@@ -1122,9 +1181,10 @@ class EditJournalTool(BaseTool):
 
             # 6. Signal the Agent Loop to pin the updated journal to the clipboard
             entity = TrackedEntity(item_type="journal", item_id=journal_id, resolution="detail", ttl=10)
+            mode_label = "overwritten" if overwrite_mode else "edited"
             return ToolResult(
                 status="success",
-                tool_response=f"Journal {journal_id} edited successfully! The updated content is now pinned to your CLIPBOARD. Please verify the changes.",
+                tool_response=f"Journal {journal_id} {mode_label} successfully! The updated content is now pinned to your CLIPBOARD. Please verify the changes.",
                 entities_to_track=[entity],
             )
 

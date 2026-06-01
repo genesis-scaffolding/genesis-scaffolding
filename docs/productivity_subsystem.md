@@ -159,7 +159,7 @@ The productivity tools at `genesis_tools/src/genesis_tools/productivity_tools.py
 
 **Read tools** (search and retrieve):
 
-- `search_tasks` — filtered search with dynamic OR/AND query logic, TTL=10 on results
+- `search_tasks` — filtered search with dynamic OR/AND query logic, default `limit=100` so a full project fits in one call, TTL=10 on results
 - `read_task` — full task detail, resolution=detail
 - `search_projects` — filtered search by name, description, date range
 - `read_project` — full project detail
@@ -173,7 +173,7 @@ The productivity tools at `genesis_tools/src/genesis_tools/productivity_tools.py
 - `create_journal` — with reference date normalization, duplicate detection for daily/weekly/monthly/yearly types
 - `update_tasks` — bulk update with field-level date clearing (pass `""` to clear)
 - `update_project` — single update with field clearing
-- `edit_journal` — partial text replacement using exact string matching, fails on ambiguous matches
+- `edit_journal` — update a journal via one of two content modes: surgical `old_str`/`new_str` replace (exact match, fails on ambiguous matches) or full `new_content` overwrite (for large journals where exact matching is impractical). Also supports renaming via `title` and re-linking via `project_id`
 
 When an entity is pinned to the clipboard, the agent sees a snapshot of its data in the LLM context. The clipboard refreshes pinned entities on every turn via `AgentMemory.sync_entities()`, so the agent always sees current state. The `resolution` field controls how much data is shown — `summary` for list views, `detail` for focused work.
 
