@@ -13,7 +13,14 @@ from pathlib import Path
 import pytest
 from genesis_core.productivity import service as prod_service
 from genesis_core.productivity.db import _user_engines
-from genesis_tools.productivity_tools import EditJournalTool, SearchTasksTool
+from genesis_tools.productivity_tools import (
+    CreateProjectTool,
+    CreateTaskTool,
+    EditJournalTool,
+    SearchTasksTool,
+    UpdateProjectTool,
+    UpdateTasksTool,
+)
 
 
 @pytest.fixture
@@ -26,7 +33,9 @@ def user_db_url():
         _user_engines.pop(url, None)
 
 
-def _create_journal(user_db_url: str, content: str = "Original content.", title: str = "Test Journal") -> int:
+def _create_journal(
+    user_db_url: str, content: str = "Original content.", title: str = "Test Journal"
+) -> int:
     """Helper to create a journal and return its ID."""
     journal_id = None
     for session in get_session(user_db_url):
@@ -54,6 +63,17 @@ def get_session(user_db_url: str):
 def _run(tool, **kwargs):
     """Convenience wrapper to run an async tool with a fixed user_db_url."""
     return asyncio.run(tool.run(user_db_url=kwargs.pop("user_db_url"), **kwargs))
+
+
+def _get_task(user_db_url: str, task_id: int):
+    """Fetch a task and assert it exists (narrows the return type)."""
+    from genesis_core.productivity.models import Task
+
+    t: Task | None = None
+    for session in get_session(user_db_url):
+        t = prod_service.get_task(session, task_id)
+    assert t is not None, f"Task {task_id} should exist"
+    return t
 
 
 def _get_journal(user_db_url: str, journal_id: int):
@@ -341,3 +361,139 @@ class TestEditJournalToolSchema:
         props = EditJournalTool.parameters["properties"]
         assert "new_content" in props
         assert props["new_content"]["type"] == "string"
+
+
+# --- Enum-typed status guard (regression for the corrupt-task-list bug) ---
+
+
+class TestStatusEnumGuard:
+    """Regression tests for the corrupt-task-list bug.
+
+    The agent previously wrote `status='deleted'` to tasks because the tool
+    schemas did not declare an `enum` and the runtime accepted any string.
+    These tests pin down the three-layer defense: schema enum, runtime
+    guard in `run()`, and a service-layer guard (covered separately).
+    """
+
+    @pytest.mark.parametrize(
+        "tool_cls", [CreateTaskTool, UpdateTasksTool, CreateProjectTool, UpdateProjectTool]
+    )
+    def test_status_schema_has_enum_constraint(self, tool_cls):
+        """Layer 1: every status-accepting tool declares the JSON schema enum."""
+        props = tool_cls.parameters["properties"]
+        assert "status" in props, f"{tool_cls.__name__} has no status field"
+        status_schema = props["status"]
+        assert status_schema["type"] == "string"
+        assert "enum" in status_schema, (
+            f"{tool_cls.__name__}.parameters.properties.status is missing 'enum'"
+        )
+        # The enum list must include every Status enum value
+        from genesis_core.productivity.models import Status
+
+        assert set(status_schema["enum"]) == {s.value for s in Status}
+
+    def test_create_task_rejects_invalid_status(self, user_db_url):
+        """Layer 2: CreateTaskTool returns an error and does not write to DB."""
+        result = _run(
+            CreateTaskTool(),
+            user_db_url=user_db_url,
+            title="Should not be created",
+            status="deleted",  # not in the Status enum
+        )
+        assert result.status == "error"
+        assert "Invalid status" in result.tool_response
+        assert "deleted" in result.tool_response
+
+        # Confirm nothing was written
+        from genesis_core.productivity.models import Task
+        from sqlmodel import select as _select
+
+        rows = []
+        for session in get_session(user_db_url):
+            rows = list(session.exec(_select(Task)).all())
+        assert rows == [], "Task must not be created when status is invalid"
+
+    def test_update_tasks_rejects_invalid_status(self, user_db_url):
+        """Layer 2: UpdateTasksTool returns an error and does not mutate any task."""
+        # Seed a task with a valid status
+        task_id = None
+        for session in get_session(user_db_url):
+            task = prod_service.create_task(session, {"title": "Existing", "status": "todo"})
+            task_id = task.id
+        assert task_id is not None
+
+        result = _run(
+            UpdateTasksTool(),
+            user_db_url=user_db_url,
+            task_ids=[task_id],
+            status="deleted",
+        )
+        assert result.status == "error"
+        assert "Invalid status" in result.tool_response
+
+        # Confirm the task was not mutated
+        task = _get_task(user_db_url, task_id)
+        assert task.status == "todo"
+
+    def test_update_tasks_accepts_all_valid_statuses(self, user_db_url):
+        """Layer 2: every value in the Status enum is accepted (no false positives)."""
+        from genesis_core.productivity.models import Status
+
+        for status_value in [s.value for s in Status]:
+            task_id = None
+            for session in get_session(user_db_url):
+                task = prod_service.create_task(
+                    session,
+                    {"title": f"Task-{status_value}", "status": "todo"},
+                )
+                task_id = task.id
+            assert task_id is not None
+
+            result = _run(
+                UpdateTasksTool(),
+                user_db_url=user_db_url,
+                task_ids=[task_id],
+                status=status_value,
+            )
+            assert result.status == "success", (
+                f"status={status_value!r} should be accepted but got: {result.tool_response}"
+            )
+
+    def test_create_project_rejects_invalid_status(self, user_db_url):
+        result = _run(
+            CreateProjectTool(),
+            user_db_url=user_db_url,
+            name="Should not be created",
+            status="archived",  # not in the Status enum
+        )
+        assert result.status == "error"
+        assert "Invalid status" in result.tool_response
+
+    def test_update_project_rejects_invalid_status(self, user_db_url):
+        project_id = None
+        for session in get_session(user_db_url):
+            project = prod_service.create_project(session, {"name": "Existing"})
+            project_id = project.id
+        assert project_id is not None
+
+        result = _run(
+            UpdateProjectTool(),
+            user_db_url=user_db_url,
+            project_id=project_id,
+            status="archived",
+        )
+        assert result.status == "error"
+        assert "Invalid status" in result.tool_response
+
+    def test_missing_status_is_still_allowed(self, user_db_url):
+        """Layer 2: the guard only triggers on present-but-invalid, not on omitted.
+
+        A tool call without `status` must continue to default to the
+        service-layer default (or leave the field untouched for updates).
+        """
+        result = _run(
+            CreateTaskTool(),
+            user_db_url=user_db_url,
+            title="No status provided",
+        )
+        assert result.status == "success"

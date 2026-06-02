@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from enum import StrEnum
 from typing import Any, Literal
 
 from sqlalchemy.orm import selectinload
@@ -6,7 +7,7 @@ from sqlmodel import Session, asc, col, desc, select
 
 from .models import JournalEntry, JournalType, Project, ProjectTaskLink, Task
 
-# --- Helper ---
+# --- Helpers ---
 
 
 def _apply_sorting(statement, model, sort_by: str, order: str):
@@ -18,6 +19,38 @@ def _apply_sorting(statement, model, sort_by: str, order: str):
     if order == "desc":
         return statement.order_by(desc(field))
     return statement.order_by(asc(field))
+
+
+def _validate_enum_fields(data: dict[str, Any], model: type) -> None:
+    """Validate any enum-typed fields in `data` against the SQLModel's Pydantic
+    field annotations. Raises ``ValueError`` with a clear message if any value
+    is not a valid enum member.
+
+    This is the service-layer guard (Layer 3) that prevents invalid enum
+    values from being written to the database, even if a caller (tool,
+    router, or test) forgot to validate at its own boundary. Without this,
+    ``setattr(db_row, key, value)`` silently downgrades an enum-typed field
+    to a raw string, and a later read-side Pydantic validation (e.g. the
+    TaskRead schema) crashes when it cannot coerce the value back.
+
+    Non-enum fields are not checked here; ``setattr`` is safe for plain
+    strings, dates, and datetimes.
+    """
+    for key, value in data.items():
+        if value is None:
+            continue
+        field_info = model.model_fields.get(key)
+        if field_info is None:
+            continue
+        annotation = field_info.annotation
+        if isinstance(annotation, type) and issubclass(annotation, StrEnum):
+            try:
+                annotation(str(value))
+            except ValueError:
+                valid = [e.value for e in annotation]
+                raise ValueError(
+                    f"Invalid value '{value}' for field '{key}'. Must be one of {valid}.",
+                ) from None
 
 
 # --- PROJECTS ---
@@ -49,6 +82,10 @@ def update_project(session: Session, project_id: int, data: dict[str, Any]) -> P
     db_project = session.get(Project, project_id)
     if not db_project:
         return None
+
+    # Reject invalid enum values before setattr silently downgrades the
+    # field type. Raises ValueError on bad data.
+    _validate_enum_fields(data, Project)
 
     for key, value in data.items():
         if hasattr(db_project, key):
@@ -129,6 +166,10 @@ def update_task(session: Session, task_id: int, data: dict[str, Any]) -> Task | 
     if not db_task:
         return None
 
+    # Reject invalid enum values (e.g. an out-of-enum status) before setattr
+    # silently downgrades the field type. Raises ValueError on bad data.
+    _validate_enum_fields(data, Task)
+
     # Handle completion timestamp logic automatically
     if data.get("status") == "completed" and db_task.status != "completed":
         db_task.completed_at = datetime.now(UTC)
@@ -165,6 +206,10 @@ def bulk_update_tasks(
     """Updates multiple tasks, returns the number of tasks successfully updated."""
     if not task_ids:
         return 0
+
+    # Reject invalid enum values before any row is mutated. Raises
+    # ValueError on bad data so the caller's transaction is not half-applied.
+    _validate_enum_fields(field_updates, Task)
 
     statement = (
         select(Task).where(col(Task.id).in_(task_ids)).options(selectinload(Task.projects))  # type: ignore
@@ -260,6 +305,10 @@ def update_journal(session: Session, journal_id: int, data: dict[str, Any]) -> J
     db_entry = session.get(JournalEntry, journal_id)
     if not db_entry:
         return None
+
+    # Reject invalid enum values (e.g. an out-of-enum entry_type) before
+    # setattr silently downgrades the field type. Raises ValueError.
+    _validate_enum_fields(data, JournalEntry)
 
     for key, value in data.items():
         if hasattr(db_entry, key):

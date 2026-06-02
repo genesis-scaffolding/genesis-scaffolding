@@ -70,6 +70,8 @@ Three class attributes are required:
 | `description` | Human-readable description. Shown to the LLM so it knows when to call the tool. |
 | `parameters` | JSON Schema object describing input arguments. |
 
+For any field whose value must come from a fixed set (status, category, type discriminator), you must also declare the allowed values in the JSON schema as an `enum`. The description string is not enough: the model can still produce a value outside the documented list unless the schema contains an explicit `enum` keyword. See [Step 6](#step-6-validate-enum-typed-fields) for the full pattern.
+
 ### Step 3: Implement the Run Method
 
 The `run()` method receives framework-injected arguments alongside your tool-specific ones:
@@ -87,6 +89,7 @@ Key rules:
 - **Always validate paths** — call `_validate_path()` before any file operation
 - **Return `ToolResult`, never raise** — errors return `status="error"` with a message
 - **Catch all exceptions** — unexpected errors return a descriptive error message
+- **Validate enum-typed fields at runtime** — schema `enum` is advisory, see [Step 6](#step-6-validate-enum-typed-fields)
 
 ### Step 4: Validate Paths
 
@@ -116,7 +119,66 @@ A `ToolResult` has four independent channels. Use the right one for each kind of
 | `files_to_add_to_clipboard` | Files the agent should inspect on the next turn. |
 | `entities_to_track` | Productivity items (tasks, projects, journals) the agent should monitor. |
 
-### Step 6: Register the Tool
+### Step 6: Validate Enum-Typed Fields
+
+Any field whose value must come from a fixed set (status, category, type discriminator) must be guarded in two places inside the tool: the JSON schema and the `run()` method.
+
+**Why two layers are not enough.** The two tool-layer guards catch LLM misbehavior and direct API misuse. They do not catch bypass attempts in the service or router layers, which is why the service and router must also validate with Pydantic (the third layer is documented in [agent_tool.md](../agent_tool.md#tool-parameter-schema-design)).
+
+**Pattern:**
+
+```python
+from typing import Any
+
+from genesis_core.productivity.models import Status
+
+from genesis_tools.base import BaseTool
+from genesis_tools.schema import ToolResult
+
+# Derive the list from the source-of-truth enum so it cannot drift.
+_STATUS_VALUES = [s.value for s in Status]
+
+
+class UpdateTasksTool(BaseTool):
+    name = "update_tasks"
+    description = "Updates one or more tasks."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "task_ids": {
+                "type": "array",
+                "items": {"type": "integer"},
+                "description": "List of task IDs to update.",
+            },
+            "status": {
+                "type": "string",
+                "enum": _STATUS_VALUES,
+                "description": f"One of {_STATUS_VALUES}.",
+            },
+        },
+        "required": ["task_ids"],
+    }
+
+    async def run(
+        self,
+        working_directory: Path,
+        user_db_url: str | None = None,
+        task_ids: list[int] = [],
+        status: str | None = None,
+        **kwargs: Any,
+    ) -> ToolResult:
+        # Runtime guard: schema enum is advisory, not enforced.
+        if status is not None and status not in _STATUS_VALUES:
+            return ToolResult(
+                status="error",
+                tool_response=f"Invalid status '{status}'. Must be one of {_STATUS_VALUES}.",
+            )
+        # ... proceed with normal logic
+```
+
+The list of allowed values must be derived from the source-of-truth enum (typically a `StrEnum` in `genesis_core.<subsystem>.models`) rather than retyped as a string literal, so the schema and the runtime check stay in lockstep when the enum is extended.
+
+### Step 7: Register the Tool
 
 In `genesis-tools/src/genesis_tools/registry.py`, add an import and a registration call:
 

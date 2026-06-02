@@ -124,6 +124,55 @@ Every tool inherits from `BaseTool`. Subclasses must define three class attribut
 
 The abstract method `run()` does the actual work and returns a `ToolResult`.
 
+### Tool parameter schema design
+
+The `parameters` dict is the LLM-facing contract for a tool. Any field whose value must come from a fixed set of options (status enums, category enums, type discriminators) must be defended in three layers, because no single layer is sufficient on its own.
+
+**Layer 1: declare an `enum` in the JSON schema.** The description string is informational. The model can still produce a value outside the documented list unless the schema contains an explicit `enum` keyword. The list of allowed values must be derived from the source-of-truth enum (for example `Status` in `genesis_core.productivity.models`) rather than retyped, so the two cannot drift.
+
+```python
+from genesis_core.productivity.models import Status
+
+_STATUS_VALUES = [s.value for s in Status]
+
+class UpdateTasksTool(BaseTool):
+    parameters = {
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "enum": _STATUS_VALUES,
+                "description": f"One of {_STATUS_VALUES}.",
+            },
+            # ...
+        },
+    }
+```
+
+**Layer 2: re-validate the value inside `run()`.** The schema constraint is advisory. Some LLM providers do not enforce `enum` strictly, the agent harness does not validate the JSON schema before invoking the tool, and direct API callers can bypass the schema entirely. A weaker or confused model can still produce an out-of-enum value. The tool must check the value and return an error `ToolResult` rather than passing the bad value to the service layer.
+
+```python
+async def run(self, user_db_url: str | None = None, **kwargs: Any) -> ToolResult:
+    if "status" in kwargs and kwargs["status"] not in _STATUS_VALUES:
+        return ToolResult(
+            status="error",
+            tool_response=f"Invalid status '{kwargs['status']}'. Must be one of {_STATUS_VALUES}.",
+        )
+    # ... proceed with normal logic
+```
+
+**Layer 3: keep the service layer strict.** The service function that persists the value (for example `bulk_update_tasks` in `genesis_core.productivity.service`) must validate the value before writing, rather than calling `setattr` on the SQLModel with a raw string. Use a Pydantic update schema or `Model.model_validate({...existing, ...updates})` so that bypass attempts at any layer surface as a `ValidationError` rather than corrupting the database.
+
+**Why three layers are required.**
+
+- Schema-only is bypassable: direct callers and providers that do not enforce enums.
+- Runtime-only works, but the LLM is not warned that the value is wrong until after the call has been made.
+- Service-only is the last line of defense but does not help the LLM self-correct on the next attempt.
+
+Historically, missing Layer 1 in `UpdateTasksTool.parameters` allowed an agent to write `status="deleted"` to a task. The corrupt value persisted because Layer 3 used `setattr` to bypass Pydantic validation, and any later page that loaded the task list crashed because the `Status` enum on the read-side schema could not coerce the value. See "Known limitations" below for the postmortem reference.
+
+For the full developer walkthrough of this pattern, see [creating_agent_tools.md](./developer_guides/creating_agent_tools.md).
+
 ### Framework-injected inputs
 
 When the agent harness calls a tool, it always passes four additional arguments alongside the tool-specific ones from the LLM. These are not part of the tool's JSON Schema and are available to every tool via `**kwargs` in the `run()` signature:
@@ -364,3 +413,7 @@ The `item_type` values (`"task"`, `"project"`, `"journal"`, `"memory_event"`, `"
 ### Resolution downgrade is a heuristic
 
 The rule that detail level degrades to summary when TTL falls to 5 is a fixed heuristic. There is no way for a tool or the user to override this behavior or tune the threshold. This may not match the actual token budget situation for a given prompt.
+
+### Enum-typed parameters require schema and runtime guards
+
+The LLM-facing JSON schema and the in-process `run()` method are the only two places where the tool author controls what values reach the service layer. Missing the `enum` constraint in the schema, or skipping the runtime check, has historically led to invalid values being written to the database (for example a task with `status="deleted"` corrupting the task list, because the read-side enum could not coerce the value on the next page load). The required three-layer pattern (schema enum, runtime check, Pydantic validation in the service) is described in "Tool parameter schema design" above.

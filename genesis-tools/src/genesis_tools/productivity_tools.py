@@ -4,11 +4,37 @@ from typing import Any, Literal
 
 from genesis_core.productivity import service as prod_service
 from genesis_core.productivity.db import get_user_session
-from genesis_core.productivity.models import JournalEntry, JournalType, Project, ProjectTaskLink, Task
+from genesis_core.productivity.models import (
+    JournalEntry,
+    JournalType,
+    Project,
+    ProjectTaskLink,
+    Status,
+    Task,
+)
 from sqlmodel import and_, col, or_, select
 
 from .base import BaseTool
 from .schema import ToolResult, TrackedEntity
+
+# Allowed values for the 'status' field on Task and Project.
+# Derived from the Status enum so the JSON schema and the runtime guards
+# stay in lockstep with the enum definition.
+_STATUS_VALUES: list[str] = [s.value for s in Status]
+
+
+def _invalid_status_response(value: str) -> ToolResult:
+    """Return a ToolResult reporting that `value` is not a valid status.
+
+    Used by every tool that accepts a `status` argument to enforce the enum
+    at runtime. The schema-level `enum` constraint is the primary guard for
+    the LLM; this is the safety net for providers and direct callers that
+    do not enforce the schema.
+    """
+    return ToolResult(
+        status="error",
+        tool_response=f"Invalid status '{value}'. Must be one of {_STATUS_VALUES}.",
+    )
 
 
 def _parse_to_utc(date_str: str, is_end_of_day: bool, local_tz: str) -> datetime:
@@ -382,7 +408,9 @@ class SearchProjectsTool(BaseTool):
         # 3. Default Sorting (Active/soonest first)
         statement = (
             statement.order_by(
-                col(Project.status).desc(), col(Project.deadline).asc(), col(Project.name).asc(),
+                col(Project.status).desc(),
+                col(Project.deadline).asc(),
+                col(Project.name).asc(),
             )
             .limit(limit)
             .offset(offset)
@@ -613,7 +641,8 @@ class CreateTaskTool(BaseTool):
             "description": {"type": "string", "description": "Markdown description or notes for the task."},
             "status": {
                 "type": "string",
-                "description": "Status: 'todo', 'in_progress', 'completed', 'backlog'. Default is 'todo'.",
+                "enum": _STATUS_VALUES,
+                "description": f"One of {_STATUS_VALUES}. Default is 'todo'.",
             },
             "assigned_date": {
                 "type": "string",
@@ -640,6 +669,11 @@ class CreateTaskTool(BaseTool):
         if not user_db_url:
             return ToolResult(status="error", tool_response="Database connection not available.")
 
+        # Runtime guard: the JSON schema `enum` is advisory, not enforced.
+        status = kwargs.get("status")
+        if status is not None and status not in _STATUS_VALUES:
+            return _invalid_status_response(status)
+
         data = {"title": kwargs["title"]}
         if "description" in kwargs:
             data["description"] = kwargs["description"]
@@ -652,11 +686,15 @@ class CreateTaskTool(BaseTool):
         try:
             if kwargs.get("hard_deadline"):
                 data["hard_deadline"] = _parse_to_utc(
-                    kwargs["hard_deadline"], is_end_of_day=True, local_tz=timezone,
+                    kwargs["hard_deadline"],
+                    is_end_of_day=True,
+                    local_tz=timezone,
                 )
             if kwargs.get("scheduled_start"):
                 data["scheduled_start"] = _parse_to_utc(
-                    kwargs["scheduled_start"], is_end_of_day=False, local_tz=timezone,
+                    kwargs["scheduled_start"],
+                    is_end_of_day=False,
+                    local_tz=timezone,
                 )
         except ValueError as e:
             return ToolResult(status="error", tool_response=f"Date formatting error: {e!s}")
@@ -696,7 +734,8 @@ class CreateProjectTool(BaseTool):
             },
             "status": {
                 "type": "string",
-                "description": "'todo', 'in_progress', 'completed', 'canceled'. Default is 'todo'.",
+                "enum": _STATUS_VALUES,
+                "description": f"One of {_STATUS_VALUES}. Default is 'todo'.",
             },
             "start_date": {"type": "string", "description": "YYYY-MM-DD. When the project starts."},
             "deadline": {"type": "string", "description": "YYYY-MM-DD. When the project is due."},
@@ -707,6 +746,11 @@ class CreateProjectTool(BaseTool):
     async def run(self, user_db_url: str | None = None, **kwargs: Any) -> ToolResult:
         if not user_db_url:
             return ToolResult(status="error", tool_response="Database connection not available.")
+
+        # Runtime guard: the JSON schema `enum` is advisory, not enforced.
+        status = kwargs.get("status")
+        if status is not None and status not in _STATUS_VALUES:
+            return _invalid_status_response(status)
 
         data = {"name": kwargs["name"]}
         if "description" in kwargs:
@@ -781,7 +825,8 @@ class CreateJournalTool(BaseTool):
 
         if entry_type_str == "project" and not kwargs.get("project_id"):
             return ToolResult(
-                status="error", tool_response="project_id is required when entry_type is 'project'.",
+                status="error",
+                tool_response="project_id is required when entry_type is 'project'.",
             )
 
         journal_id: int | None = None
@@ -818,7 +863,9 @@ class CreateJournalTool(BaseTool):
                 # 3. Find or Create Logic
                 if entry_type_str in ["daily", "weekly", "monthly", "yearly"]:
                     existing = prod_service.list_journals(
-                        session, entry_type=entry_type_enum, reference_date=ref_date,
+                        session,
+                        entry_type=entry_type_enum,
+                        reference_date=ref_date,
                     )
                     if existing:
                         return ToolResult(
@@ -864,7 +911,11 @@ class UpdateTasksTool(BaseTool):
                 "items": {"type": "integer"},
                 "description": "List of task IDs to update.",
             },
-            "status": {"type": "string", "description": "'todo', 'in_progress', 'completed', 'backlog'."},
+            "status": {
+                "type": "string",
+                "enum": _STATUS_VALUES,
+                "description": f"One of {_STATUS_VALUES}.",
+            },
             "title": {
                 "type": "string",
                 "description": "New title (Note: applies to ALL provided task_ids).",
@@ -897,6 +948,11 @@ class UpdateTasksTool(BaseTool):
         task_ids: list[int] = kwargs.get("task_ids", [])
         if not task_ids:
             return ToolResult(status="error", tool_response="No task_ids provided.")
+
+        # Runtime guard: the JSON schema `enum` is advisory, not enforced.
+        status = kwargs.get("status")
+        if status is not None and status not in _STATUS_VALUES:
+            return _invalid_status_response(status)
 
         field_updates: dict[str, Any] = {}
 
@@ -947,7 +1003,8 @@ class UpdateTasksTool(BaseTool):
 
             if updated_count == 0:
                 return ToolResult(
-                    status="error", tool_response="No tasks were updated. Check if the task_ids exist.",
+                    status="error",
+                    tool_response="No tasks were updated. Check if the task_ids exist.",
                 )
 
             # Dynamic resolution: If they update just 1 task, show full detail. If bulk, show summary.
@@ -975,7 +1032,11 @@ class UpdateProjectTool(BaseTool):
             "project_id": {"type": "integer", "description": "ID of the project to update."},
             "name": {"type": "string", "description": "New name for the project."},
             "description": {"type": "string", "description": "New description. Pass '' to clear."},
-            "status": {"type": "string", "description": "'todo', 'in_progress', 'completed', 'canceled'."},
+            "status": {
+                "type": "string",
+                "enum": _STATUS_VALUES,
+                "description": f"One of {_STATUS_VALUES}.",
+            },
             "start_date": {"type": "string", "description": "YYYY-MM-DD. Pass '' to clear."},
             "deadline": {"type": "string", "description": "YYYY-MM-DD. Pass '' to clear."},
         },
@@ -989,6 +1050,11 @@ class UpdateProjectTool(BaseTool):
         project_id = kwargs.get("project_id")
         if not project_id:
             return ToolResult(status="error", tool_response="project_id is required.")
+
+        # Runtime guard: the JSON schema `enum` is advisory, not enforced.
+        status = kwargs.get("status")
+        if status is not None and status not in _STATUS_VALUES:
+            return _invalid_status_response(status)
 
         field_updates: dict[str, Any] = {}
 
