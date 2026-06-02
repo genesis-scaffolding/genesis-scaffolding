@@ -7,6 +7,7 @@ import { getTaskColumns } from "./table/columns";
 import { TaskTableToolbar } from "./table/toolbar";
 import { BulkActionBar } from "./bulk-action-bar";
 import { SortingState } from "@tanstack/react-table";
+import { TaskListContext, TaskListProviderActive } from "./task-list-provider";
 
 interface TaskTableProps {
   tasks: Task[];
@@ -24,6 +25,16 @@ export function TaskTable({
   pagination,
 }: TaskTableProps) {
   const enablePagination = pagination ?? variant === "table";
+
+  // When wrapped in a TaskListProvider, the provider's optimistic layer is
+  // the source of truth for the row data. When rendered standalone (e.g. an
+  // isolated test or a page that does not opt into optimistic updates), the
+  // TaskListProviderActive context is false and we fall back to the `tasks`
+  // prop directly. This keeps the component usable in both modes without
+  // forcing every caller to wire up the provider.
+  const inProvider = React.useContext(TaskListProviderActive);
+  const { optimisticTasks } = React.useContext(TaskListContext);
+  const data = inProvider ? optimisticTasks : tasks;
 
   const columns = React.useMemo(() => getTaskColumns(projects, variant), [projects, variant]);
 
@@ -60,7 +71,7 @@ export function TaskTable({
 
   return (
     <DataTable
-      data={tasks}
+      data={data}
       columns={columns}
       initialSorting={defaultSorting}
       enableMultiSort={true}

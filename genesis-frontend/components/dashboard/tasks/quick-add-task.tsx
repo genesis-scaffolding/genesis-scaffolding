@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useTransition, useContext } from "react";
 import { Plus, Loader2, Hash, Calendar, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { createTaskAction, deleteTaskAction, getProjectsAction } from "@/app/actions/productivity";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Project } from "@/types/productivity";
+import { Project, Task } from "@/types/productivity";
 import { parseTaskInput } from "@/lib/task-parser";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { TaskListContext, TaskListProviderActive } from "./task-list-provider";
 
 export function QuickAddTask({ defaultProjectId, showToast = false, popupDirection = "below" }: { defaultProjectId?: number; showToast?: boolean; popupDirection?: "above" | "below" }) {
   const [inputValue, setInputValue] = useState("");
@@ -102,15 +103,28 @@ export function QuickAddTask({ defaultProjectId, showToast = false, popupDirecti
     }
   };
 
+  // If the surrounding tree has a TaskListProvider, the new task can be
+  // added to the table's optimistic state the moment the server action
+  // returns. Otherwise (e.g. the floating QuickAddTask on the dashboard
+  // layout, or any caller that has not wrapped us in a provider) the dispatch
+  // is a no-op and we fall back to router.refresh() for reconciliation.
+  const inProvider = useContext(TaskListProviderActive);
+  const { addOptimistic } = useContext(TaskListContext);
+  const [, startCreating] = useTransition();
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (showSuggestions) return; // Prevent submission if picking a project
     if (!parsed.title || loading) return;
 
     setLoading(true);
+    // Clear the input immediately so the user sees their action acknowledged
+    // before the server round-trip completes. The toast and optimistic add
+    // happen after the action returns so the user sees the confirmed server
+    // task (with its real id) rather than a placeholder.
+    setInputValue("");
     try {
-      console.log(parsed)
-      const newTask = await createTaskAction({
+      const newTask: Task = await createTaskAction({
         title: parsed.title,
         project_ids: activeProjectId ? [activeProjectId] : [],
         assigned_date: parsed.assignedDate,
@@ -119,14 +133,21 @@ export function QuickAddTask({ defaultProjectId, showToast = false, popupDirecti
         status: "todo",
       });
 
-      setInputValue("");
-      if (showToast) {
-        toast.success("Task created", {
-          description: `"${parsed.title}" added successfully.`,
-          action: { label: "Undo", onClick: () => deleteTaskAction(newTask.id) }
-        });
-      }
-      router.refresh();
+      // Optimistic add and revalidation run inside a transition. If the
+      // caller did not wire a provider, addOptimistic is a no-op and only
+      // router.refresh() runs; the page reloads with the new task in place.
+      startCreating(async () => {
+        if (inProvider) {
+          addOptimistic({ type: "create", task: newTask });
+        }
+        if (showToast) {
+          toast.success("Task created", {
+            description: `"${parsed.title}" added successfully.`,
+            action: { label: "Undo", onClick: () => deleteTaskAction(newTask.id) }
+          });
+        }
+        router.refresh();
+      });
     } catch (error) {
       if (showToast) toast.error("Failed to create task");
     } finally {

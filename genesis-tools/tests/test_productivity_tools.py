@@ -592,6 +592,7 @@ class TestForeignKeyGuardsAtTool:
         from genesis_core.productivity.models import Task
         from sqlmodel import select as _select
 
+        tasks: list[Task] = []
         for session in get_session(user_db_url):
             tasks = list(session.exec(_select(Task)).all())
         assert tasks == []

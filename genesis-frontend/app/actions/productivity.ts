@@ -105,8 +105,11 @@ export async function updateTaskAction(id: number, data: Partial<Task>) {
     body: JSON.stringify(payload),
   });
 
-  revalidatePath('/dashboard/tasks');
-  revalidatePath(`/dashboard/tasks/${id}`);
+  // The productivity fetches use Next 15+ default cache: 'no-store' (apiFetch
+  // is a plain fetch with no cache options), so the Data Cache is empty for
+  // these routes and revalidatePath has no effect on the fetched data. The
+  // caller (TaskStatusBadge) is responsible for reconciling the UI via
+  // router.refresh() after a successful mutation.
   return res.json();
 }
 
