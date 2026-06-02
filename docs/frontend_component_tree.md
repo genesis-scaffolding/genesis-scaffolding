@@ -126,8 +126,8 @@ PageContainer (variant="app")
                       <!-- Dashboard page content -->
                       <section grid grid-cols-1 md:grid-cols-3>  <!-- Metric cards -->
                       <section grid gap-8 grid-cols-1 lg:grid-cols-12>
-                        <div lg:col-span-8>  <!-- Task list -->
-                          <TaskTable variant="dashboard" />
+                        <div lg:col-span-8>  <!-- Task list (no provider, reads from tasks prop) -->
+                          <TaskTable variant="dashboard" tasks={agendaTasks} />
                         </div>
                         <div lg:col-span-4>  <!-- Agents + Workflows -->
                           <AgentCard />
@@ -137,7 +137,7 @@ PageContainer (variant="app")
                       <section>  <!-- Recent activity -->
                         <JobList />
                       </section>
-                      <!-- FloatingActionMenu renders here -->
+                      <!-- FloatingActionMenu renders here (mounts its own provider-less QuickAddTask) -->
                     </PageBody>
                   </div>
                 </div>
@@ -172,6 +172,53 @@ PageContainer (variant="app")
 
 Key difference: The page itself has a pinned header and footer. The message area is `flex-1 min-h-0 overflow-y-auto` and scrolls independently. No `PageBody` is used.
 
+## Task List Pages with TaskListProvider
+
+Two pages wrap their `TaskTable` and `QuickAddTask` in a `TaskListProvider` so the row data, the status popover, and the quick-add input share the same optimistic state.
+
+### `/dashboard/tasks/page.tsx` (global task list)
+
+```
+PageContainer (variant="dashboard")
+└── PageBody
+    └── <heading> (h1 + subtitle)
+    └── TaskListProvider (tasks={tasks} projects={projects})
+        ├── QuickAddTask
+        └── TaskTable (tasks={tasks} projects={projects} variant="table")
+            └── DataTable
+                ├── <toolbar> TaskTableToolbar
+                ├── <rows> per task (reads from optimisticTasks via context)
+                └── <floating bar> BulkActionBar
+```
+
+### `/dashboard/projects/[id]/page.tsx` (project detail)
+
+```
+PageContainer (variant="dashboard")
+└── PageBody
+    ├── <header> (project name, status badge, description)
+    ├── <metric cards> (progress, task count, open count, deadline)
+    └── TaskListProvider (tasks={tasks} projects={projects})
+        ├── <tasks section>
+        │   └── TaskTable (variant="list" pagination floatingOffset={true})
+        │       └── DataTable
+        │           └── <floating bar> BulkActionBar (with bottom-24 offset)
+        ├── <journal section>
+        │   └── JournalTable
+        └── <fixed bottom QuickAddTask> (defaultProjectId={project.id} popupDirection="above")
+```
+
+The project page keeps the `QuickAddTask` as a fixed-position bar at the bottom of the viewport. Fixed positioning is viewport-relative, so it works correctly even when the `QuickAddTask` lives inside the `TaskListProvider` subtree (it is not nested in the page's normal flow).
+
+### Pages WITHOUT TaskListProvider
+
+Not every page that shows a `TaskTable` is wrapped in a provider. The `TaskTable` component is dual-mode: it reads from the optimistic context when `TaskListProviderActive` is `true`, otherwise it falls back to the `tasks` prop.
+
+- **Dashboard home** (`app/dashboard/page.tsx`) — renders a `TaskTable` directly with the filtered `agendaTasks` array as the prop. There is no shared optimistic state because the row actions would only affect the dashboard's filtered slice, not the underlying task list.
+- **Floating `QuickAddTask` in `FloatingActionMenu`** — mounted by the dashboard layout, not by a page, so it has no shared table. It uses the provider-less code path (the dispatch is a no-op, `router.refresh()` reconciles).
+
+See [frontend_components/task-list-provider.md](./frontend_components/task-list-provider.md) and [frontend_components/task-table.md](./frontend_components/task-table.md) for the optimistic state contract.
+
 ## Component Organization
 
 ```
@@ -189,7 +236,15 @@ components/
 │   ├── page-container.tsx       # PageContainer, PageBody
 │   ├── floating-action-menu.tsx # FAB menu
 │   ├── dynamic-header.tsx       # Shows current page title
-│   ├── task-table.tsx
+│   ├── tasks/
+│   │   ├── task-list-provider.tsx  # Optimistic state container
+│   │   ├── task-table.tsx          # Table view (reads from provider or prop)
+│   │   ├── quick-add-task.tsx      # Smart task input
+│   │   ├── bulk-action-bar.tsx     # Floating bar for row selection
+│   │   └── table/                  # Task table internals
+│   │       ├── columns.tsx         # getTaskColumns factory
+│   │       ├── toolbar.tsx         # TaskTableToolbar
+│   │       └── task-status-badge.tsx  # Status popover (optimistic dispatch)
 │   ├── jobs-table.tsx
 │   ├── workflow-card.tsx
 │   ├── agent-card.tsx

@@ -12,12 +12,14 @@ The genesis frontend is a Next.js web application that serves as the user-facing
 
 **Standardized page structure.** All dashboard pages use PageContainer and PageBody to enforce consistent layout, max-width, and scroll behavior.
 
+**Optimistic updates through dedicated providers.** When two client components on the same page need to share optimistic state (e.g. a `TaskTable` row and a sibling `QuickAddTask`), the state is lifted into a dedicated client-side provider rather than buried inside one of the components. The provider owns the optimistic layer (typically `useOptimistic` plus a typed reducer), exposes it through context, and renders no DOM. Pages that need optimistic updates wrap the relevant components in the provider; pages that do not can use the same components as plain props-driven views. See [frontend_components/task-list-provider.md](./frontend_components/task-list-provider.md) for the canonical example.
+
 ## Documentation Structure
 
 | Document | Contents |
 |---|---|
-| [frontend_data_flow.md](./frontend_data_flow.md) | How browser, Next.js, and FastAPI communicate. Server actions, API proxy, token injection. |
-| [frontend_component_tree.md](./frontend_component_tree.md) | Full component hierarchy from HTML root to page-level components. |
+| [frontend_data_flow.md](./frontend_data_flow.md) | How browser, Next.js, and FastAPI communicate. Server actions, API proxy, token injection, optimistic mutation flow. |
+| [frontend_component_tree.md](./frontend_component_tree.md) | Full component hierarchy from HTML root to page-level components, including provider wrappings. |
 | [frontend_layout_system.md](./frontend_layout_system.md) | CSS constraints, flex rules, PageContainer/PageBody pattern, preventing double scrollbars. |
 
 ## Codebase Structure

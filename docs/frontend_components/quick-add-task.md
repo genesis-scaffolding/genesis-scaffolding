@@ -185,26 +185,63 @@ async function handleSubmit(e: React.FormEvent) {
   if (showSuggestions) return;  // Prevent submission while picking a project
   if (!parsed.title || loading) return;
 
-  const newTask = await createTaskAction({
-    title: parsed.title,
-    project_ids: activeProjectId ? [activeProjectId] : [],
-    assigned_date: parsed.assignedDate,
-    hard_deadline: parsed.hardDeadline,
-    scheduled_start: parsed.scheduledStart,
-    status: "todo",
-  });
-
+  // Clear the input immediately so the user sees the action acknowledged
+  // before the server round-trip completes. Toast and optimistic add happen
+  // after the action returns so the user sees the confirmed server task
+  // (with its real id) rather than a placeholder.
   setInputValue("");
-  if (showToast) {
-    toast.success("Task created", {
-      action: { label: "Undo", onClick: () => deleteTaskAction(newTask.id) }
+  try {
+    const newTask = await createTaskAction({
+      title: parsed.title,
+      project_ids: activeProjectId ? [activeProjectId] : [],
+      assigned_date: parsed.assignedDate,
+      hard_deadline: parsed.hardDeadline,
+      scheduled_start: parsed.scheduledStart,
+      status: "todo",
     });
+
+    // Optimistic add and revalidation run inside a transition. If the caller
+    // did not wire a provider, addOptimistic is a no-op and only
+    // router.refresh() runs; the page reloads with the new task in place.
+    startTransition(() => {
+      if (inProvider) {
+        addOptimistic({ type: "create", task: newTask });
+      }
+      if (showToast) {
+        toast.success("Task created", {
+          action: { label: "Undo", onClick: () => deleteTaskAction(newTask.id) }
+        });
+      }
+      router.refresh();
+    });
+  } catch (error) {
+    if (showToast) toast.error("Failed to create task");
+  } finally {
+    setLoading(false);
   }
-  router.refresh();
 }
 ```
 
 The `showSuggestions` check prevents accidental submission while navigating the popup. The success toast includes an undo action that deletes the created task.
+
+**TaskListProvider Integration**
+
+`QuickAddTask` is typically a sibling of `TaskTable` on the same page, so it shares the task list through `TaskListProvider`. The component reads two contexts from the provider:
+
+```typescript
+const inProvider = useContext(TaskListProviderActive);
+const { addOptimistic } = useContext(TaskListContext);
+```
+
+The submit flow splits the work into a synchronous feedback phase and a transition:
+
+1. **Outside the transition** — clear the input, show the spinner. This gives the user instant feedback that the submit landed.
+2. **Await the server action** — `createTaskAction` returns the new task with its real `id`.
+3. **Inside `startTransition`** — if a provider is present, dispatch `{ type: "create", task: newTask }` to prepend the row to the optimistic list. Then call `router.refresh()` to reconcile the base `tasks` prop with the server state.
+
+If no provider is in the tree, `addOptimistic` is a no-op and only `router.refresh()` runs. This is the path used by the floating `QuickAddTask` in `FloatingActionMenu` — it is mounted by the dashboard layout, not by a page, so it has no shared table.
+
+See [task-list-provider.md](./task-list-provider.md) for the full optimistic state contract.
 
 **Floating Badges**
 
@@ -225,5 +262,6 @@ The badges use `pointer-events-none` so they do not interfere with input interac
 ### Key Files
 
 - `components/dashboard/tasks/quick-add-task.tsx` — main component
+- `components/dashboard/tasks/task-list-provider.tsx` — `TaskListProvider`, `TaskListContext`, `TaskListProviderActive` (consumer)
 - `lib/task-parser.ts` — `parseTaskInput` function
 - `app/actions/productivity.ts` — `createTaskAction`, `deleteTaskAction`, `getProjectsAction`

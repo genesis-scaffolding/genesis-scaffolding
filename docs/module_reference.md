@@ -396,6 +396,8 @@ React components — 112 files. Feature-grouped subdirectories.
 
 `components/dashboard/` — Reusable dashboard widgets: AgentCard, AgentForm, ChatHistoryTable, JobContext, JobsTable, JournalsTable, MemoryForm, LLMSection, CalendarView, FloatingActionMenu, and more.
 
+`components/dashboard/tasks/` — Task list subsystem: `TaskListProvider` (optimistic state container with `useOptimistic` plus a typed reducer), `TaskTable` (the table view, dual-mode: reads from provider or prop), `QuickAddTask` (smart input with project/date parsing), `BulkActionBar` (floating bar for row selection), and `table/` (TaskTable internals: `getTaskColumns` factory, `TaskTableToolbar`, `TaskStatusBadge` popover that dispatches optimistic status updates).
+
 **`lib/`**
 genesis-frontend/lib/
 Client-side utilities and API layer.

@@ -160,3 +160,44 @@ The three flows cover the complete lifecycle:
 ## Authentication Reference
 
 For complete auth details — JWT structure, token refresh flow, logout, and known limitations — see [authentication.md](./authentication.md).
+
+## Optimistic Mutation Flow
+
+When a user mutation should feel instant (status change, task creation), the page wraps the relevant components in an optimistic state provider (see [frontend_components/task-list-provider.md](./frontend_components/task-list-provider.md) for the canonical example). The flow is:
+
+1. **User action** — the user clicks a status badge, submits a new task, etc.
+2. **Synchronous UI feedback** — close the popover, clear the input, show the spinner. These run outside any transition so the user sees the change immediately.
+3. **`startTransition` with `addOptimistic`** — the component dispatches an optimistic action (e.g. `{ type: "status", taskId, status }` or `{ type: "create", task }`). React updates the visible state in the same frame from the optimistic layer.
+4. **Server action in the background** — the same transition calls the server action (e.g. `updateTaskAction`, `createTaskAction`). The action PATCHes/POSTs to FastAPI through the proxy.
+5. **`router.refresh()` in the same transition** — triggers a server-side re-render of the current page. The new RSC payload arrives with the authoritative `tasks` prop.
+6. **Reconciliation** — `useOptimistic` reconciles: the new `tasks` prop becomes the base state, the optimistic overlay is dropped, and the default sort/filter rules apply.
+
+If the server action throws, the transition completes without a new `tasks` prop arriving, and React reverts the optimistic state to the previous value. The user sees the row snap back to its original state.
+
+```
+User clicks badge
+    │
+    ▼
+Synchronous UI feedback (close popover, clear input)
+    │
+    ▼
+startTransition(() => {
+    addOptimistic({ type: "status", taskId, status })  ← React re-renders from optimistic layer
+    await updateTaskAction(...)                        ← server round-trip
+    router.refresh()                                   ← trigger RSC re-render
+})
+    │
+    ▼
+New RSC payload arrives with authoritative tasks
+    │
+    ▼
+useOptimistic reconciles: optimistic overlay dropped, base state updated
+```
+
+Key properties of this pattern:
+
+- **The optimistic layer is the single source of truth inside the transition.** Components that render the row data read from the optimistic context, not from any prop they were passed, so a status flip or a new row is visible in the same frame as the click.
+- **The transition boundary wraps only the dispatch + server call + revalidation, not the synchronous UI feedback.** Wrapping the input clear inside the transition would delay the feedback until the transition starts.
+- **The provider's default context is a no-op.** Components rendered outside any provider (e.g. the floating `QuickAddTask` in the dashboard layout) see a no-op dispatch and fall back to `router.refresh()` for reconciliation, so the same component works in both wrapped and unwrapped modes.
+
+See [frontend_components/task-list-provider.md](./frontend_components/task-list-provider.md) and [frontend_components/task-table.md](./frontend_components/task-table.md) for the concrete wiring on the task list pages.

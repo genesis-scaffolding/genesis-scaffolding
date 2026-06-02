@@ -27,9 +27,11 @@ This section lists the top-level documentation files that describe different par
 | File | Description |
 |---|---|
 | [frontend_architecture.md](./frontend_architecture.md) | Next.js app structure, routing, and key design decisions |
-| [frontend_data_flow.md](./frontend_data_flow.md) | Browser to Next.js to FastAPI communication paths |
+| [frontend_data_flow.md](./frontend_data_flow.md) | Browser to Next.js to FastAPI communication paths, including optimistic mutation flow |
 | [frontend_layout_system.md](./frontend_layout_system.md) | CSS constraints, flex layout rules, PageContainer pattern |
-| [frontend_component_tree.md](./frontend_component_tree.md) | Full component hierarchy from HTML root to page level |
+| [frontend_component_tree.md](./frontend_component_tree.md) | Full component hierarchy from HTML root to page level, including provider wrappings |
+| [frontend_components/task-list-provider.md](./frontend_components/task-list-provider.md) | Optimistic state container for the task list (context, reducer, dispatch semantics) |
+| [frontend_components/task-table.md](./frontend_components/task-table.md) | TaskTable component (variants, columns, data source, floating bar) |
 
 ### Backend
 
