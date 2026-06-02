@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { TaskTable } from "@/components/dashboard/tasks/task-table";
 import { TaskListProvider } from "@/components/dashboard/tasks/task-list-provider";
 import { JournalTable } from "@/components/dashboard/journals/journal-table";
+import { MarkdownText } from "@/components/ui/markdown-text";
 
 export default async function ProjectDetailPage({
   params
@@ -46,7 +47,7 @@ export default async function ProjectDetailPage({
                 <h1 className="text-3xl font-bold">{project.name}</h1>
                 <Badge variant="outline" className="capitalize">{project.status}</Badge>
               </div>
-              <p className="text-muted-foreground max-w-2xl">{project.description}</p>
+              <MarkdownText content={project.description} className="max-w-2xl" />
             </div>
 
           </div>
