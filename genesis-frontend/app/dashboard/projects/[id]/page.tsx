@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { QuickAddTask } from "@/components/dashboard/tasks/quick-add-task";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { TaskTable } from "@/components/dashboard/tasks/task-table";
+import { TaskListProvider } from "@/components/dashboard/tasks/task-list-provider";
 import { JournalTable } from "@/components/dashboard/journals/journal-table";
 
 export default async function ProjectDetailPage({
@@ -80,37 +81,39 @@ export default async function ProjectDetailPage({
 
         <Separator className="my-8" />
 
-        <div className="space-y-4 pb-24">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Project Tasks</h2>
+        <TaskListProvider tasks={tasks} projects={projects}>
+          <div className="space-y-4 pb-24">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Project Tasks</h2>
+            </div>
+
+            {/* We pass project_id to the list so new tasks created here are automatically linked */}
+            <TaskTable
+              tasks={tasks}
+              projects={projects}
+              variant="list"
+              pagination={true}
+              floatingOffset={true}
+            />
           </div>
 
-          {/* We pass project_id to the list so new tasks created here are automatically linked */}
-          <TaskTable
-            tasks={tasks}
-            projects={projects}
-            variant="list"
-            pagination={true}
-            floatingOffset={true}
-          />
-        </div>
+          <Separator className="my-8" />
 
-        <Separator className="my-8" />
+          <div className="space-y-4 pb-24">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Project Journal</h2>
+            </div>
 
-        <div className="space-y-4 pb-24">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Project Journal</h2>
+            <JournalTable entries={journals} projects={projects} hiddenColumns={{ project: false, entry_type: false }} />
           </div>
-
-          <JournalTable entries={journals} projects={projects} hiddenColumns={{ project: false, entry_type: false }} />
-        </div>
-        <div className="fixed bottom-6 left-0 right-0 px-4 md:left-[240px] z-50 pointer-events-none">
-          <div className="max-w-4xl mx-auto pointer-events-auto">
-            <div className="bg-background/80 backdrop-blur-md border rounded-xl shadow-2xl p-2 border-primary/20">
-              <QuickAddTask defaultProjectId={Number(project.id)} popupDirection="above" />
+          <div className="fixed bottom-6 left-0 right-0 px-4 md:left-[240px] z-50 pointer-events-none">
+            <div className="max-w-4xl mx-auto pointer-events-auto">
+              <div className="bg-background/80 backdrop-blur-md border rounded-xl shadow-2xl p-2 border-primary/20">
+                <QuickAddTask defaultProjectId={Number(project.id)} popupDirection="above" />
+              </div>
             </div>
           </div>
-        </div>
+        </TaskListProvider>
       </PageBody>
     </PageContainer>
   );

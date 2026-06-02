@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Any, Literal
@@ -19,6 +20,26 @@ def _apply_sorting(statement, model, sort_by: str, order: str):
     if order == "desc":
         return statement.order_by(desc(field))
     return statement.order_by(asc(field))
+
+
+def _missing_project_ids(session: Session, project_ids: Iterable[int]) -> list[int]:
+    """Return the project IDs from `project_ids` that are not present in the
+    database. Empty input returns an empty list; duplicates are deduplicated.
+
+    This is the service-layer guard for foreign-key references to ``Project``.
+    The tool layer is kept simple: it forwards the user-supplied IDs to the
+    service, and the service is the single place that owns knowledge of the
+    database models and how to validate references against them. The
+    function raises ``ValueError`` on missing IDs at the call site so the
+    caller's transaction is not half-applied.
+    """
+    ids = set(project_ids)
+    if not ids:
+        return []
+    existing = set(
+        session.exec(select(Project.id).where(col(Project.id).in_(ids))).all(),
+    )
+    return sorted(ids - existing)
 
 
 def _validate_enum_fields(data: dict[str, Any], model: type) -> None:
@@ -71,6 +92,12 @@ def list_projects(
 
 
 def create_project(session: Session, data: dict[str, Any]) -> Project:
+    # B5 (project): the name is the human-readable handle for the project
+    # and a blank name leaves an unidentifiable row in lists and search.
+    name = data.get("name")
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("name is required and must not be blank")
+
     db_project = Project.model_validate(data)
     session.add(db_project)
     session.commit()
@@ -145,6 +172,19 @@ def list_tasks(
 
 
 def create_task(session: Session, data: dict[str, Any], project_ids: list[int] | None = None) -> Task:
+    # B5 (task): title is the primary handle. A blank title leaves an
+    # unidentifiable row in lists and search, and the UI shows an empty row.
+    title = data.get("title")
+    if not isinstance(title, str) or not title.strip():
+        raise ValueError("title is required and must not be blank")
+
+    # B3: every referenced project must exist. Previously the loop below
+    # silently skipped missing IDs, allowing orphan links to be created.
+    if project_ids:
+        missing = _missing_project_ids(session, project_ids)
+        if missing:
+            raise ValueError(f"Project(s) not found: {missing}")
+
     db_task = Task.model_validate(data)
 
     if project_ids:
@@ -210,6 +250,13 @@ def bulk_update_tasks(
     # Reject invalid enum values before any row is mutated. Raises
     # ValueError on bad data so the caller's transaction is not half-applied.
     _validate_enum_fields(field_updates, Task)
+
+    # B4: every project to be added must exist. remove_project_ids is a
+    # no-op on missing IDs by design (the link simply does not exist).
+    if add_project_ids:
+        missing = _missing_project_ids(session, add_project_ids)
+        if missing:
+            raise ValueError(f"Project(s) not found: {missing}")
 
     statement = (
         select(Task).where(col(Task.id).in_(task_ids)).options(selectinload(Task.projects))  # type: ignore
@@ -294,6 +341,13 @@ def list_journals(
 
 
 def create_journal(session: Session, data: dict[str, Any]) -> JournalEntry:
+    # B1: a project-type journal must reference an existing project.
+    # Without this check, the journal is created with a dangling project_id
+    # that is never returned by any project-scoped journal query.
+    project_id = data.get("project_id")
+    if project_id is not None and session.get(Project, project_id) is None:
+        raise ValueError(f"Project {project_id} not found")
+
     db_entry = JournalEntry.model_validate(data)
     session.add(db_entry)
     session.commit()
@@ -309,6 +363,13 @@ def update_journal(session: Session, journal_id: int, data: dict[str, Any]) -> J
     # Reject invalid enum values (e.g. an out-of-enum entry_type) before
     # setattr silently downgrades the field type. Raises ValueError.
     _validate_enum_fields(data, JournalEntry)
+
+    # B2: when the journal is being re-linked to a project, the new project
+    # must exist. Passing `None` (i.e. unlink) is allowed; passing a
+    # non-existent ID is not.
+    if "project_id" in data and data["project_id"] is not None:
+        if session.get(Project, data["project_id"]) is None:
+            raise ValueError(f"Project {data['project_id']} not found")
 
     for key, value in data.items():
         if hasattr(db_entry, key):

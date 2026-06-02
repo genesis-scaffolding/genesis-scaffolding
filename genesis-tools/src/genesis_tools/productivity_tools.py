@@ -717,6 +717,11 @@ class CreateTaskTool(BaseTool):
                 tool_response=f"Task '{data['title']}' created successfully with ID {task_id}. It is now pinned to your CLIPBOARD.",
                 entities_to_track=[entity],
             )
+        except ValueError as e:
+            # Service-layer validation (B3, B5): missing project_ids or
+            # blank title. Surface the message directly so the LLM sees the
+            # exact reason.
+            return ToolResult(status="error", tool_response=str(e))
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Failed to create task: {e!s}")
 
@@ -781,6 +786,9 @@ class CreateProjectTool(BaseTool):
                 tool_response=f"Project '{data['name']}' created successfully with ID {project_id}. It is pinned to your CLIPBOARD.",
                 entities_to_track=[entity],
             )
+        except ValueError as e:
+            # Service-layer validation (B5): blank name.
+            return ToolResult(status="error", tool_response=str(e))
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Failed to create project: {e!s}")
 
@@ -831,8 +839,9 @@ class CreateJournalTool(BaseTool):
 
         journal_id: int | None = None
 
+        # 1. Normalize the reference date. ValueError here is a date parse
+        # problem; let the dedicated catch below format that clearly.
         try:
-            # 1. Normalize the reference date
             raw_date_str = kwargs["reference_date"][:10]
             ref_date = date.fromisoformat(raw_date_str)
 
@@ -844,23 +853,28 @@ class CreateJournalTool(BaseTool):
                 ref_date = ref_date.replace(month=1, day=1)
 
             ref_date_str = ref_date.isoformat()
+        except ValueError as e:
+            return ToolResult(status="error", tool_response=f"Date parsing error: {e!s}")
 
-            # 2. Handle Title
-            title = kwargs.get("title")
-            if not title:
-                title = f"{entry_type_str.capitalize()} - {ref_date_str}"
+        # 2. Handle Title
+        title = kwargs.get("title")
+        if not title:
+            title = f"{entry_type_str.capitalize()} - {ref_date_str}"
 
-            data = {
-                "entry_type": entry_type_str,
-                "reference_date": ref_date,
-                "title": title,
-                "content": content,
-            }
-            if kwargs.get("project_id"):
-                data["project_id"] = kwargs["project_id"]
+        data = {
+            "entry_type": entry_type_str,
+            "reference_date": ref_date,
+            "title": title,
+            "content": content,
+        }
+        if kwargs.get("project_id"):
+            data["project_id"] = kwargs["project_id"]
 
+        # 3. DB call. ValueError here is a service-layer validation error
+        # (B1: missing project_id); surface it directly.
+        try:
             for session in get_user_session(db_url=user_db_url):
-                # 3. Find or Create Logic
+                # 3a. Find or Create Logic
                 if entry_type_str in ["daily", "weekly", "monthly", "yearly"]:
                     existing = prod_service.list_journals(
                         session,
@@ -873,7 +887,7 @@ class CreateJournalTool(BaseTool):
                             tool_response=f"A {entry_type_str} journal for {ref_date_str} already exists (ID: {existing[0].id}). Use `read_journal` or `update_journal` instead.",
                         )
 
-                # 4. Create it
+                # 3b. Create it
                 journal = prod_service.create_journal(session, data)
                 journal_id = journal.id
 
@@ -886,9 +900,8 @@ class CreateJournalTool(BaseTool):
                 tool_response=f"{entry_type_str.capitalize()} Journal created successfully with ID {journal_id}. It is pinned to your CLIPBOARD.",
                 entities_to_track=[entity],
             )
-
         except ValueError as e:
-            return ToolResult(status="error", tool_response=f"Date parsing error: {e!s}")
+            return ToolResult(status="error", tool_response=str(e))
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Failed to create journal: {e!s}")
 
@@ -1019,6 +1032,9 @@ class UpdateTasksTool(BaseTool):
                 entities_to_track=entities,
             )
 
+        except ValueError as e:
+            # Service-layer validation (B4: missing add_project_ids).
+            return ToolResult(status="error", tool_response=str(e))
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Failed to update tasks: {e!s}")
 
@@ -1096,6 +1112,9 @@ class UpdateProjectTool(BaseTool):
                 entities_to_track=[entity],
             )
 
+        except ValueError as e:
+            # Service-layer validation: invalid enum or blank name on update.
+            return ToolResult(status="error", tool_response=str(e))
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Failed to update project: {e!s}")
 

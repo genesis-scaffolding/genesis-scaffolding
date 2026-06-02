@@ -4,6 +4,72 @@ A log of bugs, their symptoms, root causes, and fixes. Updated as problems are d
 
 ---
 
+## 2026-06-02: Task Status Refresh Feels Unreliable Over Tailscale
+
+### Symptoms
+
+- Clicking a status badge on a task to mark it complete updates the row instantly in dev mode (`make dev`).
+- In production accessed over Tailscale, the same action is unreliable: sometimes the row updates instantly, sometimes it takes a few seconds, and sometimes the row stays in the old state until the user hits F5.
+- The same shape appears on the task detail page after editing a task and being redirected back.
+
+### Root Cause
+
+The task status change path is:
+
+1. `TaskStatusBadge` calls the `updateTaskAction` server action.
+2. The action PATCHes FastAPI and then calls `revalidatePath` for `/dashboard/tasks` and `/dashboard/tasks/${id}`.
+3. The badge then calls `router.refresh()`, which triggers a server-side re-render of the current page and re-fetches the tasks.
+
+The fetches that load the task list go through `apiFetch`, which is a plain `fetch()` with no `cache` or `next` options. In Next.js 15+ (we are on 16.1.6) the default for plain `fetch()` is `cache: 'no-store'`, so the productivity routes are never placed in the Data Cache. That means:
+
+- `revalidatePath` calls in the action are no-ops for the productivity fetches (there is nothing cached to invalidate).
+- The only mechanism that actually triggers a re-fetch is `router.refresh()` in the client.
+
+The data on the next render is therefore always fresh. The user-visible bug is not data staleness; it is the perceived **gap** between clicking the badge and the table re-rendering. In dev, the round-trip to the local FastAPI is essentially zero so the gap is invisible. Over Tailscale, the gap is hundreds of milliseconds to a few seconds. The user clicks the badge, the popover closes immediately, and then nothing happens for a moment. If the user interacts with the page in that window, the eventual RSC payload can be perceived as missed or delayed.
+
+The `revalidatePath` calls in `updateTaskAction` also targeted the wrong paths. The user might be on `/dashboard/projects/[id]`, `/dashboard`, or `/dashboard/tasks`, and the calls only covered `/dashboard/tasks` and `/dashboard/tasks/${id}`. The calls were a no-op anyway, but they gave a false sense of correctness.
+
+### The Fix
+
+Apply React's `useOptimistic` hook to `TaskTable` so the row updates synchronously on click, regardless of the server round-trip.
+
+- `components/dashboard/tasks/task-table.tsx` wraps the `tasks` prop in `useOptimistic` and exposes an `addOptimistic` function via a `TaskTableContext`.
+- `components/dashboard/tasks/table/task-status-badge.tsx` reads `addOptimistic` from context, calls it inside a `startTransition` immediately after closing the popover, and lets the server action and `router.refresh()` run in the background.
+- When the new RSC payload arrives, the `tasks` prop updates and `useOptimistic` reconciles, including the default sort that places completed items at the bottom.
+- If the server action rejects, React automatically reverts the optimistic state when the transition completes without a new prop arriving.
+- The `revalidatePath` calls in `updateTaskAction` were removed and replaced with a comment explaining that the productivity fetches are no-store, so revalidation is unnecessary and the caller's `router.refresh()` is the actual reconciliation mechanism.
+
+### Lesson
+
+When mixing server-rendered data with client-side mutations in the App Router, the data itself is usually fine (`cache: 'no-store'` in Next 15+ means no cache to serve stale data from). The bug shows up as a UX gap, not as a data correctness issue. Reach for `useOptimistic` whenever a user mutation should feel instant and the server round-trip is non-trivial. Do not add `revalidatePath` calls to actions whose underlying fetches are no-store; the calls are no-ops and hide the real reconciliation path.
+
+---
+
+## 2026-06-02: `QuickAddTask` Did Not Share Optimistic State With the Task Table
+
+### Symptoms
+
+After fixing the status refresh, the same UX gap appeared in `QuickAddTask`: the user submits a new task, the input clears, the toast fires, but the new row does not appear in the table until the server round-trip completes. Over Tailscale this is the same perceived delay as the status case.
+
+### Root Cause
+
+The first iteration put the `useOptimistic` state inside `TaskTable` and exposed the dispatch via `TaskTableContext`. That worked for `TaskStatusBadge` (a child cell of the table) but not for `QuickAddTask`, which is a sibling of `TaskTable` on every page that uses it. The optimistic state and the dispatch lived in different components, with no common parent to bridge them.
+
+### The Fix
+
+Lift the optimistic state out of `TaskTable` into a dedicated `TaskListProvider` that wraps both `TaskTable` and `QuickAddTask` on the same page.
+
+- `components/dashboard/tasks/task-list-provider.tsx` is a new client component. It takes `tasks` as a prop, owns the `useOptimistic` state, and exposes `optimisticTasks` and `addOptimistic` via `TaskListContext`. It also exports a `TaskListProviderActive` boolean context so consumers can tell "no provider" apart from "provider with empty list".
+- The reducer handles two action types: `status` (existing) and `create` (new). The `create` action prepends the new task to the list and de-dups by id defensively.
+- `TaskTable` reads `optimisticTasks` from `TaskListContext` when the active flag is true, otherwise falls back to its `tasks` prop. This keeps the component usable in both modes.
+- `TaskStatusBadge` now reads from `TaskListContext` instead of the old `TaskTableContext`.
+- `QuickAddTask` reads the same context. The input clears and the spinner shows immediately (synchronous feedback), then inside a `startTransition` after the server action returns it dispatches `{ type: "create", task: newTask }` and calls `router.refresh()`. If the caller has not wrapped it in a provider, the dispatch is a no-op and the page falls back to `router.refresh()` for reconciliation. The floating QuickAddTask in `FloatingActionMenu` is mounted by the dashboard layout, not by a page, so it has no shared table; it continues to use the no-op path.
+- `app/dashboard/tasks/page.tsx` and `app/dashboard/projects/[id]/page.tsx` now wrap their `TaskTable` and `QuickAddTask` in `TaskListProvider`. The fixed-position wrapper around the project's quick add still works because fixed positioning is viewport-relative.
+
+### Lesson
+
+When two client components on the same page need to share optimistic state, do not bury the state in one of them. Lift it to a dedicated provider and let both components consume it via context. The provider is a small pure-state component (no DOM) and the default context value should be a safe no-op so consumers outside a provider degrade gracefully. The `useTransition` boundary should wrap only the optimistic dispatch and the reconciliation, not the synchronous UI feedback (input clear, spinner).
+
 ## 2026-04-08: Cookie `secure` Flag Breaking Login via Tailscale HTTP
 
 ### Symptoms

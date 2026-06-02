@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -9,6 +10,7 @@ import { updateTaskAction } from "@/app/actions/productivity";
 import { Status } from "@/types/productivity";
 import { CheckCircle2, Circle, PlayCircle, XCircle, ListTodo, ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TaskListContext } from "../task-list-provider";
 
 const STATUS_OPTIONS: { label: string; value: Status; icon: React.ElementType }[] = [
   { label: "Backlog", value: "backlog", icon: ListTodo },
@@ -25,23 +27,31 @@ interface TaskStatusBadgeProps {
 
 export function TaskStatusBadge({ taskId, status }: TaskStatusBadgeProps) {
   const router = useRouter();
+  const { addOptimistic } = React.useContext(TaskListContext);
   const [open, setOpen] = React.useState(false);
-  const [isPending, setIsPending] = React.useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const currentOption = STATUS_OPTIONS.find((opt) => opt.value === status);
   const Icon = currentOption?.icon || Circle;
 
-  async function handleStatusChange(newStatus: Status) {
-    setIsPending(true);
-    try {
-      await updateTaskAction(taskId, { status: newStatus });
+  // The popover closes immediately so the user is not blocked by the server
+  // round-trip. The optimistic update is applied inside the transition so the
+  // table re-renders with the new status in the same frame. The server action
+  // and router.refresh() run in the background; when the new RSC payload
+  // arrives, the base `tasks` prop updates and useOptimistic reconciles.
+  function handleStatusChange(newStatus: Status) {
+    setOpen(false);
+    startTransition(async () => {
+      addOptimistic({ type: "status", taskId, status: newStatus });
+      try {
+        await updateTaskAction(taskId, { status: newStatus });
+      } catch (error) {
+        console.error(error);
+        // If the action fails, React reverts the optimistic update when the
+        // transition completes without a new prop arriving.
+      }
       router.refresh();
-      setOpen(false);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsPending(false);
-    }
+    });
   }
 
   return (

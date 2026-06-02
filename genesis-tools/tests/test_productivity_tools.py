@@ -14,6 +14,7 @@ import pytest
 from genesis_core.productivity import service as prod_service
 from genesis_core.productivity.db import _user_engines
 from genesis_tools.productivity_tools import (
+    CreateJournalTool,
     CreateProjectTool,
     CreateTaskTool,
     EditJournalTool,
@@ -497,3 +498,155 @@ class TestStatusEnumGuard:
             title="No status provided",
         )
         assert result.status == "success"
+
+
+# --- Foreign-key and blank-string guards (B1-B5) at the tool layer ---
+
+
+class TestForeignKeyGuardsAtTool:
+    """B1-B4: the tool must surface service-layer FK errors cleanly."""
+
+    def test_create_journal_rejects_missing_project_id(self, user_db_url):
+        """B1."""
+        result = _run(
+            CreateJournalTool(),
+            user_db_url=user_db_url,
+            entry_type="project",
+            reference_date="2026-06-02",
+            content="x",
+            project_id=99999,
+        )
+        assert result.status == "error"
+        assert "Project 99999 not found" in result.tool_response
+        # No journal was created
+        from genesis_core.productivity.models import JournalEntry
+        from sqlmodel import select as _select
+
+        rows = []
+        for session in get_session(user_db_url):
+            rows = list(session.exec(_select(JournalEntry)).all())
+        assert rows == []
+
+    def test_create_journal_with_valid_project_id_succeeds(self, user_db_url):
+        """B1 positive case."""
+        for session in get_session(user_db_url):
+            prod_service.create_project(session, {"name": "Real Project"})
+        project_id = _get_project_id(user_db_url, "Real Project")
+
+        result = _run(
+            CreateJournalTool(),
+            user_db_url=user_db_url,
+            entry_type="project",
+            reference_date="2026-06-02",
+            content="x",
+            project_id=project_id,
+        )
+        assert result.status == "success"
+
+    def test_edit_journal_rejects_missing_project_id(self, user_db_url):
+        """B2."""
+        journal_id = _create_journal(user_db_url)
+        result = _run(
+            EditJournalTool(),
+            user_db_url=user_db_url,
+            journal_id=journal_id,
+            old_str="Original",
+            new_str="Replaced",
+            project_id=88888,
+        )
+        assert result.status == "error"
+        assert "Project 88888 not found" in result.tool_response
+
+        # Journal must not have been modified
+        j = _get_journal(user_db_url, journal_id)
+        assert j.content == "Original content."
+        assert j.project_id is None
+
+    def test_create_task_rejects_missing_project_id(self, user_db_url):
+        """B3."""
+        result = _run(
+            CreateTaskTool(),
+            user_db_url=user_db_url,
+            title="Linked to ghost",
+            project_ids=[99999],
+        )
+        assert result.status == "error"
+        assert "Project(s) not found" in result.tool_response
+        assert "99999" in result.tool_response
+
+    def test_create_task_rejects_mixed_valid_and_missing_project_ids(self, user_db_url):
+        """B3 (multi-ID): the whole call fails, no partial link created."""
+        for session in get_session(user_db_url):
+            prod_service.create_project(session, {"name": "Real Project"})
+        real_id = _get_project_id(user_db_url, "Real Project")
+
+        result = _run(
+            CreateTaskTool(),
+            user_db_url=user_db_url,
+            title="Mixed links",
+            project_ids=[real_id, 99999],
+        )
+        assert result.status == "error"
+        assert "99999" in result.tool_response
+        # The real project link must not have been created either.
+        from genesis_core.productivity.models import Task
+        from sqlmodel import select as _select
+
+        tasks: list[Task] = []
+        for session in get_session(user_db_url):
+            tasks = list(session.exec(_select(Task)).all())
+        assert tasks == []
+
+    def test_update_tasks_rejects_missing_add_project_id(self, user_db_url):
+        """B4."""
+        task_id = None
+        for session in get_session(user_db_url):
+            task = prod_service.create_task(session, {"title": "Existing", "status": "todo"})
+            task_id = task.id
+        assert task_id is not None
+
+        result = _run(
+            UpdateTasksTool(),
+            user_db_url=user_db_url,
+            task_ids=[task_id],
+            add_project_ids=[55555],
+        )
+        assert result.status == "error"
+        assert "Project(s) not found" in result.tool_response
+        assert "55555" in result.tool_response
+
+        # Task must not have been linked
+        t = _get_task(user_db_url, task_id)
+        assert list(t.projects) == []
+
+    def test_update_tasks_remove_project_id_with_missing_id_is_noop(self, user_db_url):
+        """B4 (negative case): remove_project_ids with missing ID is fine."""
+        task_id = None
+        for session in get_session(user_db_url):
+            task = prod_service.create_task(session, {"title": "Existing", "status": "todo"})
+            task_id = task.id
+        assert task_id is not None
+
+        result = _run(
+            UpdateTasksTool(),
+            user_db_url=user_db_url,
+            task_ids=[task_id],
+            remove_project_ids=[99999],
+        )
+        assert result.status == "success"
+
+
+class TestBlankStringGuardsAtTool:
+    """B5: title and name must not be blank."""
+
+    @pytest.mark.parametrize("blank", ["", " ", "  \t\n "])
+    def test_create_task_rejects_blank_title(self, user_db_url, blank):
+        result = _run(CreateTaskTool(), user_db_url=user_db_url, title=blank)
+        assert result.status == "error"
+        assert "title is required and must not be blank" in result.tool_response
+
+    @pytest.mark.parametrize("blank", ["", " ", "  \t\n "])
+    def test_create_project_rejects_blank_name(self, user_db_url, blank):
+        result = _run(CreateProjectTool(), user_db_url=user_db_url, name=blank)
+        assert result.status == "error"
+        assert "name is required and must not be blank" in result.tool_response

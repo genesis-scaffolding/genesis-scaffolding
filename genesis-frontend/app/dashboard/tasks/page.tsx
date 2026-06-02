@@ -2,6 +2,7 @@ import { getTasksAction, getProjectsAction } from "@/app/actions/productivity";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
 import { QuickAddTask } from "@/components/dashboard/tasks/quick-add-task";
 import { TaskTable } from "@/components/dashboard/tasks/task-table";
+import { TaskListProvider } from "@/components/dashboard/tasks/task-list-provider";
 
 export default async function TasksPage() {
   const [tasks, projects] = await Promise.all([
@@ -18,9 +19,11 @@ export default async function TasksPage() {
             <p className="text-muted-foreground">Your global backlog and scheduled work.</p>
           </div>
 
-          <QuickAddTask />
+          <TaskListProvider tasks={tasks} projects={projects}>
+            <QuickAddTask />
 
-          <TaskTable tasks={tasks} projects={projects} />
+            <TaskTable tasks={tasks} projects={projects} />
+          </TaskListProvider>
         </div>
       </PageBody>
     </PageContainer>
