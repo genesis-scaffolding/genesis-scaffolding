@@ -1,6 +1,6 @@
 import { getProjectsAction } from "@/app/actions/productivity";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
-import { ProjectCard } from "@/components/dashboard/projects/project-card";
+import { ProjectSections } from "@/components/dashboard/projects/project-sections";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
@@ -33,11 +33,7 @@ export default async function ProjectsPage() {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
-          </div>
+          <ProjectSections projects={projects} />
         )}
       </PageBody>
     </PageContainer>
