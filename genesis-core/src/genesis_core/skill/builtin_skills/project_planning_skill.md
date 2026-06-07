@@ -1,73 +1,141 @@
 ---
 name: "project_planning_skill"
-description: "Use this skill when user wants to plan, make a plan, or break down a project or desired outcome into tasks and milestones. Triggered by phrases like 'plan this project', 'make a plan for X', 'break down this project', or similar."
+description: Plan a new project or update an existing one. Trigger when user asks to plan a project, plan for achieving a certain outcome, or modify/update/add tasks or journal entries to an existing project.
 version: "1.0"
 ---
 
-# Project Planning Skill
+## Project Planning & Update
 
-This skill is triggered when user wants to "plan", "make a plan", or "break down" a project or desired outcome.
+### Pre-step — Project List Scan
 
-Project planning is the process of breaking down a project into tasks. A project represents a distant desirable outcome that needs multiple actions to achieve. Each action is captured by a task.
+Before doing anything, search and display all projects to get a bearing on current status. This helps identify if the requested project already exists.
 
-## Project Planning Procedure
+---
 
-### Step 1: Read the existing project list
+## Part A — Determine the Target Project
 
-Use the tool to read the existing project list.
+**If the project is new:** Create a new project (see Part B).
 
-### Step 2: Find or create the project
+**If the project already exists:** Confirm with the user which project they are referring to. Proceed to Part D.
 
-Find the project to plan based on user's request. Confirm your finding with user and move to Step 5. Otherwise, move to Step 3 to create a project.
+---
 
-### Step 3: Identify the desired outcome
+## Part B — Creating a New Project
 
-Ask questions one by one to gather the following information:
-- What is the desired outcome? Or is this an official work project assigned to the user?
-- Are there any concrete deliverables to be made?
-- Is there any known deadline for this project?
+### Step 1 — Outcome Interview
 
-### Step 4: Create the project
+Interview the user one question at a time to understand the desired outcome. Ask ~3 thoughtful questions covering:
 
-Confirm with user the gathered information and then create the project in the system. Note the project id of the newly created project.
+- What business or purpose does this serve?
+- What does "done" or "success" look like?
+- Where is the starting position (existing assets, audience, infrastructure)?
+- What is the timeline or deadline?
 
-### Step 5: Identify milestones or deliverables
+After 3 questions, ask: "Anything else you want to add or consider?" for free-form input.
 
-Identify any major milestones or deliverables of the project by asking the user. If there is nothing specific, suggest a way to break down the project into larger chunks. Present the breakdown and iterate with user to refine until user approves.
+### Step 2 — Confirm and Summarise
 
-### Step 6: Break down milestones into tasks
+Present a summary of the gathered information and ask for confirmation. If the user has adjustments, work with them to refine until approved.
 
-For each chunk or milestone or deliverable, break it down into actionable tasks. Present the tasks and iterate with user until user approves. See the definition of actionable tasks below.
+### Step 3 — Create the Project
 
-### Step 7: Confirm the breakdown
+Once approved, create the project with:
 
-Confirm the breakdown of project into milestones and tasks with user and clearly present the list of tasks that would be created.
+- **Name:** clear, outcome-oriented
+- **Description:** capture purpose, starting position, strategy, timeline, and any nice-to-haves. Do NOT include dynamic data like deadlines, task IDs, or journal entry IDs.
+- **Status:** `todo`
 
-### Step 8: Update the project description
+### Step 4 — Milestone & Deliverable Identification
 
-Update the project description with overview and major milestones or deliverables.
+Tell the user: "Let's plan for the project. First, let's think about milestones and deliverables."
 
-### Step 9: Create the tasks
+Ask the user to brain-dump milestones and deliverables. Offer to provide recommendations if helpful.
 
-Use tool to create the project's tasks. These tasks must be assigned to the project being planned (use the correct project id in the create task tool).
+Recommendations must be **actionable** — each milestone is a deliverable that can be marked done, not a vague ongoing state (e.g., "consistent posting rhythm" is not actionable; "publish 4 posts" is).
 
-You can use tool to look up on the Internet for more insights before suggesting to the user how to break down an outcome into milestones and tasks, if you need more information than what is already in your training data.
+Ask up to 3 follow-up clarifying questions, one at a time. Only move on when the user approves the milestone list.
 
-## Variations
+### Step 5 — Save Milestones to Journal
 
-### Planning an existing project
+Once approved, create a project journal entry with:
 
-If user wants to plan for an existing project, search for the existing project's tasks as well. Show user existing tasks and ask whether they want to add to these tasks or delete these tasks and start fresh. Do as they instruct.
+- **Title:** `[Project Name]: Milestones & Deliverables`
+- **Type:** `project`
+- **Content:** list of approved milestones and deliverables
+- **Reference date:** today's date
 
-### Pausing the planning
+### Step 6 — Task Breakdown
 
-If user wants to pause the planning (e.g., they do not have time to complete), write down a "handover" document in the project description with all the findings so far and all necessary instructions so that you and the user can resume the process at a future time.
+Tell the user: "Now let's break these milestones into tasks."
 
-### Resuming from handover
+For each milestone, recommend actionable tasks small enough to be done in 1–2 sessions (aim for 1 hour per session). Present the full task list and iterate with the user until they are satisfied and explicitly approve.
 
-If "handover" information is detected in the project description, continue from there rather than starting the project planning from scratch.
+### Step 7 — Create Tasks
 
-## What Is an Actionable Task
+Once approved, create all tasks and link them to the project. Each task should have:
 
-- A task describes a concrete action (e.g., write a section, create a script, inspect a property) rather than a vague aspiration (e.g., be a better person, work out more).
-- A task is specific and small enough to finish in a few hours or at most a day (e.g., "write a subsection in methodology section" rather than "write the research paper").
+- A clear, actionable title
+- A brief description if needed
+- **Status:** `todo`
+
+Notify the user when all tasks have been added and project planning is complete.
+
+---
+
+## Part C — Mid-Planning Pause
+
+If planning must be paused and continued another day:
+
+1. Update the project description to add a **handover note** at the top:
+
+```
+[PLANNING IN PROGRESS — DO NOT FINALISE]
+- Planning started: [today's date]
+- What has been decided: [summary of approved milestones and outcome]
+- What has been done: [tasks identified so far, if any]
+- Where to continue: [next step, e.g., "finish task breakdown for Milestone 3"]
+After planning is complete, remove this note and clean up the description.
+```
+
+2. Update the project status to `in_progress` to signal active work.
+
+---
+
+## Part D — Updating an Existing Project
+
+### Type 1: Add New Tasks
+
+The user narrates items to add (e.g., as they walk through a house and see things to pack).
+
+Confirm details if anything is unclear. Create the tasks and link them to the project. Notify the user when done.
+
+### Type 2: Add Journal Entry
+
+The user asks to note something down about the project (e.g., research findings, a report, meeting notes).
+
+1. Search and review existing journal entries for this project.
+2. If a relevant entry already exists, ask the user: "I found an existing journal entry about this. Do you want me to add to it, or create a new one?"
+3. If nothing relevant exists, create a new project journal entry with the content.
+
+### Type 3: Add New Milestone or Deliverable
+
+1. Update the milestone journal entry to include the new milestone.
+2. Go through the task breakdown process (Part B, Step 6) for the new milestone only.
+3. Create the new tasks and link them to the project.
+
+### Type 4: Adjust the Project Plan
+
+The user says things have changed and the plan needs to be reworked.
+
+1. Run the milestone identification process again (Part B, Step 4), using existing milestones as a starting point.
+2. Run the task breakdown process again (Part B, Step 6).
+3. Mark old tasks that are no longer relevant as `canceled`.
+4. Update the milestone journal entry with the revised milestones.
+5. Create new tasks as needed.
+6. Clean up the project description (remove any handover notes if present).
+
+---
+
+## Completion
+
+After planning is complete (new project or update), clean up the project description — remove any handover notes added during a mid-planning pause.

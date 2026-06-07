@@ -1,56 +1,72 @@
 ---
 name: "briefing_skill"
-description: "Use this skill when user asks for a briefing, agenda, status update, or what is on their plate for today, this week, this month, or this year. Triggered by phrases like briefing, agenda, what is on my plate, what do I have today, or similar."
+description: Prepare a daily briefing and create a fresh daily journal entry. Trigger when user asks for daily briefing, to prepare daily journal, help prepare for the day, or says "let's start the day"
 version: "1.0"
 ---
 
-# Briefing Skill
+## Daily Briefing & Journal Preparation
 
-This skill is triggered when user asks for "briefing", "agenda", "what is on my plate", or similar status update for today, this week, this month, or this year.
+### Step 1 — Journal Scan
 
-## Briefing Procedure
+Search and read the following journal entries:
 
-### Step 1: Determine the time frame
+- Daily: today, yesterday, day before yesterday
+- Weekly: this week, last week
+- Monthly: this month, last month
+- Yearly: this year
 
-Determine the time frame for the briefing (day, week, month, year) based on user request. If it cannot be found, default to daily briefing.
+If any entry does not exist, skip it. Move on once all found entries are read.
 
-### Step 2: Gather information
+### Step 2 — Task Fetch
 
-Gather as much of the following as exists. Skip anything that cannot be found:
-- Project list
-- Daily journal entries: yesterday and today
-- Weekly journal entry: current week
-- Monthly journal entry: current month and next month
-- Yearly journal entry: current year
-- Tasks: assigned to this week, overdue tasks (assigned to previous days but not completed), incoming deadlines
+Search tasks assigned Mon–Sun of the current week. This gives the week's planned workload plus any overdue items.
 
-### Step 3: Deliver the briefing
+### Step 3 — Active Project Identification
 
-Deliver a briefing to user with the suitable information based on the type of briefing below.
+1. Get all projects (overview level only).
+2. Read the weekly and monthly journal entries. Identify which projects are in focus for this week based on what's written there.
+3. Read the details of those active projects.
+4. If no active project can be identified from the journals, skip this step.
 
-## Daily Briefing
+### Step 4 — Briefing Presentation
 
-Present:
-- Monthly and weekly goals
-- Progress so far this week
-- Assigned tasks for today and any overdue tasks
-- Any upcoming deadlines
+Present everything conversationally. Do not use phrases like "according to the plan" or "as written in the journal." Instead, frame it as the user's own intention (e.g., "this week you planned to...", "for today your assigned tasks are...").
 
-Offer to write down the briefing into a day overview section in the daily journal entry for user if the journal entry or such section does not exist.
+The briefing must include:
 
-## Weekly Briefing
+- Today's date
+- Weekly goal and active project (or note if none is set)
+- Today's assigned tasks plus overdue tasks — include task IDs inline for easy reference
+- Upcoming deadlines
+- Month-end reminder if near the end of the month
 
-Present:
-- Yearly, monthly, and weekly goals
-- Progress so far this month
-- Assigned tasks of this week
-- Any upcoming deadlines
+End by asking the user whether they want to proceed as planned or make adjustments.
 
-If there is no timetable or weekly plan, direct user to the long-horizon planning skill.
+### Step 5 — Adjustment Handling
 
-## Monthly Briefing
+Wait for the user's response. Possible outcomes:
 
-Present:
-- Yearly and monthly goals
-- Progress so far this year
-- Plan for this month
+- User asks for a project or day's task list → fetch and present
+- User asks to add tasks to a project → create the tasks
+- User asks to change task assigned dates → update them
+- User approves → proceed to Step 6
+
+### Step 6 — Journal Creation
+
+Once the user approves, create a daily journal entry with the following three sections:
+
+```
+## Daily Goals
+
+- [list of approved tasks with task IDs]
+
+## Logs
+
+
+
+## Reflection
+```
+
+- **Daily Goals**: list the approved tasks with their IDs
+- **Logs**: leave empty for the user to fill throughout the day
+- **Reflection**: leave empty for end-of-day debrief

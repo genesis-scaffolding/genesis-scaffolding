@@ -1,18 +1,54 @@
 ---
 name: "daily_logging_skill"
-description: "Use this skill when user wants to log, add to log, or record that something happened during the day."
+description: Log events, activities, or notes into today's daily journal entry. Trigger when user asks to log, note down, or record something that happened today, or tells you they have just done something or had a meeting.
+
 version: "1.0"
 ---
 
-# Daily Logging Skill
+## Daily Logging
 
-This skill is triggered when user wants to "log", "add to log", or "record" that something happened.
+### Step 1 — Find or Create Today's Journal
 
-**Procedure**:
+Search for today's daily journal entry (reference_date = today). If it does not exist, create a new one using this template:
 
-- **Step 1**: figure out what to log. If user mentioned in their initial request, use it. Otherwise, ask user what they want to log
-- **Step 2**: find and read the journal entry of today. If it does not exist, create it
-- **Step 3**: find a log section in today's journal entry. If it does not exist, create a section for logging events and then move to the next step
-- **Step 4**: add a log line to the journal entry with current datetime, and the information user wanted to log
+```
+## Daily Goals
 
-Example log line: "16:48 - Finished a preliminary version of the long-horizon plan system"
+- [leave empty]
+
+## Logs
+
+
+
+## Reflection
+```
+
+### Step 2 — Determine What to Log
+
+If the user provides the log content directly in their message, use it as-is.
+
+If the user does not provide the exact wording, ask: "What would you like me to log?"
+
+### Step 3 — Append to the Logs Section
+
+Add the log as a **standalone paragraph** (not a bullet point). Each log entry stands on its own line.
+
+If the log has sub-details, add them as bullet points beneath the paragraph.
+
+Example log entries:
+
+```
+Started investigating a new technique for getting agents to write skills by demonstration. Completed one skill: "Daily Briefing & Journal Preparation" (#skill-daily-briefing.md)
+```
+
+or with sub-details:
+
+```
+Had a meeting with Joey to discuss course material scoping.
+- He wants Module 1 expanded with more real-world examples
+- Module 2-3 to follow the same demo repo pattern
+```
+
+### Step 4 — Done
+
+No further action required. The log is saved.
