@@ -134,6 +134,18 @@ The user says things have changed and the plan needs to be reworked.
 5. Create new tasks as needed.
 6. Clean up the project description (remove any handover notes if present).
 
+### Type 5: Break Down a Task
+
+The user asks to break down a specific task into smaller, more actionable subtasks.
+
+1. Search for the task in the relevant project. If the task has a description, read it — the user may have already listed subtasks there.
+2. Confirm the task with the user and show what was found (including any existing subtask list in the description).
+3. Ask how they want to break it down. Offer recommendations if helpful.
+4. Once the breakdown is gathered, present two options:
+   - **Create new tasks** for each subtask, and cancel the original task
+   - **Update the description** of the original task to document the subtasks (without creating new tasks)
+5. Ask which option the user prefers and act accordingly.
+
 ---
 
 ## Completion

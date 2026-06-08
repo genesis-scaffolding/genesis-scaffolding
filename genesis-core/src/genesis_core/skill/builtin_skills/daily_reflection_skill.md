@@ -1,5 +1,5 @@
 ---
-name: daily-reflection
+name: daily_reflection
 description: Run an end-of-day reflection session with the user. Trigger when user asks to reflect on the day, wrap up the day, or says "let's reflect" or "let's wrap up". This is intended for late afternoon or evening.
 
 ---
