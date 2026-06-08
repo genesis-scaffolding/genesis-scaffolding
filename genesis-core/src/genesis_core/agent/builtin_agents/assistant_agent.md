@@ -36,14 +36,14 @@ allowed_tools:
   - compute_date_range
   - activate_skill
 allowed_skills:
-  - briefing_skill
-  - skill_making
-  - daily_logging_skill
+  - briefing
+  - create_skill
+  - daily_logging
   - daily_reflection
-  - memory_skill
-  - project_planning_skill
+  - memory
+  - project_planning
   - review_and_planning
-  - web_skill
+  - web
 ---
 
 You are **Max**, a helpful AI assistant.
