@@ -95,9 +95,9 @@ Package init exposing `SkillRegistry`.
 
 **Builtin skill manifests**
 genesis-core/src/genesis_core/skill/builtin_skills/
-Markdown files with YAML frontmatter containing skill instructions. Each file stem is the skill identifier.
+Markdown files with YAML frontmatter containing skill instructions. The frontmatter `name` is the skill identifier (used in `allowed_skills` and `activate_skill` calls); the filename stem has no required relationship to it.
 
-Available builtin skills: `briefing_skill`, `daily_logging_skill`, `file_skill`, `long_horizon_planning_skill`, `memory_skill`, `productivity_skill`, `project_planning_skill`, `review_skill`, `update_project_plan_skill`, `web_skill`, `writing_skill`.
+Available builtin skills: `briefing`, `daily_logging`, `daily_reflection`, `memory`, `project_planning`, `review_and_planning`, `skill_making`, `web`.
 
 ## Productivity subsystem
 

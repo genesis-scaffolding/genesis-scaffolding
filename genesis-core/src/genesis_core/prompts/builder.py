@@ -16,16 +16,16 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _TOOL_TO_SKILL = {
-    "remember_this": "memory_skill",
-    "search_memories": "memory_skill",
-    "list_memories": "memory_skill",
-    "get_memory": "memory_skill",
-    "update_memory": "memory_skill",
-    "delete_memory": "memory_skill",
-    "rebuild_fts_index": "memory_skill",
-    "web_search": "web_skill",
-    "news_search": "web_skill",
-    "fetch_web_page": "web_skill",
+    "remember_this": "memory",
+    "search_memories": "memory",
+    "list_memories": "memory",
+    "get_memory": "memory",
+    "update_memory": "memory",
+    "delete_memory": "memory",
+    "rebuild_fts_index": "memory",
+    "web_search": "web",
+    "news_search": "web",
+    "fetch_web_page": "web",
 }
 
 # Tools that indicate the productivity subsystem is active.

@@ -36,7 +36,7 @@ Detailed instructions for the skill...
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `name` | `str` | Yes | Display name. Used as the skill identifier. Must match the filename stem. |
+| `name` | `str` | Yes | Display name and the skill identifier (used in `allowed_skills` and in `activate_skill` calls). The filename stem has no required relationship to this value. Surrounding whitespace is stripped at load and lookup time. |
 | `description` | `str` | No | Brief description shown in the system prompt skill list. Write this as a trigger condition - state when the agent should call `activate_skill` to load this skill. |
 | `version` | `str` | No | Version string. Defaults to `"1.0"`. |
 
@@ -75,19 +75,19 @@ This directory is created automatically in the user's internal state directory. 
 
 ### Step 2: Create the manifest file
 
-Filename becomes the skill name. Use lowercase with underscores:
+Choose a descriptive filename for filesystem organisation. The filename itself is not used as the identifier — the `name` field in the frontmatter is. A common convention is to use lowercase with underscores and have the filename stem match `name` for readability, but they are decoupled:
 
 ```
 genesis-core/src/genesis_core/skill/builtin_skills/coding_style_skill.md
 ```
 
-The filename stem `coding_style_skill` is the identifier used in `allowed_skills`.
+In `allowed_skills` (and in `activate_skill` calls), refer to the skill by its frontmatter `name`, not by the filename.
 
 ### Step 3: Write the manifest
 
 ```markdown
 ---
-name: "Coding Style Skill"
+name: "coding_style_skill"
 description: "Guidelines for writing maintainable Python code"
 version: "1.0"
 ---
@@ -148,8 +148,8 @@ If `activate_skill` is present but a skill referenced in `allowed_skills` cannot
 When `activate_skill` is in the tool list, the system automatically adds any builtin skill that maps to the agent's tools but is missing from `allowed_skills`. A warning is logged:
 
 ```
-Agent 'Max' has tools ['read_file', 'remember_this'] but is missing the
-corresponding skill(s) ['file_skill', 'memory_skill']. Automatically
+Agent 'Max' has tools ['web_search', 'remember_this'] but is missing the
+corresponding skill(s) ['web', 'memory']. Automatically
 injected for this session. Add these skills to the agent manifest's
 allowed_skills list.
 ```
@@ -168,7 +168,7 @@ The tool-to-skill mapping is documented in [../agent_skill.md](../agent_skill.md
 
 ## Best Practices
 
-1. **Name should match filename** - The `name` field in frontmatter should match the file stem (e.g., `coding_style_skill.md` has `name: "Coding Style Skill"` or `name: "coding_style_skill"`). Both work, but be consistent.
+1. **Choose a stable `name` and reference skills by it** - The frontmatter `name` is the identifier the registry keys on and the only thing that matters for `allowed_skills` and `activate_skill` calls. The filename is free to choose; pick something readable and keep it stable. A common convention is to use lowercase_with_underscores and to mirror `name` in the filename stem for grep-ability, but it is not enforced.
 
 2. **Write the description as a trigger condition** - State explicitly when the agent should load this skill. For example: "Use this skill when user asks to write or review code."
 

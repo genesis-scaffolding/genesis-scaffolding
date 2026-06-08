@@ -37,7 +37,7 @@ You are a writing specialist. Your role is to help produce high-quality written 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | `str` | required | Display name. Used as the skill identifier in agent manifests. |
+| `name` | `str` | required | Display name and the skill identifier used in agent manifests (`allowed_skills`) and in `activate_skill` calls. The filename stem has no required relationship to this value. |
 | `description` | `str` | `""` | Brief description shown to the LLM when listing available skills. This field should state the trigger condition - when should the agent call `activate_skill` to load this skill? |
 | `version` | `str` | `"1.0"` | Version string for the skill definition. |
 
@@ -54,7 +54,7 @@ The markdown body after the closing `---` is the skill instructions. It is store
 - First path is read-only - ships builtin skills with the package.
 - Last path is the user's private skill directory - writable.
 
-The file stem (filename without `.md`) is used as the skill name, for example `writing_skill.md` becomes `"writing_skill"`.
+The `name` field in each manifest's YAML frontmatter is used as the skill identifier. The filename is purely for filesystem organisation and may differ from `name` (for example `daily_logging.md` carries `name: "daily_logging"`, but a file could just as well be named `daily_journal.md` while declaring `name: "daily_logging"`). The `SkillRegistry` strips surrounding whitespace from `name` at load time and on lookup, so accidental newlines or trailing spaces in the frontmatter will not cause silent misses.
 
 ## Skill Registry
 
@@ -70,20 +70,24 @@ class SkillRegistry:
     def get_all_skills(self) -> list[SkillConfig]
 ```
 
-The registry scans all search paths on initialization, parses `.md` files with frontmatter, and stores `SkillConfig` blueprints keyed by file stem.
+The registry scans all search paths on initialization, parses `.md` files with frontmatter, and stores `SkillConfig` blueprints keyed by the frontmatter `name`.
 
 ## Builtin Skills
 
-The following builtin skills are available:
+The following builtin skills ship with the package. The identifier in the `Skill` column is the value of the `name` field in each manifest's frontmatter (which is what goes in `allowed_skills` and in `activate_skill` calls).
 
 | Skill | Trigger |
 |---|---|
-| `memory_skill` | User references something from the past, a preference, a habit, or a previous conversation |
-| `productivity_skill` | User asks about tasks, projects, calendar, agenda, plans, or journal entries |
-| `web_skill` | User asks about current events, news, or factual information needing web search |
-| `file_skill` | User asks to read, write, edit, list, search, or organize files in the working directory |
+| `briefing` | User asks for daily briefing, to prepare a daily journal, to prepare for the day, or says "let's start the day" |
+| `daily_logging` | User asks to log, note down, or record something that happened today, or reports they have just done something or had a meeting |
+| `daily_reflection` | User asks to reflect on the day, wrap up the day, or says "let's reflect" / "let's wrap up" (typically late afternoon or evening) |
+| `memory` | User references something from the past, a preference, a habit, a previous conversation, or a past event; or a memory-worthy moment is detected (learning something new about the user, a significant conversation, or a standing instruction) |
+| `project_planning` | User asks to plan a project, plan for achieving an outcome, or modify / update / add tasks or journal entries on an existing project |
+| `review_and_planning` | User asks to plan for, review, or wrap up a week, month, or year |
+| `skill_making` | User says "let's build a skill", "I want to document a skill for X", "let's revamp a skill", or similar |
+| `web` | User asks about current events, recent news, factual information that may have changed since training data, or requests a web search or page fetch |
 
-These skills are extracted from the previous prompt fragment system and migrated into skill manifests. Each builtin skill's manifest lives in `genesis-core/src/genesis_core/skill/builtin_skills/`.
+Each builtin skill's manifest lives in `genesis-core/src/genesis_core/skill/builtin_skills/` (one file per skill, e.g. `memory.md`).
 
 ## Agent Integration
 
@@ -143,8 +147,8 @@ The skills you have access to in this session are:
 When `activate_skill` is in the tool list, `build_system_prompt()` checks whether the agent's tools map to any builtin skills that are not already in `allowed_skills`. If so, those skills are automatically added to the session skill list and a warning is logged:
 
 ```
-Agent 'Max' has tools ['read_file', 'remember_this'] but is missing the
-corresponding skill(s) ['file_skill', 'memory_skill']. Automatically
+Agent 'Max' has tools ['web_search', 'remember_this'] but is missing the
+corresponding skill(s) ['web', 'memory']. Automatically
 injected for this session. Add these skills to the agent manifest's
 allowed_skills list.
 ```
@@ -153,14 +157,12 @@ This prevents the agent from having powerful tools without the guidance to use t
 
 ### Tool-to-Skill Mapping
 
-The following tool names trigger auto-injection of the corresponding builtin skill:
+The following table maps each builtin skill to the tool names that trigger its auto-injection into `allowed_skills`. The `Skill` column matches the frontmatter `name` of the corresponding builtin manifest.
 
 | Skill | Triggering Tools |
 |---|---|
-| `memory_skill` | `remember_this`, `search_memories`, `list_memories`, `get_memory`, `update_memory`, `delete_memory`, `rebuild_fts_index` |
-| `productivity_skill` | `search_tasks`, `read_task`, `search_projects`, `read_project`, `search_journals`, `read_journal`, `create_task`, `create_project`, `create_journal`, `update_tasks`, `update_project`, `edit_journal` |
-| `file_skill` | `read_file`, `list_files`, `write_file`, `edit_file`, `find_files`, `delete_file`, `move_file`, `search_file_content` |
-| `web_skill` | `web_search`, `news_search`, `fetch_web_page` |
+| `memory` | `remember_this`, `search_memories`, `list_memories`, `get_memory`, `update_memory`, `delete_memory`, `rebuild_fts_index` |
+| `web` | `web_search`, `news_search`, `fetch_web_page` |
 
 ### Skill Registry Pass-through
 

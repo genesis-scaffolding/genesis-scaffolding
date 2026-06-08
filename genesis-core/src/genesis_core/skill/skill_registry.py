@@ -38,18 +38,22 @@ class SkillRegistry:
                     raw_data["instructions"] = manifest.content.strip()
 
                     config = SkillConfig.model_validate(raw_data)
-                    self.blueprints[md_file.stem] = config
+                    # Normalise: strip surrounding whitespace so accidental newlines
+                    # or trailing spaces in the frontmatter do not cause silent
+                    # lookup misses later on.
+                    skill_name = config.name.strip()
+                    self.blueprints[skill_name] = config
                 except Exception as e:
                     logger.error("Error loading %s: %s", md_file.name, e, exc_info=True)
                     continue
 
     def get_skill(self, name: str) -> SkillConfig | None:
-        """Look up a single skill by name (file stem)."""
-        return self.blueprints.get(name)
+        """Look up a single skill by name."""
+        return self.blueprints.get(name.strip())
 
     def get_skills_by_names(self, names: list[str]) -> list[SkillConfig]:
         """Return skills matching the given names. Silently skip missing names."""
-        return [self.blueprints[name] for name in names if name in self.blueprints]
+        return [self.blueprints[name.strip()] for name in names if name.strip() in self.blueprints]
 
     def get_all_skills(self) -> list[SkillConfig]:
         """Return all loaded skills."""
