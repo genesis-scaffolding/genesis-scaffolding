@@ -1,5 +1,5 @@
 ---
-name: "memory_skill"
+name: "memory"
 description: "Use this skill when user references something from the past, a preference, a habit, a previous conversation, or a past event; or when you notice a memory-worthy moment such as learning something new about the user, a significant conversation, or an instruction."
 version: "1.0"
 ---

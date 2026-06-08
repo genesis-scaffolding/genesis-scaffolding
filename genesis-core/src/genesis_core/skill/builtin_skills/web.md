@@ -1,5 +1,5 @@
 ---
-name: "web_skill"
+name: "web"
 description: "Use this skill when user asks about current events, recent news, factual information that may have changed since your training data, or requests a web search or page fetch."
 version: "1.0"
 ---

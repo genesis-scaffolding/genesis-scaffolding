@@ -1,5 +1,5 @@
 ---
-name: "project_planning_skill"
+name: "project_planning"
 description: Plan a new project or update an existing one. Trigger when user asks to plan a project, plan for achieving a certain outcome, or modify/update/add tasks or journal entries to an existing project.
 version: "1.0"
 ---

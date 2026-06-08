@@ -1,5 +1,5 @@
 ---
-name: "daily_logging_skill"
+name: "daily_logging"
 description: Log events, activities, or notes into today's daily journal entry. Trigger when user asks to log, note down, or record something that happened today, or tells you they have just done something or had a meeting.
 
 version: "1.0"

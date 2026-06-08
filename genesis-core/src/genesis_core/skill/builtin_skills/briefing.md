@@ -1,5 +1,5 @@
 ---
-name: "briefing_skill"
+name: "briefing"
 description: Prepare a daily briefing and create a fresh daily journal entry. Trigger when user asks for daily briefing, to prepare daily journal, help prepare for the day, or says "let's start the day"
 version: "1.0"
 ---
